@@ -1,0 +1,30 @@
+dataset_id: GSE124530_OE_let_7c_5p
+mirna_name: hsa-let-7c-5p
+experiment_type: OE
+gse: GSE124530
+source:
+  mode: reads
+  genome_fasta_path: /data1/repos/FuNmiRBench/data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+  gtf_path: /data1/repos/FuNmiRBench/data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf.gz
+  fastqc_threads: 8
+  fastp_threads: 8
+  star_threads: 16
+  featurecounts_threads: 8
+comparison:
+  control_samples:
+  - sample_id: GSM3535919
+    reads_1: /data1/repos/FuNmiRBench/data/experiments/raw/GSE124530/SRR8382242.fastq.gz
+  - sample_id: GSM3535920
+    reads_1: /data1/repos/FuNmiRBench/data/experiments/raw/GSE124530/SRR8382243.fastq.gz
+  treated_samples:
+  - sample_id: GSM3535869
+    reads_1: /data1/repos/FuNmiRBench/data/experiments/raw/GSE124530/SRR8382192.fastq.gz
+  - sample_id: GSM3535870
+    reads_1: /data1/repos/FuNmiRBench/data/experiments/raw/GSE124530/SRR8382193.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HeLa
+  treatment: Overexpression of hsa-let-7c-5p
+  tissue: Cervix
+  method: RNA-seq
+  article_pubmed_id: https://pubmed.ncbi.nlm.nih.gov/30670076
