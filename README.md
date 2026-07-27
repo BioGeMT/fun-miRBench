@@ -80,6 +80,12 @@ and selects a small set of curated experiment datasets plus the registered exter
 
 ### 1. Add Experiment Data
 
+Raw experiment data (FASTQs or a pre-existing count matrix) can be fetched directly from GEO and
+turned into a ready-to-review YAML config automatically — see the dedicated
+[GEO download pipeline](pipelines/geo/README.md) for the full GEO → YAML workflow. Once you have a
+config, either from that pipeline or written by hand, the steps below run the RNA-seq processing
+(QC/trim/align/count or count-matrix DESeq2) that produces the DE table.
+
 The experiment-ingestion pipeline creates DE tables under `data/experiments/processed/` for local
 workflow use.
 
