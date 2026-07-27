@@ -189,6 +189,7 @@ Benchmark DE tables use a canonical schema independent of the DE method:
 - `gene_id`: Ensembl gene identifier
 - `logFC`: signed log fold change
 - `FDR`: adjusted p-value or q-value used for FDR-thresholded evaluation
+- `control_mean_normalized_count`: mean of the DESeq2-normalized counts across the control samples
 - `PValue`: optional raw p-value used to classify rows with missing adjusted p-values
 
 Common native headers are normalized when benchmark tables are read. For example, `log2FoldChange`
