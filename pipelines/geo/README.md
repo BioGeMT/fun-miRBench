@@ -262,8 +262,9 @@ pipelines/experiments/configs/{dataset_id}.yaml
 
 ## Step 5 - Run the RNA-seq pipeline
 
-Once the YAML config is reviewed and ready, refer to the [main project README](../../README.md)
-for instructions on running the RNA-seq pipeline (`funmirbench/experiments_pipeline.py`).
+Once the YAML config is reviewed and ready, refer to the
+[experiment ingestion pipeline README](../experiments/README.md) for instructions on running the
+RNA-seq pipeline (`funmirbench/experiments_pipeline.py`).
 
 ---
 
