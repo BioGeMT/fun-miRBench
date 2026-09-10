@@ -6,10 +6,10 @@ gse: GSE93717
 source:
   mode: reads
 
-  # Default: use the shared Ensembl v109 genome reference sources downloaded by
+  # Default: use the shared Ensembl v115 genome reference sources downloaded by
   # `uv run funmirbench-experiments-download-examples`.
-  genome_fasta_path: data/experiments/raw/refs/ensembl_v109/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-  gtf_path: data/experiments/raw/refs/ensembl_v109/Homo_sapiens.GRCh38.109.gtf.gz
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf.gz
 
   fastqc_threads: 8
   fastp_threads: 8

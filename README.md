@@ -126,7 +126,7 @@ That downloader fetches:
 
 - the real `GSE253003` count matrix
 - the real `GSE93717` FASTQ files
-- the shared Homo sapiens Ensembl v109 genome FASTA and GTF used by the reads example
+- the shared Homo sapiens Ensembl v115 genome FASTA and GTF used by the reads example
 
 Run the real count-matrix example:
 
@@ -147,8 +147,14 @@ Tracked example configs:
 
 Reads configs can either:
 
-- use local `reads_1` and optional `reads_2`
+- use local `reads_1` and optional `reads_2`; each value may be one path or a
+  list of technical-run paths for the same biological sample
 - use local `genome_fasta_path` and `gtf_path`
+
+Technical runs listed for one sample are combined before QC and trimming.
+Single-end and paired-end biological samples may coexist in one comparison;
+featureCounts processes the two layouts separately and the pipeline combines
+their gene-count columns before DESeq2.
 
 So the practical reads flow is:
 
@@ -156,8 +162,8 @@ So the practical reads flow is:
 2. run `uv run funmirbench-experiments-download-examples`
 3. run `uv run funmirbench-experiments --config pipelines/experiments/configs/gse93717.reads.example.yaml`
 
-The shipped reads example now points at the downloaded Ensembl v109 reference source files under
-`data/experiments/raw/refs/ensembl_v109/`, so it builds the derived STAR index automatically.
+The shipped reads example now points at the downloaded Ensembl v115 reference source files under
+`data/experiments/raw/refs/ensembl_v115/`, so it builds the derived STAR index automatically.
 
 Each run writes:
 
@@ -350,4 +356,10 @@ uv run funmirbench-validate-experiments --experiments-tsv metadata/mirna_experim
 uv run funmirbench-experiments-download-examples
 uv run funmirbench-experiments --config config.yaml
 uv run funmirbench-sync-metadata
+```
+
+## Tests
+
+```bash
+uv run python -m unittest discover -s tests
 ```

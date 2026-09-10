@@ -125,6 +125,8 @@ gene_id_column:      (empty)
 Provide GSM sample accessions. The pipeline resolves each GSM to its SRR run(s) via
 the NCBI API before downloading. Useful when you want to copy accessions directly from
 the GEO page, or when one sample has multiple runs that you prefer not to list individually.
+Multiple runs belonging to one GSM remain one biological sample in the generated
+config and are combined before QC and trimming.
 
 ```
 id:                  GSE129076_OE_miR_21_5p
@@ -240,14 +242,14 @@ Key options:
 The YAML is auto-generated from the TSV and uses sensible defaults, but you should
 verify and adjust the following before proceeding:
 
-- **Genome reference paths** — the defaults point to Ensembl v109 (GRCh38). If your
+- **Genome reference paths** — the defaults point to Ensembl v115 (GRCh38). If your
   experiment uses a different genome or Ensembl version, update `genome_fasta_path`
   and `gtf_path` accordingly.
 - **Thread counts** — `fastqc_threads`, `fastp_threads`, `star_threads`, and
   `featurecounts_threads` are set to fixed defaults. Adjust them to match the
   resources available on your machine.
-- **Sample identifiers** — check that `sample_id` values and file paths look correct,
-  especially for experiments with multiple SRR runs per GSM.
+- **Sample identifiers** — check that `sample_id` values and file paths look correct.
+  Multiple SRR paths for one GSM should appear under one biological sample.
 - **Metadata fields** — organism, cell line, tissue, and treatment are copied from
   the TSV; verify they are accurate before archiving results.
 
