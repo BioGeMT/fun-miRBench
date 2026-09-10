@@ -1,0 +1,19 @@
+2026-07-27 17:25:38,489 INFO pipeline: Starting miRBind2 standardization pipeline
+2026-07-27 17:25:38,489 INFO pipeline: Step 1/6: Download or resolve shared miRBase and raw miRBind2 predictions
+2026-07-27 17:25:38,489 INFO utils: Using cached miRBase mature.fa resource: data/common_resources/mirbase/mature.fa
+2026-07-27 17:25:38,490 INFO utils: Downloading miRBind2 raw prediction file: pipelines/standardized_predictors/mirbind2/data/3utrs_mirbind2_predictions.tsv.gz
+2026-07-27 17:26:29,909 INFO utils: Saved miRBind2 raw prediction file: pipelines/standardized_predictors/mirbind2/data/3utrs_mirbind2_predictions.tsv.gz
+2026-07-27 17:26:29,933 INFO pipeline: Step 2/6: Load raw miRBind2 predictions
+2026-07-27 17:28:08,400 INFO utils: Drop invalid raw miRBind2 prediction rows: 50171840 -> 50171840 rows
+2026-07-27 17:28:40,128 INFO utils: Drop exact duplicate raw miRBind2 prediction rows: 50171840 -> 50171840 rows
+2026-07-27 17:28:40,564 INFO pipeline: Step 3/6: Create miRNA name-to-MIMAT mapping from miRBase mature.fa
+2026-07-27 17:28:40,588 INFO utils: Loaded 2656 human miRNA name-to-MIMAT mappings from miRBase 22.1
+2026-07-27 17:28:40,589 INFO pipeline: Step 4/6: Annotate raw miRNA names to MIMAT IDs
+2026-07-27 17:28:49,058 INFO utils: Drop prediction rows with miRNA names that cannot map to MIMAT IDs: 50171840 -> 50171840 rows
+2026-07-27 17:28:50,017 INFO pipeline: Step 5/6: Build standardized output columns
+2026-07-27 17:31:20,610 INFO utils: Drop standardized rows with invalid canonical values or scores: 50171840 -> 50171840 rows
+2026-07-27 17:31:56,980 INFO utils: Drop duplicate standardized Ensembl_ID-miRNA_ID pairs after MIMAT mapping: 50171840 -> 50171840 rows
+2026-07-27 17:31:57,217 INFO pipeline: Step 6/6: Validate and write standardized output table
+2026-07-27 17:33:19,214 INFO pipeline: Output written to: data/predictions/mirbind2/mirbind2_standardized.tsv
+2026-07-27 17:33:19,230 INFO pipeline: Rows written: 50171840
+2026-07-27 17:33:19,232 INFO pipeline: Relative output path: data/predictions/mirbind2/mirbind2_standardized.tsv

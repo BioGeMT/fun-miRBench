@@ -6,7 +6,7 @@ This directory contains the standardization pipeline for microT-CNN gene-level p
 
 - `pipeline.py`: CLI entrypoint for the pipeline.
 - `utils.py`: helpers for logging, downloads, mapping, score conversion, and output construction.
-- `microt_cnn_pipeline.log`: example log from a completed run (created when you run the pipeline).
+- `data/predictions/microt_cnn/microt_cnn_pipeline.log`: example log from a completed run, relative to the repository root.
 
 ## What The Pipeline Does
 
@@ -50,8 +50,10 @@ relative to the repository root.
 The pipeline downloads external resources only when the expected cache files are missing. By default, the cache files are:
 
 ```
-pipelines/standardized_predictors/microt_cnn/data/resources/mirbase/mature.fa
+data/common_resources/mirbase/mature.fa
+data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
 pipelines/standardized_predictors/microt_cnn/data/microT_CNN_prediction_result_human_all_scores_gene_level.tsv.gz
+pipelines/standardized_predictors/microt_cnn/resources/ensembl115_tx2gene.tsv.gz
 ```
 
 Local prediction-file overrides are not supported. The Zenodo source and cache path above are the canonical source for reproducible standardization.
@@ -70,11 +72,11 @@ uv run pipelines/standardized_predictors/microt_cnn/pipeline.py
 
 ```bash
 uv run pipelines/standardized_predictors/microt_cnn/pipeline.py \
-  --tx2gene-file pipelines/standardized_predictors/microt_cnn/data/resources/ensembl/ensembl115_tx2gene.tsv.gz \
-  --ensembl-gtf-file pipelines/standardized_predictors/microt_cnn/data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz \
-  --resources-dir pipelines/standardized_predictors/microt_cnn/data/resources \
-  --output data/predictions/microt_cnn/microt_cnn_standardized.tsv \
-  --log-file pipelines/standardized_predictors/microt_cnn/microt_cnn_pipeline.log \
+  --common-resources-dir data/common_resources \
+  --data-dir pipelines/standardized_predictors/microt_cnn/data \
+  --resources-dir pipelines/standardized_predictors/microt_cnn/resources \
+  --standardized-output-file data/predictions/microt_cnn/microt_cnn_standardized.tsv \
+  --log-file data/predictions/microt_cnn/microt_cnn_pipeline.log \
   --log-level INFO
 ```
 
@@ -82,4 +84,4 @@ Relative CLI paths are resolved from the repository root.
 
 ## Logging
 
-Logging is written to stdout and to the file passed via `--log-file`. Main processing stages are logged as numbered steps and row-count changes are logged in a `before -> after` format.
+Logging is written to stdout and to the file passed via `--log-file`. By default, the log is written to `data/predictions/microt_cnn/microt_cnn_pipeline.log`. Main processing stages are logged as numbered steps and row-count changes are logged in a `before -> after` format.

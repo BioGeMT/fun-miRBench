@@ -6,14 +6,14 @@ This directory contains the standardization pipeline for miRBind2 human 3UTR pre
 
 - `pipeline.py`: CLI entrypoint for the pipeline.
 - `utils.py`: helpers for logging, cleaning, mapping, score conversion, and output construction.
-- `mirbind2_pipeline.log`: example log from a completed run.
+- `data/predictions/mirbind2/mirbind2_pipeline.log`: example log from a completed run, relative to the repository root.
 
 ## Inputs
 
 The raw input file is not tracked in Git because it is large. By default, the pipeline downloads it from Zenodo and caches it in this directory with this exact filename:
 
 ```text
-data/3utrs_mirbind2_predictions.tsv.gz
+pipelines/standardized_predictors/mirbind2/data/3utrs_mirbind2_predictions.tsv.gz
 ```
 
 Source URL:
@@ -41,10 +41,12 @@ The pipeline reads the raw miRBind2 score from `miRBind2_3UTR_prediction`, but t
 The pipeline uses the existing shared miRBase resource:
 
 ```text
-data/resources/mirbase/mature.fa
+data/common_resources/mirbase/mature.fa
 ```
 
-This is miRBase release 22.1. The raw miRBind2 table already contains Ensembl gene IDs and gene symbols, so no BioMart remapping is performed.
+This is miRBase release 22.1. The pipeline downloads it when missing and reuses the shared cache
+on later runs. The raw miRBind2 table already contains Ensembl gene IDs and gene symbols, so no
+BioMart remapping is performed.
 
 ## What The Pipeline Does
 
@@ -100,12 +102,13 @@ Relative CLI paths are resolved from the repository root.
 
 ```bash
 uv run pipelines/standardized_predictors/mirbind2/pipeline.py \
-  --mirbase-mature data/resources/mirbase/mature.fa \
-  --output data/predictions/mirbind2/mirbind2_standardized.tsv \
-  --log-file pipelines/standardized_predictors/mirbind2/mirbind2_pipeline.log \
+  --common-resources-dir data/common_resources \
+  --data-dir pipelines/standardized_predictors/mirbind2/data \
+  --standardized-output-file data/predictions/mirbind2/mirbind2_standardized.tsv \
+  --log-file data/predictions/mirbind2/mirbind2_pipeline.log \
   --log-level INFO
 ```
 
 ## Logging
 
-Logging is written both to stdout and to the log file passed via `--log-file`. Main processing stages are logged as numbered steps and row-count changes are logged in a `before -> after` format.
+Logging is written both to stdout and to the log file passed via `--log-file`. By default, the log is written to `data/predictions/mirbind2/mirbind2_pipeline.log`. Main processing stages are logged as numbered steps and row-count changes are logged in a `before -> after` format.

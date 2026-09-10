@@ -1,0 +1,22 @@
+2026-07-27 17:01:24,871 INFO pipeline: Starting microT-CNN standardization pipeline
+2026-07-27 17:01:24,871 INFO pipeline: Step 1/7: Resolve raw microT-CNN predictions and external resources
+2026-07-27 17:01:24,872 INFO utils: Downloading miRBase mature.fa resource: data/common_resources/mirbase/mature.fa
+2026-07-27 17:01:26,166 INFO utils: Saved miRBase mature.fa resource: data/common_resources/mirbase/mature.fa
+2026-07-27 17:01:26,167 INFO utils: Downloading microT-CNN all-score prediction file: pipelines/standardized_predictors/microt_cnn/data/microT_CNN_prediction_result_human_all_scores_gene_level.tsv.gz
+2026-07-27 17:02:41,903 INFO utils: Saved microT-CNN all-score prediction file: pipelines/standardized_predictors/microt_cnn/data/microT_CNN_prediction_result_human_all_scores_gene_level.tsv.gz
+2026-07-27 17:02:41,906 INFO pipeline: Step 2/7: Load raw microT-CNN predictions
+2026-07-27 17:03:08,473 INFO pipeline: Step 3/7: Create miRNA and transcript mapping resources
+2026-07-27 17:03:08,495 INFO utils: Downloading Ensembl v115 GTF resource: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+2026-07-27 17:03:23,203 INFO utils: Saved Ensembl v115 GTF resource: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+2026-07-27 17:03:40,133 INFO utils: Built Ensembl transcript-to-gene cache from GTF: transcript_rows=509650 | mapped=509650 | output=pipelines/standardized_predictors/microt_cnn/resources/ensembl115_tx2gene.tsv.gz
+2026-07-27 17:03:40,133 INFO pipeline: Step 4/7: Map prediction miRNA names to MIMAT IDs
+2026-07-27 17:03:48,679 INFO utils: Drop prediction rows with miRNA names that cannot map to MIMAT IDs: 48281464 -> 48281464 rows
+2026-07-27 17:03:49,284 INFO pipeline: Step 5/7: Map microT-CNN Ensembl transcript IDs to Ensembl gene IDs
+2026-07-27 17:04:22,975 INFO utils: Drop prediction rows with Ensembl transcripts that cannot map to genes: 48281464 -> 48281464 rows
+2026-07-27 17:04:23,770 INFO pipeline: Step 6/7: Build standardized output columns
+2026-07-27 17:04:32,652 INFO utils: Drop prediction rows with non-numeric scores: 48281464 -> 48281464 rows
+2026-07-27 17:05:06,643 INFO utils: Collapse transcript rows to one row per Ensembl gene-miRNA pair: 48281464 -> 48281464 rows
+2026-07-27 17:05:06,948 INFO pipeline: Step 7/7: Validate and write standardized output table
+2026-07-27 17:06:41,085 INFO pipeline: Output written to: data/predictions/microt_cnn/microt_cnn_standardized.tsv
+2026-07-27 17:06:41,085 INFO pipeline: Rows written: 48281464
+2026-07-27 17:06:41,085 INFO pipeline: Relative output path: data/predictions/microt_cnn/microt_cnn_standardized.tsv

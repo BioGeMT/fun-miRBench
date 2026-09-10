@@ -6,12 +6,12 @@ This directory contains the standardization pipeline for miRDB gene-level predic
 
 - `pipeline.py`: CLI entrypoint for the pipeline.
 - `utils.py`: shared helpers for logging, downloads, cleaning, mapping, and output construction.
-- `mirdb_mirtarget_pipeline.log`: log file written by the default run.
+- `data/predictions/mirdb_mirtarget/mirdb_mirtarget_pipeline.log`: log file written by the default run, relative to the repository root.
 
 The pipeline downloads and reuses the raw miRDB predictions file at:
 
 ```text
-data/miRDB_v6.0_prediction_result_human_all_scores.txt.gz
+pipelines/standardized_predictors/mirdb_mirtarget/data/miRDB_v6.0_prediction_result_human_all_scores.txt.gz
 ```
 
 This file is downloaded from:
@@ -24,18 +24,21 @@ If this cache file already exists, the pipeline reuses it. Otherwise, it downloa
 
 Local prediction-file overrides are not supported. The miRDB download and cache path above are the canonical source for reproducible standardization.
 
-The pipeline also downloads and reuses annotation resources under:
+The pipeline downloads and reuses miRBase from the shared annotation cache:
 
 ```text
-data/resources/
+data/common_resources/mirbase/mature.fa
 ```
 
-This includes:
+The predictor-specific BioMart mapping remains under:
 
-- `mirbase/mature.fa` at `data/resources/mirbase/mature.fa`
-- `biomart/hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv` at `data/resources/biomart/hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv`
+```text
+pipelines/standardized_predictors/mirdb_mirtarget/resources/hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv
+```
 
-If either cache file already exists, the pipeline reuses it. Otherwise, it downloads miRBase `mature.fa` version 22.1 and the BioMart NCBI Gene ID/RefSeq-to-Ensembl mapping table, logging whether each resource was reused, downloaded, or failed.
+If either cache file already exists, the pipeline reuses it. Otherwise, it downloads miRBase
+`mature.fa` version 22.1 and the BioMart NCBI Gene ID/RefSeq-to-Ensembl mapping table, logging
+whether each resource was reused, downloaded, or failed.
 
 The raw miRDB file is gzip-compressed and is treated as a 4-column tab-separated table without a header:
 
@@ -121,12 +124,14 @@ Relative CLI paths are resolved from the repository root, so the current working
 
 ```bash
 uv run pipelines/standardized_predictors/mirdb_mirtarget/pipeline.py \
-  --resources-dir pipelines/standardized_predictors/mirdb_mirtarget/data/resources \
-  --output data/predictions/mirdb_mirtarget/mirdb_mirtarget_standardized.tsv \
-  --log-file pipelines/standardized_predictors/mirdb_mirtarget/mirdb_mirtarget_pipeline.log \
+  --common-resources-dir data/common_resources \
+  --data-dir pipelines/standardized_predictors/mirdb_mirtarget/data \
+  --resources-dir pipelines/standardized_predictors/mirdb_mirtarget/resources \
+  --standardized-output-file data/predictions/mirdb_mirtarget/mirdb_mirtarget_standardized.tsv \
+  --log-file data/predictions/mirdb_mirtarget/mirdb_mirtarget_pipeline.log \
   --log-level INFO
 ```
 
 ## Logging
 
-Logging is written both to stdout and to the log file passed via `--log-file`.
+Logging is written both to stdout and to the log file passed via `--log-file`. By default, the log is written to `data/predictions/mirdb_mirtarget/mirdb_mirtarget_pipeline.log`.

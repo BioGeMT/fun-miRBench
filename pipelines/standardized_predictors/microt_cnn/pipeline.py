@@ -10,10 +10,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import (  # noqa: E402
-    add_standard_io_args,
+    ENSEMBL_GTF_RELATIVE_PATH,
+    MIRBASE_MATURE_RELATIVE_PATH,
+    add_standard_pipeline_args,
     configure_file_logging,
     log_step,
-    predictor_dir,
     repo_root,
     resolve_cli_path,
     write_standardized_table,
@@ -34,42 +35,24 @@ from utils import (  # noqa: E402
 logger = logging.getLogger("pipeline")
 
 
-def parse_args(root: Path, pipeline_dir: Path) -> argparse.Namespace:
+def parse_args(root: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standardize microT-CNN predictions for FuNmiRBench.")
-    parser.add_argument(
-        "--tx2gene-file",
-        type=Path,
-        default=pipeline_dir / "data" / "resources" / "ensembl" / "ensembl115_tx2gene.tsv.gz",
-        help="Ensembl transcript-to-gene mapping TSV, optionally gzipped",
-    )
-    parser.add_argument(
-        "--ensembl-gtf-file",
-        type=Path,
-        default=pipeline_dir / "data" / "resources" / "ensembl" / "Homo_sapiens.GRCh38.115.gtf.gz",
-        help="Ensembl v115 GTF used to build --tx2gene-file when the mapping cache is missing",
-    )
-    parser.add_argument(
-        "--resources-dir",
-        type=Path,
-        default=pipeline_dir / "data" / "resources",
-        help="Directory for downloaded miRBase files",
-    )
-    add_standard_io_args(
+    add_standard_pipeline_args(
         parser,
-        default_output=root / "data" / "predictions" / "microt_cnn" / "microt_cnn_standardized.tsv",
-        default_log_file=pipeline_dir / "microt_cnn_pipeline.log",
+        tool_id="microt_cnn",
+        root=root,
+        include_resources_dir=True,
     )
     return parser.parse_args()
 
 
 def main() -> None:
     root = repo_root()
-    pipeline_dir = predictor_dir("microt_cnn", root=root)
-    args = parse_args(root, pipeline_dir)
-    args.tx2gene_file = resolve_cli_path(args.tx2gene_file, root)
-    args.ensembl_gtf_file = resolve_cli_path(args.ensembl_gtf_file, root)
+    args = parse_args(root)
+    args.common_resources_dir = resolve_cli_path(args.common_resources_dir, root)
+    args.data_dir = resolve_cli_path(args.data_dir, root)
     args.resources_dir = resolve_cli_path(args.resources_dir, root)
-    args.output = resolve_cli_path(args.output, root)
+    args.standardized_output_file = resolve_cli_path(args.standardized_output_file, root)
     args.log_file = resolve_cli_path(args.log_file, root)
 
     configure_file_logging(args.log_file, args.log_level)
@@ -80,14 +63,14 @@ def main() -> None:
     mirbase_url = "https://mirbase.org/download_version_files/22.1/mature.fa"
     mirbase_path = download_file(
         mirbase_url,
-        args.resources_dir / "mirbase" / "mature.fa",
+        args.common_resources_dir / MIRBASE_MATURE_RELATIVE_PATH,
         resource_label="miRBase mature.fa resource",
     )
 
     microt_cnn_predictions_url = "10.5281/zenodo.20313523"
     raw_predictions_path = download_file(
         microt_cnn_predictions_url,
-        pipeline_dir / "data" / "microT_CNN_prediction_result_human_all_scores_gene_level.tsv.gz",
+        args.data_dir / "microT_CNN_prediction_result_human_all_scores_gene_level.tsv.gz",
         timeout=360,
         resource_label="microT-CNN all-score prediction file",
     )
@@ -107,18 +90,19 @@ def main() -> None:
 
     log_step(logger, 3, total_steps, "Create miRNA and transcript mapping resources")
     mirna_name_to_mimat_map = create_mirna_name_to_mimat_mapping(mirbase_path)
-    if args.tx2gene_file.exists():
-        logger.info("Loading Ensembl transcript-to-gene mapping: %s", resolve_path_relative_to_root(args.tx2gene_file))
-        tx_to_gene = load_ensembl_tx_to_gene(args.tx2gene_file)
+    tx2gene_file = args.resources_dir / "ensembl115_tx2gene.tsv.gz"
+    if tx2gene_file.exists():
+        logger.info("Loading Ensembl transcript-to-gene mapping: %s", resolve_path_relative_to_root(tx2gene_file))
+        tx_to_gene = load_ensembl_tx_to_gene(tx2gene_file)
     else:
         ensembl_gtf_url = "https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/Homo_sapiens.GRCh38.115.gtf.gz"
         ensembl_gtf_path = download_file(
             ensembl_gtf_url,
-            args.ensembl_gtf_file,
+            args.common_resources_dir / ENSEMBL_GTF_RELATIVE_PATH,
             timeout=360,
             resource_label="Ensembl v115 GTF resource",
         )
-        tx_to_gene = build_ensembl_tx_to_gene_from_gtf(ensembl_gtf_path, args.tx2gene_file)
+        tx_to_gene = build_ensembl_tx_to_gene_from_gtf(ensembl_gtf_path, tx2gene_file)
 
     mimat_column = "miRNA_ID"
     ensembl_id_column = "Ensembl_ID"
@@ -161,8 +145,8 @@ def main() -> None:
     )
 
     log_step(logger, 7, total_steps, "Validate and write standardized output table")
-    write_standardized_table(final_df, args.output, logger=logger, columns=final_columns)
-    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.output))
+    write_standardized_table(final_df, args.standardized_output_file, logger=logger, columns=final_columns)
+    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.standardized_output_file))
 
 
 if __name__ == "__main__":

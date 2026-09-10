@@ -9,10 +9,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import (  # noqa: E402
-    add_standard_io_args,
+    MIRBASE_MATURE_RELATIVE_PATH,
+    add_standard_pipeline_args,
     configure_file_logging,
     log_step,
-    predictor_dir,
     repo_root,
     resolve_cli_path,
     write_standardized_table,
@@ -29,28 +29,23 @@ from utils import (  # noqa: E402
 logger = logging.getLogger("pipeline")
 
 
-def parse_args(root: Path, pipeline_dir: Path) -> argparse.Namespace:
+def parse_args(root: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standardize miRBind2 predictions for FuNmiRBench.")
-    parser.add_argument(
-        "--mirbase-mature",
-        type=Path,
-        default=root / "data" / "resources" / "mirbase" / "mature.fa",
-        help="miRBase 22.1 mature.fa file",
-    )
-    add_standard_io_args(
+    add_standard_pipeline_args(
         parser,
-        default_output=root / "data" / "predictions" / "mirbind2" / "mirbind2_standardized.tsv",
-        default_log_file=pipeline_dir / "mirbind2_pipeline.log",
+        tool_id="mirbind2",
+        root=root,
+        include_resources_dir=False,
     )
     return parser.parse_args()
 
 
 def main() -> None:
     root = repo_root()
-    pipeline_dir = predictor_dir("mirbind2", root=root)
-    args = parse_args(root, pipeline_dir)
-    args.mirbase_mature = resolve_cli_path(args.mirbase_mature, root)
-    args.output = resolve_cli_path(args.output, root)
+    args = parse_args(root)
+    args.common_resources_dir = resolve_cli_path(args.common_resources_dir, root)
+    args.data_dir = resolve_cli_path(args.data_dir, root)
+    args.standardized_output_file = resolve_cli_path(args.standardized_output_file, root)
     args.log_file = resolve_cli_path(args.log_file, root)
 
     configure_file_logging(args.log_file, args.log_level)
@@ -73,10 +68,16 @@ def main() -> None:
     mirbind2_predictions_url = "https://zenodo.org/records/20609975/files/3utrs_mirbind2_predictions.tsv.gz?download=1"
     total_steps = 6
 
-    log_step(logger, 1, total_steps, "Download or resolve raw miRBind2 predictions")
+    log_step(logger, 1, total_steps, "Download or resolve shared miRBase and raw miRBind2 predictions")
+    mirbase_url = "https://mirbase.org/download_version_files/22.1/mature.fa"
+    mirbase_path = download_file(
+        mirbase_url,
+        args.common_resources_dir / MIRBASE_MATURE_RELATIVE_PATH,
+        resource_label="miRBase mature.fa resource",
+    )
     raw_predictions_path = download_file(
         mirbind2_predictions_url,
-        pipeline_dir / "data" / "3utrs_mirbind2_predictions.tsv.gz",
+        args.data_dir / "3utrs_mirbind2_predictions.tsv.gz",
         timeout=360,
         resource_label="miRBind2 raw prediction file",
     )
@@ -92,7 +93,7 @@ def main() -> None:
     )
 
     log_step(logger, 3, total_steps, "Create miRNA name-to-MIMAT mapping from miRBase mature.fa")
-    mirna_name_to_mimat = create_mirna_name_to_mimat_mapping(args.mirbase_mature)
+    mirna_name_to_mimat = create_mirna_name_to_mimat_mapping(mirbase_path)
 
     log_step(logger, 4, total_steps, "Annotate raw miRNA names to MIMAT IDs")
     pred_df = map_mirna_names_to_mimat(
@@ -118,8 +119,8 @@ def main() -> None:
     )
 
     log_step(logger, 6, total_steps, "Validate and write standardized output table")
-    write_standardized_table(final_df, args.output, logger=logger, columns=final_columns)
-    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.output))
+    write_standardized_table(final_df, args.standardized_output_file, logger=logger, columns=final_columns)
+    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.standardized_output_file))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,34 @@
+2026-07-27 17:34:39,690 INFO pipeline: Starting miRDB standardization pipeline
+2026-07-27 17:34:39,690 INFO pipeline: Step 1/9: Resolve raw miRDB predictions and external miRBase/BioMart resources
+2026-07-27 17:34:39,690 INFO utils: Using cached miRBase mature.fa resource: data/common_resources/mirbase/mature.fa
+2026-07-27 17:34:39,691 INFO utils: Downloading BioMart NCBI Gene ID/RefSeq-to-Ensembl mapping table: pipelines/standardized_predictors/mirdb_mirtarget/resources/hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv
+2026-07-27 17:36:14,426 INFO utils: Saved BioMart NCBI Gene ID/RefSeq-to-Ensembl mapping table: pipelines/standardized_predictors/mirdb_mirtarget/resources/hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv
+2026-07-27 17:36:14,428 INFO utils: Downloading miRDB v6.0 all-score prediction file: pipelines/standardized_predictors/mirdb_mirtarget/data/miRDB_v6.0_prediction_result_human_all_scores.txt.gz
+2026-07-27 17:36:21,741 INFO utils: Saved miRDB v6.0 all-score prediction file: pipelines/standardized_predictors/mirdb_mirtarget/data/miRDB_v6.0_prediction_result_human_all_scores.txt.gz
+2026-07-27 17:36:21,765 INFO pipeline: Step 2/9: Load raw miRDB predictions
+2026-07-27 17:36:38,706 INFO utils: Drop invalid raw miRDB prediction rows: 8255691 -> 8255691 rows
+2026-07-27 17:36:42,616 INFO utils: Drop exact duplicate raw miRDB prediction rows: 8255691 -> 8255691 rows
+2026-07-27 17:36:44,848 INFO utils: Check raw miRDB rows for duplicate miRNA-RefSeq transcript prediction pairs: 0 duplicate pairs involving 0 rows
+2026-07-27 17:36:50,184 INFO utils: Check raw miRDB rows for duplicate miRNA-NCBI Gene ID prediction pairs from raw column 4: 0 duplicate pairs involving 0 rows
+2026-07-27 17:36:53,372 INFO pipeline: Step 3/9: Create miRNA name-to-MIMAT mapping from miRBase mature.fa
+2026-07-27 17:36:53,394 INFO pipeline: Step 4/9: Create NCBI Gene ID-to-Ensembl gene mapping from BioMart table
+2026-07-27 17:36:53,633 INFO utils: Filter NCBI Gene ID-to-Ensembl mapping table to drop invalid rows: 168112 -> 110750 rows
+2026-07-27 17:36:53,661 INFO utils: Filter NCBI Gene ID-to-Ensembl mapping table to drop exact duplicate rows: 110750 -> 34460 rows
+2026-07-27 17:36:53,677 INFO utils: Filter NCBI Gene ID-to-Ensembl mapping table to drop NCBI Gene IDs with conflicting Ensembl gene mappings: 34460 -> 23869 rows
+2026-07-27 17:36:54,116 INFO pipeline: Step 5/9: Create RefSeq-to-Ensembl fallback gene mapping from BioMart table
+2026-07-27 17:36:54,349 INFO utils: Filter RefSeq-to-Ensembl mapping table to drop invalid rows: 168112 -> 79730 rows
+2026-07-27 17:36:54,376 INFO utils: Filter RefSeq-to-Ensembl mapping table to drop exact duplicate rows: 79730 -> 74568 rows
+2026-07-27 17:36:54,418 INFO utils: Filter RefSeq-to-Ensembl mapping table to drop RefSeq IDs with conflicting Ensembl gene mappings: 74568 -> 63157 rows
+2026-07-27 17:36:55,571 INFO pipeline: Step 6/9: Map prediction miRNA names to MIMAT IDs
+2026-07-27 17:36:56,819 INFO utils: Drop prediction rows with miRNA names that cannot map to MIMAT IDs: 8255691 -> 8255691 rows
+2026-07-27 17:36:56,988 INFO pipeline: Step 7/9: Map prediction NCBI Gene IDs to Ensembl gene IDs and gene names
+2026-07-27 17:37:00,426 INFO utils: Rows left for RefSeq fallback after NCBI Gene ID mapping: 8255691 -> 489329 rows
+2026-07-27 17:37:00,531 INFO pipeline: Step 8/9: Map remaining prediction RefSeq transcript IDs to Ensembl gene IDs and gene names
+2026-07-27 17:37:02,250 INFO utils: Rows still unmapped after RefSeq fallback: 489329 -> 451230 rows
+2026-07-27 17:37:03,225 INFO utils: Drop prediction rows that cannot map to Ensembl genes after NCBI Gene ID mapping and RefSeq fallback: 8255691 -> 7804461 rows
+2026-07-27 17:37:03,458 INFO pipeline: Step 9/9: Build, validate, and write standardized output table
+2026-07-27 17:37:11,369 INFO utils: Drop final Ensembl_ID-miRNA_ID pairs with conflicting scores after NCBI/RefSeq-to-gene mapping: 7804461 -> 7799023 rows
+2026-07-27 17:37:13,648 INFO utils: Drop duplicate final Ensembl_ID-miRNA_ID pairs with identical scores after NCBI/RefSeq-to-gene mapping: 7799023 -> 7795525 rows
+2026-07-27 17:37:27,314 INFO pipeline: Output written to: data/predictions/mirdb_mirtarget/mirdb_mirtarget_standardized.tsv
+2026-07-27 17:37:27,315 INFO pipeline: Rows written: 7795525
+2026-07-27 17:37:27,315 INFO pipeline: Relative output path: data/predictions/mirdb_mirtarget/mirdb_mirtarget_standardized.tsv

@@ -1,0 +1,27 @@
+2026-07-27 17:16:41,160 INFO miraw_pipeline: Starting miRAW standardization pipeline
+2026-07-27 17:16:41,160 INFO miraw_pipeline: Step 1/8: Download or reuse raw site-level miRAW predictions
+2026-07-27 17:16:41,533 INFO miraw_utils: Downloading miRAW predictions from DOI 10.6084/m9.figshare.32982218: pipelines/standardized_predictors/miraw/data/helios_summary.tsv.gz
+2026-07-27 17:17:30,976 INFO miraw_utils: Saved miRAW predictions from DOI 10.6084/m9.figshare.32982218: pipelines/standardized_predictors/miraw/data/helios_summary.tsv.gz (713928894 bytes)
+2026-07-27 17:17:30,980 INFO miraw_pipeline: Step 2/8: Resolve miRBase 22.1 and Ensembl release 115 resources
+2026-07-27 17:17:30,980 INFO miraw_utils: Using cached miRBase 22.1 mature.fa resource: data/common_resources/mirbase/mature.fa
+2026-07-27 17:17:30,981 INFO miraw_utils: Using cached Ensembl release 115 Homo sapiens GTF: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+2026-07-27 17:17:30,981 INFO miraw_pipeline: Step 3/8: Load and validate raw miRAW prediction rows
+2026-07-27 17:19:40,927 INFO miraw_utils: Loaded 49223901 miRAW prediction rows generated against Ensembl release 112 and miRBase release 22.1 from pipelines/standardized_predictors/miraw/data/helios_summary.tsv.gz
+2026-07-27 17:20:29,363 INFO miraw_utils: Validate parsed miRAW rows: 49223901 -> 49223901 rows
+2026-07-27 17:20:52,821 INFO miraw_utils: Drop exact duplicate parsed miRAW rows: 49223901 -> 49223901 rows
+2026-07-27 17:20:56,741 INFO miraw_pipeline: Step 4/8: Build miRNA-name-to-MIMAT mapping from miRBase 22.1
+2026-07-27 17:20:56,766 INFO miraw_utils: Loaded 2656 unique human miRNA-name-to-MIMAT mappings from 2656 miRBase 22.1 FASTA headers
+2026-07-27 17:20:56,767 INFO miraw_pipeline: Step 5/8: Build ENSG-to-gene-name mapping from Ensembl release 115
+2026-07-27 17:21:08,297 INFO miraw_utils: Loaded 43048 Ensembl release 115 ENSG-to-gene-name mappings from 78899 gene rows; invalid_ids=0, missing_names=35851, conflicts=0
+2026-07-27 17:21:08,297 INFO miraw_pipeline: Step 6/8: Retain and annotate miRNAs present in miRBase 22.1
+2026-07-27 17:21:14,931 INFO miraw_utils: Retain miRNAs present in miRBase release 22.1: 49223901 -> 49223901 rows
+2026-07-27 17:21:26,274 INFO miraw_pipeline: Step 7/8: Retain and annotate genes present in Ensembl release 115
+2026-07-27 17:21:40,507 INFO miraw_utils: Retain genes present in Ensembl release 115: 49223901 -> 48041969 rows
+2026-07-27 17:21:40,507 INFO miraw_utils: Dropped 467 unique Ensembl release 112 source IDs absent from release 115; first examples=['ENSG00000100101', 'ENSG00000111780', 'ENSG00000124593', 'ENSG00000125695', 'ENSG00000131152', 'ENSG00000139656', 'ENSG00000141979', 'ENSG00000142539', 'ENSG00000148362', 'ENSG00000159239']
+2026-07-27 17:21:48,082 INFO miraw_pipeline: Step 8/8: Finalize one highest-scoring standardized row per Ensembl_ID-miRNA_ID pair
+2026-07-27 17:22:36,230 INFO miraw_utils: Validate standardized miRAW identifiers and values: 48041969 -> 48041969 rows
+2026-07-27 17:23:08,797 INFO miraw_utils: Finalize one highest-scoring row per Ensembl_ID-miRNA_ID pair: 48041969 -> 48041969 rows
+2026-07-27 17:23:15,843 INFO miraw_utils: Final miRAW table uses Ensembl release 115 gene IDs/names and miRBase release 22.1 mature miRNA names/accessions
+2026-07-27 17:24:55,586 INFO miraw_pipeline: Output written to: data/predictions/miraw/miraw_standardized.tsv
+2026-07-27 17:24:55,587 INFO miraw_pipeline: Rows written: 48041969
+2026-07-27 17:24:55,591 INFO miraw_pipeline: Relative output path: data/predictions/miraw/miraw_standardized.tsv

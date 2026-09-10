@@ -32,8 +32,8 @@ evaluation:
   # Primary benchmark universe: Ensembl protein-coding genes only.
   # The first run downloads/reuses the Ensembl v115 GTF and caches the gene set.
   protein_coding_only: true
-  protein_coding_gtf: data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
-  protein_coding_gene_cache: data/resources/ensembl/protein_coding_gene_ids.txt
+  protein_coding_gtf: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+  protein_coding_gene_cache: data/common_resources/ensembl/protein_coding_gene_ids.txt
   figure_dpi: 600
 
 out_dir: results/

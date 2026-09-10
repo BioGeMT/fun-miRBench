@@ -12,7 +12,7 @@ import pandas as pd
 import requests
 
 
-ZENODO_RECORD = "18745741"
+ZENODO_RECORD = "21671476"
 ZENODO_API_RECORD_URL = f"https://zenodo.org/api/records/{ZENODO_RECORD}"
 
 

@@ -16,6 +16,8 @@ from typing import Any, Iterable
 
 LOG_LEVEL_CHOICES = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 STANDARDIZED_COLUMNS = ["Ensembl_ID", "Gene_Name", "miRNA_ID", "miRNA_Name", "Score"]
+MIRBASE_MATURE_RELATIVE_PATH = Path("mirbase") / "mature.fa"
+ENSEMBL_GTF_RELATIVE_PATH = Path("ensembl") / "Homo_sapiens.GRCh38.115.gtf.gz"
 
 
 def repo_root() -> Path:
@@ -35,12 +37,29 @@ def predictor_dir(tool_id: str, *, root: Path | None = None) -> Path:
     return (root or ROOT) / "pipelines" / "standardized_predictors" / tool_id
 
 
+def common_resources_dir(*, root: Path | None = None) -> Path:
+    """Return the shared downloaded-annotation cache directory."""
+    return (root or ROOT) / "data" / "common_resources"
+
+
 def resolve_cli_path(path: str | Path, root: Path | None = None) -> Path:
     """Resolve CLI paths relative to the repository root unless absolute."""
     value = Path(path)
     if value.is_absolute():
         return value
     return (root or ROOT) / value
+
+
+def display_path(path: str | Path, *, root: Path | None = None) -> Path:
+    """Return a repository-relative path for portable log messages."""
+    value = Path(path)
+    if not value.is_absolute():
+        return value
+
+    try:
+        return value.resolve().relative_to((root or ROOT).resolve())
+    except ValueError:
+        return value
 
 
 def add_log_level_arg(parser: argparse.ArgumentParser) -> None:
@@ -52,15 +71,47 @@ def add_log_level_arg(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_standard_io_args(
+def add_standard_pipeline_args(
     parser: argparse.ArgumentParser,
     *,
-    default_output: Path,
-    default_log_file: Path,
+    tool_id: str,
+    root: Path,
+    include_resources_dir: bool,
 ) -> None:
-    """Add common output/log CLI arguments used by predictor standardizers."""
-    parser.add_argument("--output", type=Path, default=default_output, help="Output standardized TSV path")
-    parser.add_argument("--log-file", type=Path, default=default_log_file, help="Log file path")
+    """Add harmonized path and logging arguments for a predictor pipeline."""
+    pipeline_dir = predictor_dir(tool_id, root=root)
+    predictions_dir = root / "data" / "predictions" / tool_id
+    parser.add_argument(
+        "--common-resources-dir",
+        type=Path,
+        default=common_resources_dir(root=root),
+        help="Shared miRBase and Ensembl resource directory",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=pipeline_dir / "data",
+        help="Directory for downloaded predictor data",
+    )
+    if include_resources_dir:
+        parser.add_argument(
+            "--resources-dir",
+            type=Path,
+            default=pipeline_dir / "resources",
+            help="Directory for predictor-specific supporting resources",
+        )
+    parser.add_argument(
+        "--standardized-output-file",
+        type=Path,
+        default=predictions_dir / f"{tool_id}_standardized.tsv",
+        help="Output standardized TSV file",
+    )
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=predictions_dir / f"{tool_id}_pipeline.log",
+        help="Log file path",
+    )
     add_log_level_arg(parser)
 
 
@@ -116,5 +167,5 @@ def write_standardized_table(
     validate_standardized_table(df, required_columns=columns)
     df.loc[:, columns].to_csv(output, sep="\t", index=False)
     if logger is not None:
-        logger.info("Output written to: %s", output)
+        logger.info("Output written to: %s", display_path(output))
         logger.info("Rows written: %d", len(df))

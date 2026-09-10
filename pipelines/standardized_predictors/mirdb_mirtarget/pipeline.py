@@ -10,10 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import (  # noqa: E402
-    add_standard_io_args,
+    MIRBASE_MATURE_RELATIVE_PATH,
+    add_standard_pipeline_args,
     configure_file_logging,
     log_step,
-    predictor_dir,
     repo_root,
     resolve_cli_path,
     write_standardized_table,
@@ -34,28 +34,24 @@ from utils import (  # noqa: E402
 logger = logging.getLogger("pipeline")
 
 
-def parse_args(root: Path, pipeline_dir: Path) -> argparse.Namespace:
+def parse_args(root: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standardize miRDB predictions for FuNmiRBench.")
-    parser.add_argument(
-        "--resources-dir",
-        type=Path,
-        default=pipeline_dir / "data" / "resources",
-        help="Directory for downloaded miRBase/BioMart files",
-    )
-    add_standard_io_args(
+    add_standard_pipeline_args(
         parser,
-        default_output=root / "data" / "predictions" / "mirdb_mirtarget" / "mirdb_mirtarget_standardized.tsv",
-        default_log_file=pipeline_dir / "mirdb_mirtarget_pipeline.log",
+        tool_id="mirdb_mirtarget",
+        root=root,
+        include_resources_dir=True,
     )
     return parser.parse_args()
 
 
 def main() -> None:
     root = repo_root()
-    pipeline_dir = predictor_dir("mirdb_mirtarget", root=root)
-    args = parse_args(root, pipeline_dir)
+    args = parse_args(root)
+    args.common_resources_dir = resolve_cli_path(args.common_resources_dir, root)
+    args.data_dir = resolve_cli_path(args.data_dir, root)
     args.resources_dir = resolve_cli_path(args.resources_dir, root)
-    args.output = resolve_cli_path(args.output, root)
+    args.standardized_output_file = resolve_cli_path(args.standardized_output_file, root)
     args.log_file = resolve_cli_path(args.log_file, root)
 
     configure_file_logging(args.log_file, args.log_level)
@@ -66,7 +62,7 @@ def main() -> None:
     mirbase_url = "https://mirbase.org/download_version_files/22.1/mature.fa"
     mirbase_path = download_file(
         mirbase_url,
-        args.resources_dir / "mirbase" / "mature.fa",
+        args.common_resources_dir / MIRBASE_MATURE_RELATIVE_PATH,
         resource_label="miRBase mature.fa resource",
     )
 
@@ -83,7 +79,7 @@ def main() -> None:
     biomart_url = "https://Sep2025.archive.ensembl.org/biomart/martservice"
     biomart_path = download_file(
         biomart_url,
-        args.resources_dir / "biomart" / "hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv",
+        args.resources_dir / "hsapiens_ncbi_gene_id_refseq_to_ensembl.tsv",
         params={"query": biomart_query},
         timeout=360,
         resource_label="BioMart NCBI Gene ID/RefSeq-to-Ensembl mapping table",
@@ -92,7 +88,7 @@ def main() -> None:
     mirdb_predictions_url = "https://mirdb.org/download/miRDB_v6.0_prediction_result_human_all_scores.txt.gz"
     raw_predictions_path = download_file(
         mirdb_predictions_url,
-        pipeline_dir / "data" / "miRDB_v6.0_prediction_result_human_all_scores.txt.gz",
+        args.data_dir / "miRDB_v6.0_prediction_result_human_all_scores.txt.gz",
         timeout=360,
         resource_label="miRDB v6.0 all-score prediction file",
     )
@@ -172,8 +168,8 @@ def main() -> None:
         "Ensembl_ID",
         "miRNA_ID",
     )
-    write_standardized_table(final_df, args.output, logger=logger, columns=final_columns)
-    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.output))
+    write_standardized_table(final_df, args.standardized_output_file, logger=logger, columns=final_columns)
+    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.standardized_output_file))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,81 @@
+2026-07-28 16:40:20,129 INFO pipeline: Starting TargetScan standardization pipeline
+2026-07-28 16:40:20,129 INFO pipeline: Step 1/8: Download and unzip TargetScan inputs
+2026-07-28 16:40:20,129 INFO utils: Skipping Summary_Counts.all_predictions.txt.zip (already exists)
+2026-07-28 16:40:20,130 INFO utils: Unzipped Summary_Counts.all_predictions.txt.zip
+2026-07-28 16:40:20,130 INFO utils: Skipping miR_Family_Info.txt.zip (already exists)
+2026-07-28 16:40:20,130 INFO utils: Unzipped miR_Family_Info.txt.zip
+2026-07-28 16:40:20,130 INFO utils: Skipping Gene_info.txt.zip (already exists)
+2026-07-28 16:40:20,130 INFO utils: Unzipped Gene_info.txt.zip
+2026-07-28 16:40:20,130 INFO utils: ✔ TargetScan prediction data ready in pipelines/standardized_predictors/targetscan/data
+2026-07-28 16:40:20,130 INFO utils: ✔ TargetScan supporting resources ready in pipelines/standardized_predictors/targetscan/resources
+2026-07-28 16:40:20,130 INFO pipeline: Step 2/8: Build representative-transcript index
+2026-07-28 16:40:20,201 INFO utils: Gene_Info stats: rows_total=28352 | rows_species(9606)=28352 | representative_rows=19441 | genes_with_representative_tx=19441
+2026-07-28 16:40:20,201 INFO utils: Gene_Info transcripts-per-gene (top 6 bins): 1tx:13267 | 2tx:4378 | 3tx:1268 | 4tx:381 | 5tx:117 | 6tx:39
+2026-07-28 16:40:20,201 INFO utils: Representative-transcript QC: genes_with_multiple_representative_rows=0
+2026-07-28 16:40:20,201 INFO utils: Representative transcript 3P-seq tag counts (top 6 bins): 5:5468 | 7:279 | 10:201 | 8:182 | 9:178 | 11:171
+2026-07-28 16:40:20,204 INFO utils:   sample representative transcript: ENSG00000121410 -> ENST00000263100.3 (3P-seq tags=74, symbol=A1BG)
+2026-07-28 16:40:20,204 INFO utils:   sample representative transcript: ENSG00000148584 -> ENST00000374001.2 (3P-seq tags=80, symbol=A1CF)
+2026-07-28 16:40:20,204 INFO utils:   sample representative transcript: ENSG00000175899 -> ENST00000318602.7 (3P-seq tags=3121, symbol=A2M)
+2026-07-28 16:40:20,204 INFO pipeline: Step 3/8: Download Ensembl v115 GTF
+2026-07-28 16:40:20,204 INFO utils: Skipping Homo_sapiens.GRCh38.115.gtf.gz (already exists)
+2026-07-28 16:40:20,204 INFO pipeline: Step 4/8: Build/cache Ensembl v115 tables
+2026-07-28 16:40:20,767 INFO utils: Loaded cached Ensembl tables: tx_to_gene=509650 | gene_to_name=43048
+2026-07-28 16:40:20,768 INFO pipeline: Step 5/8: Run TargetScan-vs-Ensembl transcript QC
+2026-07-28 16:40:20,782 INFO utils: TargetScan Gene_Info transcripts total: 28352
+2026-07-28 16:40:20,782 INFO utils: Ensembl v115 transcripts indexed: 509650
+2026-07-28 16:40:20,782 INFO utils: Overlap (stable transcript ID): 25246
+2026-07-28 16:40:20,793 INFO utils: TargetScan representative transcripts: 19441
+2026-07-28 16:40:20,793 INFO utils: Representative-transcript overlap with Ensembl (stable transcript ID): 17638
+2026-07-28 16:40:20,804 INFO utils: Representative transcript gene-ID agreement vs Ensembl: match=17422 | mismatch=216
+2026-07-28 16:40:20,804 INFO utils: Sample representative transcript gene-ID mismatches (tx -> TargetScan gene -> Ensembl gene):
+2026-07-28 16:40:20,804 INFO utils:   ENST00000399246.2 -> ENSG00000214921 -> ENSG00000004939
+2026-07-28 16:40:20,804 INFO utils:   ENST00000591569.1 -> ENSG00000266958 -> ENSG00000189114
+2026-07-28 16:40:20,804 INFO utils:   ENST00000406220.1 -> ENSG00000217075 -> ENSG00000171055
+2026-07-28 16:40:20,804 INFO utils:   ENST00000445770.2 -> ENSG00000233828 -> ENSG00000288569
+2026-07-28 16:40:20,804 INFO utils:   ENST00000595531.1 -> ENSG00000268809 -> ENSG00000135966
+2026-07-28 16:40:20,804 INFO utils:   ENST00000409259.1 -> ENSG00000184761 -> ENSG00000290610
+2026-07-28 16:40:20,804 INFO utils:   ENST00000436901.1 -> ENSG00000196355 -> ENSG00000231160
+2026-07-28 16:40:20,804 INFO utils:   ENST00000600805.1 -> ENSG00000268509 -> ENSG00000233912
+2026-07-28 16:40:20,804 INFO utils:   ENST00000326958.1 -> ENSG00000181495 -> ENSG00000113389
+2026-07-28 16:40:20,804 INFO utils:   ENST00000399540.2 -> ENSG00000215067 -> ENSG00000267532
+2026-07-28 16:40:20,804 INFO utils: Sample representative-transcript misses (raw -> stripped):
+2026-07-28 16:40:20,804 INFO utils:   ENST00000261686.6 -> ENST00000261686
+2026-07-28 16:40:20,804 INFO utils:   ENST00000332530.3 -> ENST00000332530
+2026-07-28 16:40:20,804 INFO utils:   ENST00000225402.5 -> ENST00000225402
+2026-07-28 16:40:20,804 INFO utils:   ENST00000416101.2 -> ENST00000416101
+2026-07-28 16:40:20,804 INFO utils:   ENST00000370732.2 -> ENST00000370732
+2026-07-28 16:40:20,804 INFO utils:   ENST00000263817.6 -> ENST00000263817
+2026-07-28 16:40:20,804 INFO utils:   ENST00000356058.4 -> ENST00000356058
+2026-07-28 16:40:20,804 INFO utils:   ENST00000416054.1 -> ENST00000416054
+2026-07-28 16:40:20,804 INFO utils:   ENST00000370449.4 -> ENST00000370449
+2026-07-28 16:40:20,804 INFO utils:   ENST00000412704.1 -> ENST00000412704
+2026-07-28 16:40:20,805 INFO utils: Representative transcripts not ENST*: 1
+2026-07-28 16:40:20,805 INFO utils:   non-ENST example: CDR1as
+2026-07-28 16:40:20,806 INFO pipeline: Step 6/8: Download and parse miRBase mature annotations
+2026-07-28 16:40:20,806 INFO utils: Skipping miRBase mature.fa (already exists): data/common_resources/mirbase/mature.fa
+2026-07-28 16:40:20,806 INFO utils: Parsing miRBase mature.fa
+2026-07-28 16:40:20,827 INFO utils: Parsed 48885 mature miRNAs from miRBase
+2026-07-28 16:40:20,827 INFO pipeline: Step 7/8: Build human miRNA annotations
+2026-07-28 16:40:20,841 INFO utils: miR_Family_Info stats: rows_total=9994 | rows_species(9606)=2606 | kept=2554 | unique_human_mature_mirnas=2554
+2026-07-28 16:40:20,841 INFO utils: miRNA annotation QC vs miRBase v22.1: name_match=2524 | name_replaced=30 | duplicate_names=0 | dropped_missing_accession=26 | dropped_missing_fields=26
+2026-07-28 16:40:20,841 INFO utils:   sample annotation: hsa-let-7a-5p -> MIMAT0000062
+2026-07-28 16:40:20,841 INFO pipeline: Step 8/8: Write standardized TargetScan predictions
+2026-07-28 16:41:23,690 INFO utils: targetscan score column 'Cumulative weighted context++ score': kept raw TargetScan score | rows_missing_mirna_annotation=168616 | rows_missing_ensembl_gene=689522 | rows_gene_id_mismatch=53057 | NULL rows=0
+2026-07-28 16:41:23,690 INFO utils: Filtering summary: 0 NULL scores after filtering | 216 representative transcripts whose TargetScan gene ID disagrees with Ensembl
+2026-07-28 16:41:23,690 INFO utils: Filtering summary: 53,057 summary rows dropped by the TargetScan/Ensembl gene mismatch filter | duplicate gene-miRNA pairs before mismatch filter=6,209 | surviving duplicate gene-miRNA pairs after mismatch filter=0
+2026-07-28 16:41:23,690 INFO utils: Sample rows dropped for TargetScan/Ensembl gene-ID mismatch (tx -> TargetScan gene -> Ensembl gene):
+2026-07-28 16:41:23,690 INFO utils:   ENST00000399246.2 -> ENSG00000214921 -> ENSG00000004939
+2026-07-28 16:41:23,690 INFO utils:   ENST00000591569.1 -> ENSG00000266958 -> ENSG00000189114
+2026-07-28 16:41:23,690 INFO utils:   ENST00000406220.1 -> ENSG00000217075 -> ENSG00000171055
+2026-07-28 16:41:23,690 INFO utils:   ENST00000445770.2 -> ENSG00000233828 -> ENSG00000288569
+2026-07-28 16:41:23,690 INFO utils:   ENST00000595531.1 -> ENSG00000268809 -> ENSG00000135966
+2026-07-28 16:41:23,690 INFO utils:   ENST00000409259.1 -> ENSG00000184761 -> ENSG00000290610
+2026-07-28 16:41:23,690 INFO utils:   ENST00000436901.1 -> ENSG00000196355 -> ENSG00000231160
+2026-07-28 16:41:23,690 INFO utils:   ENST00000600805.1 -> ENSG00000268509 -> ENSG00000233912
+2026-07-28 16:41:23,690 INFO utils:   ENST00000326958.1 -> ENSG00000181495 -> ENSG00000113389
+2026-07-28 16:41:23,690 INFO utils:   ENST00000399540.2 -> ENSG00000215067 -> ENSG00000267532
+2026-07-28 16:41:39,811 INFO utils: targetscan -> retained 6853870 unique gene-miRNA rows from 6853870 transcript-level rows
+2026-07-28 16:41:39,812 INFO utils: Output written to: data/predictions/targetscan/targetscan_standardized.tsv
+2026-07-28 16:41:39,812 INFO utils: Rows written: 6853870
+2026-07-28 16:41:47,871 INFO utils: targetscan: 6853870 rows | 17325 unique genes | 2427 unique miRNAs
+2026-07-28 16:41:47,872 INFO pipeline: Relative output path: data/predictions/targetscan/targetscan_standardized.tsv
