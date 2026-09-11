@@ -241,9 +241,3 @@ uv run funmirbench-experiments-download-examples
 uv run funmirbench-experiments --config config.yaml
 uv run funmirbench-sync-metadata
 ```
-
-## Tests
-
-```bash
-uv run python -m unittest discover -s tests
-```

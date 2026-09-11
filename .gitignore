@@ -56,3 +56,4 @@ pipelines/standardized_predictors/mirbind2/3utrs_mirbind2_predictions.tsv
 # Track standardized predictor pipeline logs
 *.log
 !pipelines/standardized_predictors/**/*_pipeline.log
+/pipelines/standardized_predictors/miraw/miraw_pipeline.log
