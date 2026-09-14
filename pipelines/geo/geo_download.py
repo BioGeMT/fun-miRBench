@@ -57,14 +57,15 @@ REQUIRED_TSV_COLUMNS = [
 FASTQ_OUTPUT_DIR = REPO_ROOT / "data/experiments/raw"
 CONFIG_OUTPUT_DIR = REPO_ROOT / "pipelines/experiments/configs"
 
-# Default genome reference paths (Ensembl v109, downloaded by funmirbench-experiments-download-examples)
+# Default genome reference paths (Ensembl v115, downloaded by
+# funmirbench-experiments-download-examples)
 DEFAULT_GENOME_FASTA = str(
-    REPO_ROOT / "data/experiments/raw/refs/ensembl_v109"
+    REPO_ROOT / "data/experiments/raw/refs/ensembl_v115"
     / "Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
 )
 DEFAULT_GTF = str(
-    REPO_ROOT / "data/experiments/raw/refs/ensembl_v109"
-    / "Homo_sapiens.GRCh38.109.gtf.gz"
+    REPO_ROOT / "data/experiments/raw/refs/ensembl_v115"
+    / "Homo_sapiens.GRCh38.115.gtf.gz"
 )
 
 REQUIRED_COUNT_MATRIX_COLUMNS = [
@@ -552,12 +553,12 @@ def process_local_experiment(experiment):
 # GEO mode: build sample entries from SRR info
 # ---------------------------------------------------------------------------
 
-def build_geo_sample_entries(srr_infos, control_samples, output_dir):
+def build_geo_sample_entries(srr_infos, control_samples, condition_samples, output_dir):
     """
     Build YAML sample entry dicts from resolved SRR info.
 
-    Uses GSM accession as sample_id. If a GSM has multiple SRRs,
-    each run gets a disambiguated id: {GSM}_{SRR}.
+    Uses each GSM accession as one biological sample. Multiple SRR runs for the
+    same GSM are kept as multiple input files for that sample.
 
     Returns (control_entries, treated_entries).
     """
@@ -569,24 +570,41 @@ def build_geo_sample_entries(srr_infos, control_samples, output_dir):
     treated_entries = []
 
     for gsm, srrs in gsm_to_srrs.items():
-        for srr_info in srrs:
-            sample_id = gsm if len(srrs) == 1 else f"{gsm}_{srr_info.srr}"
-            if srr_info.layout == "PAIRED":
-                entry = {
-                    "sample_id": sample_id,
-                    "reads_1": str(output_dir / f"{srr_info.srr}_1.fastq.gz"),
-                    "reads_2": str(output_dir / f"{srr_info.srr}_2.fastq.gz"),
-                }
-            else:
-                entry = {
-                    "sample_id": sample_id,
-                    "reads_1": str(output_dir / f"{srr_info.srr}.fastq.gz"),
-                    "reads_2": "",
-                }
-            if gsm in control_samples:
-                control_entries.append(entry)
-            else:
-                treated_entries.append(entry)
+        sorted_srrs = sorted(srrs, key=lambda item: item.srr)
+        layouts = {srr_info.layout for srr_info in sorted_srrs}
+        if len(layouts) != 1:
+            raise ValueError(f"GSM {gsm} has mixed SRR library layouts: {sorted(layouts)}")
+
+        paired = next(iter(layouts)) == "PAIRED"
+        reads_1 = [
+            str(
+                output_dir
+                / (
+                    f"{srr_info.srr}_1.fastq.gz"
+                    if paired
+                    else f"{srr_info.srr}.fastq.gz"
+                )
+            )
+            for srr_info in sorted_srrs
+        ]
+        entry = {
+            "sample_id": gsm,
+            "reads_1": reads_1[0] if len(reads_1) == 1 else reads_1,
+            "reads_2": "",
+        }
+        if paired:
+            reads_2 = [
+                str(output_dir / f"{srr_info.srr}_2.fastq.gz")
+                for srr_info in sorted_srrs
+            ]
+            entry["reads_2"] = reads_2[0] if len(reads_2) == 1 else reads_2
+
+        if gsm in control_samples:
+            control_entries.append(entry)
+        elif gsm in condition_samples:
+            treated_entries.append(entry)
+        else:
+            raise ValueError(f"Resolved GSM {gsm} is not assigned to either comparison group.")
 
     return control_entries, treated_entries
 
@@ -640,7 +658,7 @@ def download_experiment(experiment, output_dir, threads):
 
     log_step(3, step_total, f"{gse}: writing manifest", prefix="EXP")
     control_entries, treated_entries = build_geo_sample_entries(
-        srr_infos, control_samples, gse_output_dir
+        srr_infos, control_samples, condition_samples, gse_output_dir
     )
     manifest = {
         "gse": gse,

@@ -409,26 +409,76 @@ def run_de_from_counts(
     return {"run_dir": str(run_dir), "de_table_path": str(out_path)}
 
 
+def normalize_read_paths(
+    value: str | list[str] | None,
+    *,
+    field_name: str,
+    sample_id: str,
+    root: pathlib.Path,
+    repo: pathlib.Path,
+) -> list[str]:
+    if value is None:
+        values = []
+    elif isinstance(value, list):
+        values = value
+    elif isinstance(value, str):
+        values = [value]
+    else:
+        raise ValueError(
+            f"Sample {sample_id!r} has invalid {field_name}; "
+            "expected a path or list of paths."
+        )
+    paths = [
+        normalize_space(item)
+        for item in values
+        if item is not None and normalize_space(item)
+    ]
+    if not paths:
+        raise ValueError(f"Sample {sample_id!r} must provide {field_name}.")
+
+    resolved_paths = []
+    for path_value in paths:
+        resolved_path = resolve_path(path_value, root=root, repo=repo)
+        if not resolved_path.exists():
+            raise ValueError(
+                f"{field_name} for sample {sample_id!r} does not exist: {resolved_path}"
+            )
+        resolved_paths.append(str(resolved_path))
+    return resolved_paths
+
+
 def normalize_sample_entry(sample: dict, *, group_name: str, root: pathlib.Path, repo: pathlib.Path) -> dict:
     sample_id = normalize_space(sample.get("sample_id") or sample.get("id") or sample.get("accession", ""))
     if not sample_id:
         raise ValueError(f"Each {group_name} sample must define sample_id.")
 
-    reads_1_value = normalize_space(sample.get("reads_1", ""))
-    reads_2_value = normalize_space(sample.get("reads_2", ""))
-    if not reads_1_value:
-        raise ValueError(f"Sample {sample_id!r} must provide reads_1.")
-    resolved_reads_1 = resolve_path(reads_1_value, root=root, repo=repo)
-    if not resolved_reads_1.exists():
-        raise ValueError(f"reads_1 for sample {sample_id!r} does not exist: {resolved_reads_1}")
-    reads_1 = str(resolved_reads_1)
-    reads_2 = ""
-
-    if reads_2_value:
-        resolved_reads_2 = resolve_path(reads_2_value, root=root, repo=repo)
-        if not resolved_reads_2.exists():
-            raise ValueError(f"reads_2 for sample {sample_id!r} does not exist: {resolved_reads_2}")
-        reads_2 = str(resolved_reads_2)
+    reads_1 = normalize_read_paths(
+        sample.get("reads_1", ""),
+        field_name="reads_1",
+        sample_id=sample_id,
+        root=root,
+        repo=repo,
+    )
+    reads_2_value = sample.get("reads_2", "")
+    reads_2_values = reads_2_value if isinstance(reads_2_value, list) else [reads_2_value]
+    has_reads_2 = any(
+        item is not None and normalize_space(item) for item in reads_2_values
+    )
+    reads_2 = (
+        normalize_read_paths(
+            reads_2_value,
+            field_name="reads_2",
+            sample_id=sample_id,
+            root=root,
+            repo=repo,
+        )
+        if has_reads_2
+        else []
+    )
+    if reads_2 and len(reads_1) != len(reads_2):
+        raise ValueError(
+            f"Sample {sample_id!r} must provide the same number of reads_1 and reads_2 files."
+        )
 
     count_matrix_column = normalize_space(sample.get("count_matrix_column", "")) or sample_id
     return {
@@ -441,6 +491,60 @@ def normalize_sample_entry(sample: dict, *, group_name: str, root: pathlib.Path,
         "title": sample_id,
         "group_label": group_name,
     }
+
+
+def open_reads_file(path: str):
+    reads_path = pathlib.Path(path)
+    if reads_path.suffix == ".gz":
+        return gzip.open(reads_path, "rb")
+    return reads_path.open("rb")
+
+
+def combine_reads_files(paths: list[str], output_path: pathlib.Path) -> pathlib.Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with (
+        output_path.open("wb") as output_handle,
+        gzip.GzipFile(fileobj=output_handle, mode="wb", mtime=0) as compressed_handle,
+    ):
+        for path in paths:
+            with open_reads_file(path) as input_handle:
+                shutil.copyfileobj(input_handle, compressed_handle)
+    return output_path
+
+
+def materialize_sample_reads(sample: dict, *, run_dir: pathlib.Path) -> dict:
+    reads_1_files = list(sample["reads_1"])
+    reads_2_files = list(sample["reads_2"])
+    materialized = dict(sample)
+    materialized["source_reads_1"] = reads_1_files
+    materialized["source_reads_2"] = reads_2_files
+
+    if len(reads_1_files) == 1:
+        materialized["reads_1"] = reads_1_files[0]
+        materialized["reads_2"] = reads_2_files[0] if reads_2_files else ""
+        return materialized
+
+    output_dir = run_dir / "combined_reads" / sample["sample_id"]
+    paired = bool(reads_2_files)
+    reads_1_name = (
+        f"{sample['sample_id']}_R1.fastq.gz"
+        if paired
+        else f"{sample['sample_id']}.fastq.gz"
+    )
+    materialized["reads_1"] = str(
+        combine_reads_files(reads_1_files, output_dir / reads_1_name)
+    )
+    materialized["reads_2"] = (
+        str(
+            combine_reads_files(
+                reads_2_files,
+                output_dir / f"{sample['sample_id']}_R2.fastq.gz",
+            )
+        )
+        if paired
+        else ""
+    )
+    return materialized
 
 
 def load_reads_samples(config: dict, *, config_path: pathlib.Path, repo: pathlib.Path) -> tuple[list[dict], list[dict]]:
@@ -627,7 +731,22 @@ def infer_library_layout(samples: list[dict]) -> str:
         return "paired"
     if not any(paired_flags):
         return "single"
-    raise ValueError("Mixed single-end and paired-end samples are not supported in one reads config.")
+    return "mixed"
+
+
+def group_sample_ids_by_layout(
+    samples: list[dict], sample_order: list[str]
+) -> dict[str, list[str]]:
+    samples_by_id = {sample["sample_id"]: sample for sample in samples}
+    groups = {
+        layout: [
+            sample_id
+            for sample_id in sample_order
+            if bool(samples_by_id[sample_id]["reads_2"]) == (layout == "paired")
+        ]
+        for layout in ("single", "paired")
+    }
+    return {layout: sample_ids for layout, sample_ids in groups.items() if sample_ids}
 
 
 def run_fastqc(
@@ -793,13 +912,15 @@ def run_featurecounts(
     bam_paths: dict[str, pathlib.Path],
     sample_order: list[str],
     paired_end: bool,
+    output_label: str = "",
 ) -> tuple[pathlib.Path, list[str], pathlib.Path, pathlib.Path]:
     require_local_binary("featureCounts")
     threads = int(source_cfg.get("featurecounts_threads", default_thread_count(cap=16)))
     logger.info("Running featureCounts with %s threads...", threads)
     feature_type = normalize_space(source_cfg.get("featurecounts_feature_type", "")) or "exon"
     gene_attribute = normalize_space(source_cfg.get("featurecounts_gene_attribute", "")) or "gene_id"
-    output_path = run_dir / "featurecounts_counts.tsv"
+    suffix = f"_{output_label}" if output_label else ""
+    output_path = run_dir / f"featurecounts{suffix}_counts.tsv"
     command = [
         "featureCounts",
         "-T",
@@ -817,8 +938,8 @@ def run_featurecounts(
         command.extend(["-p", "--countReadPairs"])
     command.extend(str(arg) for arg in source_cfg.get("featurecounts_extra_args", []))
     command.extend(str(bam_paths[sample_id]) for sample_id in sample_order)
-    stdout_path = run_dir / "featurecounts.stdout.txt"
-    stderr_path = run_dir / "featurecounts.stderr.txt"
+    stdout_path = run_dir / f"featurecounts{suffix}.stdout.txt"
+    stderr_path = run_dir / f"featurecounts{suffix}.stderr.txt"
     run_logged_command(
         command,
         cwd=repo,
@@ -864,6 +985,31 @@ def build_featurecounts_matrix(
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     matrix.to_csv(out_path, sep="\t", index=False)
+    return out_path
+
+
+def combine_count_matrices(
+    matrix_paths: list[pathlib.Path],
+    sample_order: list[str],
+    out_path: pathlib.Path,
+) -> pathlib.Path:
+    matrices = [pd.read_csv(path, sep="\t") for path in matrix_paths]
+    if not matrices:
+        raise ValueError("No count matrices were provided.")
+
+    combined = matrices[0]
+    for matrix in matrices[1:]:
+        combined = combined.merge(matrix, on="gene_id", how="outer", validate="one_to_one")
+
+    required_columns = ["gene_id", *sample_order]
+    missing = [column for column in required_columns if column not in combined.columns]
+    if missing:
+        raise ValueError(f"Combined count matrix is missing sample columns: {missing}")
+    if combined[required_columns].isna().any().any():
+        raise ValueError("featureCounts runs produced different gene sets.")
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    combined[required_columns].to_csv(out_path, sep="\t", index=False)
     return out_path
 
 
@@ -925,9 +1071,15 @@ def run_reads_mode(
     source_cfg = config.get("source", {})
     logger.info("Loading reads config...")
     control_samples, treated_samples = load_reads_samples(config, config_path=config_path, repo=repo)
+    control_samples = [
+        materialize_sample_reads(sample, run_dir=run_dir) for sample in control_samples
+    ]
+    treated_samples = [
+        materialize_sample_reads(sample, run_dir=run_dir) for sample in treated_samples
+    ]
     sample_sheet = write_reads_sample_sheet(run_dir, control_samples, treated_samples)
     sample_order = [sample["sample_id"] for sample in control_samples + treated_samples]
-    paired_end = infer_library_layout(control_samples + treated_samples) == "paired"
+    library_layout = infer_library_layout(control_samples + treated_samples)
 
     logger.info("Preparing references...")
     reference_assets = prepare_reads_reference_assets(
@@ -1017,24 +1169,56 @@ def run_reads_mode(
         star_stdout[sample["sample_id"]] = str(stdout_path)
         star_stderr[sample["sample_id"]] = str(stderr_path)
 
-    featurecounts_output, featurecounts_command, featurecounts_stdout, featurecounts_stderr = run_featurecounts(
-        source_cfg=source_cfg,
-        repo=repo,
-        run_dir=run_dir,
-        gtf_path=gtf_path,
-        bam_paths=bam_paths,
-        sample_order=sample_order,
-        paired_end=paired_end,
+    layout_groups = group_sample_ids_by_layout(
+        control_samples + treated_samples, sample_order
     )
 
+    featurecounts_runs = {}
+    count_matrix_parts = []
+    for layout, layout_sample_order in layout_groups.items():
+        output_label = layout if library_layout == "mixed" else ""
+        output, command, stdout_path, stderr_path = run_featurecounts(
+            source_cfg=source_cfg,
+            repo=repo,
+            run_dir=run_dir,
+            gtf_path=gtf_path,
+            bam_paths=bam_paths,
+            sample_order=layout_sample_order,
+            paired_end=layout == "paired",
+            output_label=output_label,
+        )
+        matrix_path = run_dir / (
+            f"counts_matrix_{layout}.tsv" if library_layout == "mixed" else "counts_matrix.tsv"
+        )
+        build_featurecounts_matrix(
+            featurecounts_path=output,
+            bam_paths=bam_paths,
+            sample_order=layout_sample_order,
+            out_path=matrix_path,
+        )
+        count_matrix_parts.append(matrix_path)
+        featurecounts_runs[layout] = {
+            "command": command,
+            "stdout": str(stdout_path),
+            "stderr": str(stderr_path),
+            "output": str(output),
+        }
 
+    counts_matrix_path = run_dir / "counts_matrix.tsv"
+    if library_layout == "mixed":
+        combine_count_matrices(count_matrix_parts, sample_order, counts_matrix_path)
 
-    counts_matrix_path = build_featurecounts_matrix(
-        featurecounts_path=featurecounts_output,
-        bam_paths=bam_paths,
-        sample_order=sample_order,
-        out_path=run_dir / "counts_matrix.tsv",
-    )
+    featurecounts_manifest = {"featurecounts_runs": featurecounts_runs}
+    if len(featurecounts_runs) == 1:
+        only_run = next(iter(featurecounts_runs.values()))
+        featurecounts_manifest.update(
+            {
+                "featurecounts_command": only_run["command"],
+                "featurecounts_stdout": only_run["stdout"],
+                "featurecounts_stderr": only_run["stderr"],
+                "featurecounts_output": only_run["output"],
+            }
+        )
     counts_df = read_table_auto(counts_matrix_path)
     control_cols = [sample["sample_id"] for sample in control_samples]
     treated_cols = [sample["sample_id"] for sample in treated_samples]
@@ -1057,7 +1241,7 @@ def run_reads_mode(
         gene_id_column_override="gene_id",
         extra_manifest={
             "reads_sample_sheet": str(sample_sheet),
-            "library_layout": "paired" if paired_end else "single",
+            "library_layout": library_layout,
             "pipeline_stages": ["fastqc_raw", "fastp", "fastqc_trimmed", "star", "featurecounts", "deseq2"],
             "raw_fastqc_outputs": raw_fastqc_outputs,
             "raw_fastqc_commands": raw_fastqc_commands,
@@ -1083,10 +1267,7 @@ def run_reads_mode(
             "star_stdout": star_stdout,
             "star_stderr": star_stderr,
             "sample_bams": {sample_id: str(path) for sample_id, path in bam_paths.items()},
-            "featurecounts_command": featurecounts_command,
-            "featurecounts_stdout": str(featurecounts_stdout),
-            "featurecounts_stderr": str(featurecounts_stderr),
-            "featurecounts_output": str(featurecounts_output),
+            **featurecounts_manifest,
         },
     )
 
