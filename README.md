@@ -38,7 +38,7 @@ That environment also includes `uv`, so `uv run ...` keeps working after activat
 Main directories:
 
 - `data/experiments/processed/`: root directory for processed experiment DE tables
-- `data/experiments/processed/21671476/`: local cache for curated benchmark DE tables from Zenodo record `21671476`; the repo currently ships the 3 default benchmark TSVs here
+- `data/experiments/processed/21671476/`: local cache for curated benchmark DE tables from Zenodo record `21671476`; these files are fetched on demand and are not tracked in Git
 - `data/experiments/raw/`: local raw GEO inputs such as count matrices and FASTQs
 - `data/common_resources/`: shared, downloaded miRBase and Ensembl annotation cache
 - `data/predictions/`: local generated predictor TSVs
@@ -54,21 +54,43 @@ is only for benchmark output.
 
 ## Quick Start
 
-If you just want to run the benchmark, you do not need the experiments pipeline first. The repo
-already includes:
+If you just want to run the default benchmark from a fresh clone:
 
-- experiment metadata in `metadata/mirna_experiment_info.tsv`
-- predictor metadata in `metadata/predictions_info.tsv`
+1. Install the package environment:
 
-Then run the default benchmark:
+```bash
+uv sync
+```
+
+2. Download the standardized predictor files. These files are large and are not tracked in Git:
+
+```bash
+curl -L -o fun-miRBench_standardized_predictions.zip \
+  https://zenodo.org/api/records/21671476/files/fun-miRBench_standardized_predictions.zip/content
+unzip fun-miRBench_standardized_predictions.zip
+mkdir -p data/predictions
+cp -R fun-miRBench_standardized_predictions/data/predictions/* data/predictions/
+```
+
+After unpacking, the default predictor files should exist at paths such as
+`data/predictions/targetscan/targetscan_standardized.tsv`.
+
+3. Run the benchmark:
 
 ```bash
 uv run funmirbench --config benchmark.yaml
 ```
 
-Before benchmarking, `funmirbench` syncs the selected curated experiment DE tables from Zenodo
-into `data/experiments/processed/21671476/` as needed. The repo currently ships the 3 TSVs used by
-the default benchmark config, while other curated benchmark DE tables are treated as fetched local cache.
+Results are written to a timestamped directory under `results/`.
+
+The repo includes the small metadata files needed to select inputs:
+
+- experiment metadata in `metadata/mirna_experiment_info.tsv`
+- predictor metadata in `metadata/predictions_info.tsv`
+
+The curated experiment DE tables are downloaded automatically from Zenodo record `21671476` on
+demand into `data/experiments/processed/21671476/`. If predictor files are missing, the benchmark
+exits early with the exact paths that need to be generated or unpacked.
 
 The default config already points at:
 
@@ -94,8 +116,8 @@ workflow:
 
 For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
 workflow is different: those metadata rows stay versioned in the repo, and the corresponding DE
-tables live under the local `data/experiments/processed/21671476/` cache. The repo currently ships
-the 3 default benchmark TSVs there, and other curated tables are fetched from Zenodo when needed.
+tables live under the local `data/experiments/processed/21671476/` cache. They are fetched from
+Zenodo when needed.
 
 ### 2. Add Predictor Data
 
