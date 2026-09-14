@@ -9,10 +9,18 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from common import add_log_level_arg, log_step, predictor_dir, repo_root  # noqa: E402
+from common import (  # noqa: E402
+    ENSEMBL_GTF_RELATIVE_PATH,
+    MIRBASE_MATURE_RELATIVE_PATH,
+    add_standard_pipeline_args,
+    configure_file_logging,
+    display_path,
+    log_step,
+    repo_root,
+    resolve_cli_path,
+)
 from utils import (  # noqa: E402
     compute_final_statistics,
-    configure_logging,
     parse_mirbase_mature,
     step1_download_targetscan_files,
     step2_build_representative_transcript_index,
@@ -25,42 +33,54 @@ from utils import (  # noqa: E402
 )
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pipeline")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(root: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standardize TargetScan predictions for FuNmiRBench.")
-    add_log_level_arg(parser)
+    add_standard_pipeline_args(
+        parser,
+        tool_id="targetscan",
+        root=root,
+        include_resources_dir=True,
+    )
     return parser.parse_args()
 
 
 def main() -> None:
-    args = parse_args()
     root = repo_root()
-    targetscan_dir = predictor_dir("targetscan", root=root)
-    log_file = targetscan_dir / "targetscan_pipeline.log"
+    args = parse_args(root)
+    args.common_resources_dir = resolve_cli_path(args.common_resources_dir, root)
+    args.data_dir = resolve_cli_path(args.data_dir, root)
+    args.resources_dir = resolve_cli_path(args.resources_dir, root)
+    args.standardized_output_file = resolve_cli_path(args.standardized_output_file, root)
+    args.log_file = resolve_cli_path(args.log_file, root)
 
-    global logger
-    logger = configure_logging(log_file, log_level=args.log_level)
-    logger.info("Logging to file: %s", log_file)
+    configure_file_logging(args.log_file, args.log_level)
+    logger.info("Starting TargetScan standardization pipeline")
 
-    data_dir = targetscan_dir / "data"
-    out_predictions_dir = root / "data" / "predictions"
     total_steps = 8
 
     log_step(logger, 1, total_steps, "Download and unzip TargetScan inputs")
-    files = step1_download_targetscan_files(data_dir, force=False)
+    files = step1_download_targetscan_files(
+        args.data_dir,
+        args.resources_dir,
+        force=False,
+    )
 
     log_step(logger, 2, total_steps, "Build representative-transcript index")
     tx_index = step2_build_representative_transcript_index(files["Gene_info.txt"], species_id="9606")
 
     log_step(logger, 3, total_steps, "Download Ensembl v115 GTF")
-    ensembl_gtf = step3_download_ensembl115_gtf(data_dir, force=False)
+    ensembl_gtf = step3_download_ensembl115_gtf(
+        args.common_resources_dir / ENSEMBL_GTF_RELATIVE_PATH,
+        force=False,
+    )
 
     log_step(logger, 4, total_steps, "Build/cache Ensembl v115 tables")
     ensembl_tables = step4_build_and_cache_ensembl115_tables(
         ensembl_gtf,
-        cache_dir=data_dir,
+        cache_dir=args.resources_dir,
         force_rebuild=False,
     )
 
@@ -71,7 +91,10 @@ def main() -> None:
     )
 
     log_step(logger, 6, total_steps, "Download and parse miRBase mature annotations")
-    mirbase_fa = step6_download_mirbase_mature(data_dir, force=False)
+    mirbase_fa = step6_download_mirbase_mature(
+        args.common_resources_dir / MIRBASE_MATURE_RELATIVE_PATH,
+        force=False,
+    )
     mirbase_acc2name = parse_mirbase_mature(mirbase_fa)
 
     log_step(logger, 7, total_steps, "Build human miRNA annotations")
@@ -87,11 +110,12 @@ def main() -> None:
         tx_index=tx_index,
         ensembl_tables=ensembl_tables,
         mirna_annotations=mirna_annotations,
-        out_predictions_dir=out_predictions_dir,
+        output_path=args.standardized_output_file,
         species_id="9606",
     )
 
-    compute_final_statistics(out_predictions_dir)
+    compute_final_statistics(args.standardized_output_file)
+    logger.info("Relative output path: %s", display_path(args.standardized_output_file))
 
 
 if __name__ == "__main__":

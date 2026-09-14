@@ -12,10 +12,11 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import (  # noqa: E402
-    add_standard_io_args,
+    ENSEMBL_GTF_RELATIVE_PATH,
+    MIRBASE_MATURE_RELATIVE_PATH,
+    add_standard_pipeline_args,
     configure_file_logging,
     log_step,
-    predictor_dir,
     repo_root,
     resolve_cli_path,
     write_standardized_table,
@@ -66,7 +67,7 @@ def resolve_figshare_download_url(article_id: str, filename: str, timeout: int =
     )
 
 
-def parse_args(root: Path, pipeline_dir: Path) -> argparse.Namespace:
+def parse_args(root: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Standardize miRAW site-level predictions generated for Ensembl release 112 "
@@ -74,29 +75,21 @@ def parse_args(root: Path, pipeline_dir: Path) -> argparse.Namespace:
             "gene annotation and miRBase release 22.1 mature-miRNA accessions."
         )
     )
-    parser.add_argument(
-        "--resources-dir",
-        type=Path,
-        default=pipeline_dir / "data" / "resources",
-        help=(
-            f"Directory where miRBase {TARGET_MIRBASE_RELEASE} and Ensembl release "
-            f"{TARGET_ENSEMBL_RELEASE} annotation resources are cached"
-        ),
-    )
-    add_standard_io_args(
+    add_standard_pipeline_args(
         parser,
-        default_output=root / "data" / "predictions" / "miraw" / "miraw_standardized.tsv",
-        default_log_file=pipeline_dir / "miraw_pipeline.log",
+        tool_id="miraw",
+        root=root,
+        include_resources_dir=False,
     )
     return parser.parse_args()
 
 
 def main() -> None:
     root = repo_root()
-    pipeline_dir = predictor_dir("miraw", root=root)
-    args = parse_args(root, pipeline_dir)
-    args.resources_dir = resolve_cli_path(args.resources_dir, root)
-    args.output = resolve_cli_path(args.output, root)
+    args = parse_args(root)
+    args.common_resources_dir = resolve_cli_path(args.common_resources_dir, root)
+    args.data_dir = resolve_cli_path(args.data_dir, root)
+    args.standardized_output_file = resolve_cli_path(args.standardized_output_file, root)
     args.log_file = resolve_cli_path(args.log_file, root)
 
     configure_file_logging(args.log_file, args.log_level)
@@ -110,7 +103,7 @@ def main() -> None:
     )
     predictions_path = download_file(
         miraw_download_url,
-        pipeline_dir / "data" / MIRAW_FIGSHARE_FILENAME,
+        args.data_dir / MIRAW_FIGSHARE_FILENAME,
         timeout=360,
         resource_label=f"miRAW predictions from DOI {MIRAW_PREDICTIONS_DOI}",
     )
@@ -124,7 +117,7 @@ def main() -> None:
     mirbase_url = "https://mirbase.org/download_version_files/22.1/mature.fa"
     mirbase_path = download_file(
         mirbase_url,
-        args.resources_dir / "mirbase" / "mature.fa",
+        args.common_resources_dir / MIRBASE_MATURE_RELATIVE_PATH,
         resource_label=f"miRBase {TARGET_MIRBASE_RELEASE} mature.fa resource",
     )
 
@@ -134,7 +127,7 @@ def main() -> None:
     )
     ensembl_gtf_path = download_file(
         ensembl_gtf_url,
-        args.resources_dir / "ensembl" / "Homo_sapiens.GRCh38.115.gtf.gz",
+        args.common_resources_dir / ENSEMBL_GTF_RELATIVE_PATH,
         timeout=360,
         resource_label=f"Ensembl release {TARGET_ENSEMBL_RELEASE} Homo sapiens GTF",
     )
@@ -199,8 +192,8 @@ def main() -> None:
         mimat_column="miRNA_ID",
         score_column="Score",
     )
-    write_standardized_table(final_df, args.output, logger=logger, columns=final_columns)
-    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.output))
+    write_standardized_table(final_df, args.standardized_output_file, logger=logger, columns=final_columns)
+    logger.info("Relative output path: %s", resolve_path_relative_to_root(args.standardized_output_file))
 
 
 if __name__ == "__main__":

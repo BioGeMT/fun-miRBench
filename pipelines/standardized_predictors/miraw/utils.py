@@ -8,6 +8,8 @@ from typing import Optional
 import pandas as pd
 import requests
 
+from common import display_path
+
 logger = logging.getLogger("miraw_utils")
 
 MIRBASE_RELEASE = "22.1"
@@ -274,7 +276,7 @@ def load_miraw_predictions(predictions_path: Path) -> pd.DataFrame:
         len(out),
         ENSEMBL_SOURCE_RELEASE,
         MIRBASE_RELEASE,
-        predictions_path,
+        display_path(predictions_path),
     )
     return _clean_loaded_miraw_predictions(
         out,

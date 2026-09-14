@@ -13,8 +13,6 @@ miniconda3/
 
 # Local data outputs (NOT tracked)
 data/experiments/processed/*
-!data/experiments/processed/18745741/
-!data/experiments/processed/18745741/*.tsv
 data/experiments/raw/*
 data/predictions/*
 !data/predictions/random/
@@ -26,8 +24,10 @@ data/predictions/perfect/*
 data/joined/
 data/plots/
 data/experiments/raw/refs/*
-data/resources/ensembl/*
-data/resources/conservation/*
+# Legacy local cache path
+data/resources/
+data/common_resources/*
+!data/common_resources/README.md
 
 # Benchmark results
 results/
@@ -48,11 +48,11 @@ pipelines/geo/runs/*
 pipelines/experiments/runs/*
 
 # Predictor pipeline generated data (downloads + intermediate tables)
-pipelines/standardized_predictors/*/data/*
-pipelines/standardized_predictors/mirbind2/unified_human_mirbase_mane_select_3utrs_selected_18_mirnas_mirbind2_predictions.tsv
-pipelines/standardized_predictors/mirbind2/3utrs_mirbind2_predictions_no_sequences.tsv
-pipelines/standardized_predictors/mirbind2/3utrs_mirbind2_predictions.tsv
+pipelines/standardized_predictors/*/data/
+pipelines/standardized_predictors/*/resources/
 
-# Track standardized predictor pipeline logs
+# Ignore logs globally, but track standardized predictor pipeline logs alongside outputs
 *.log
-!pipelines/standardized_predictors/**/*_pipeline.log
+!data/predictions/*/
+data/predictions/*/*
+!data/predictions/*/*_pipeline.log

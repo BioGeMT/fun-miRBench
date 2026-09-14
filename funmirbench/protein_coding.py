@@ -19,8 +19,12 @@ DEFAULT_ENSEMBL_GTF_URL = (
     "https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/"
     "Homo_sapiens.GRCh38.115.gtf.gz"
 )
-DEFAULT_GTF_REL_PATH = pathlib.Path("data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz")
-DEFAULT_CACHE_REL_PATH = pathlib.Path("data/resources/ensembl/protein_coding_gene_ids.txt")
+DEFAULT_GTF_REL_PATH = pathlib.Path(
+    "data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz"
+)
+DEFAULT_CACHE_REL_PATH = pathlib.Path(
+    "data/common_resources/ensembl/protein_coding_gene_ids.txt"
+)
 DOWNLOAD_RETRIES = 3
 DOWNLOAD_TIMEOUT_SECONDS = 60
 

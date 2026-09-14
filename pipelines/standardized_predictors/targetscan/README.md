@@ -6,8 +6,20 @@ This directory contains the standardization pipeline for TargetScan v8 gene-leve
 
 - `pipeline.py`: CLI entrypoint for the pipeline.
 - `utils.py`: shared helpers for logging, downloads, parsing, QC, mapping, and output construction.
-- `targetscan_pipeline.log`: example log from a completed run.
-- `data/`: cached TargetScan, Ensembl, and miRBase resources used by the pipeline.
+- `data/predictions/targetscan/targetscan_pipeline.log`: example log from a completed run, relative to the repository root.
+- `data/`: downloaded TargetScan prediction data.
+- `resources/`: downloaded TargetScan metadata and derived Ensembl lookup tables.
+
+Shared miRBase and Ensembl annotations are downloaded to:
+
+```text
+data/common_resources/mirbase/mature.fa
+data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+```
+
+By default, `Summary_Counts.all_predictions.txt` and its ZIP archive are stored under `data/`.
+`Gene_info.txt`, `miR_Family_Info.txt`, their ZIP archives, and derived Ensembl lookup tables are
+stored under `resources/`.
 
 ## What The Pipeline Does
 
@@ -54,6 +66,16 @@ The output TSV contains:
 `Score` is the raw numeric form of TargetScan `Cumulative weighted context++ score`.
 No score-based duplicate collapse is applied in the final output step. If duplicate gene-miRNA pairs survive filtering, the pipeline fails and reports them.
 
+## Output Location
+
+By default, the standardized file is written to:
+
+```text
+data/predictions/targetscan/targetscan_standardized.tsv
+```
+
+relative to the repository root.
+
 ## Run
 
 From the repository root:
@@ -65,10 +87,16 @@ uv run pipelines/standardized_predictors/targetscan/pipeline.py
 ## CLI Arguments
 
 ```bash
-uv run pipelines/standardized_predictors/targetscan/pipeline.py --log-level INFO
+uv run pipelines/standardized_predictors/targetscan/pipeline.py \
+  --common-resources-dir data/common_resources \
+  --data-dir pipelines/standardized_predictors/targetscan/data \
+  --resources-dir pipelines/standardized_predictors/targetscan/resources \
+  --standardized-output-file data/predictions/targetscan/targetscan_standardized.tsv \
+  --log-file data/predictions/targetscan/targetscan_pipeline.log \
+  --log-level INFO
 ```
 
 ## Logging
 
-Logging is written both to stdout and to `pipelines/standardized_predictors/targetscan/targetscan_pipeline.log`.
+Logging is written both to stdout and to the file passed via `--log-file`. By default, the log is written to `data/predictions/targetscan/targetscan_pipeline.log`.
 The duplicate summary distinguishes provisional duplicate gene-miRNA pairs seen before the TargetScan/Ensembl mismatch filter from any duplicate pairs that survive after filtering.

@@ -22,6 +22,15 @@ The predictor outputs are written in a shared TSV format with the columns:
 
 The shared annotation schema uses Ensembl v115 (GRCh38) and miRBase release 22.1. Each standardized predictor table is expected to populate all five columns.
 
+Shared downloaded annotations are cached under `data/common_resources/` at the repository root.
+All predictor pipelines reuse `mirbase/mature.fa`; microT-CNN, miRAW, and TargetScan also reuse
+`ensembl/Homo_sapiens.GRCh38.115.gtf.gz`.
+
+Every pipeline accepts `--common-resources-dir`, `--data-dir`,
+`--standardized-output-file`, `--log-file`, and `--log-level`. Pipelines with supporting or
+derived predictor-specific resources also accept `--resources-dir`. Relative paths are resolved
+from the repository root.
+
 ## Pipelines
 
 - `targetscan/`

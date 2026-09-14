@@ -38,8 +38,9 @@ That environment also includes `uv`, so `uv run ...` keeps working after activat
 Main directories:
 
 - `data/experiments/processed/`: root directory for processed experiment DE tables
-- `data/experiments/processed/18745741/`: local cache for curated benchmark DE tables from Zenodo record `18745741`; the repo currently ships the 3 default benchmark TSVs here
+- `data/experiments/processed/21671476/`: local cache for curated benchmark DE tables from Zenodo record `21671476`; the repo currently ships the 3 default benchmark TSVs here
 - `data/experiments/raw/`: local raw GEO inputs such as count matrices and FASTQs
+- `data/common_resources/`: shared, downloaded miRBase and Ensembl annotation cache
 - `data/predictions/`: local generated predictor TSVs
 - `metadata/mirna_experiment_info.tsv`: experiment registry
 - `metadata/predictions_info.tsv`: predictor registry
@@ -66,7 +67,7 @@ uv run funmirbench --config benchmark.yaml
 ```
 
 Before benchmarking, `funmirbench` syncs the selected curated experiment DE tables from Zenodo
-into `data/experiments/processed/18745741/` as needed. The repo currently ships the 3 TSVs used by
+into `data/experiments/processed/21671476/` as needed. The repo currently ships the 3 TSVs used by
 the default benchmark config, while other curated benchmark DE tables are treated as fetched local cache.
 
 The default config already points at:
@@ -93,7 +94,7 @@ workflow:
 
 For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
 workflow is different: those metadata rows stay versioned in the repo, and the corresponding DE
-tables live under the local `data/experiments/processed/18745741/` cache. The repo currently ships
+tables live under the local `data/experiments/processed/21671476/` cache. The repo currently ships
 the 3 default benchmark TSVs there, and other curated tables are fetched from Zenodo when needed.
 
 ### 2. Add Predictor Data
@@ -128,9 +129,9 @@ uv run funmirbench --config benchmark.yaml
 ```
 
 That command automatically syncs only the experiment DE tables selected by your benchmark config
-from Zenodo into the local `data/experiments/processed/18745741/` cache before joining predictions.
+from Zenodo into the local `data/experiments/processed/21671476/` cache before joining predictions.
 On the first protein-coding run, it also downloads or reuses the Ensembl v115 GTF and caches the
-protein-coding gene set at `data/resources/ensembl/protein_coding_gene_ids.txt`.
+protein-coding gene set at `data/common_resources/ensembl/protein_coding_gene_ids.txt`.
 
 If you want to prefetch the full curated experiment cache yourself, you can also run:
 
@@ -176,8 +177,8 @@ evaluation:
   write_top_prediction_cdfs: true
   report_min_common_coverage: 0.10
   protein_coding_only: true
-  protein_coding_gtf: data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
-  protein_coding_gene_cache: data/resources/ensembl/protein_coding_gene_ids.txt
+  protein_coding_gtf: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+  protein_coding_gene_cache: data/common_resources/ensembl/protein_coding_gene_ids.txt
 
 out_dir: results/
 ```

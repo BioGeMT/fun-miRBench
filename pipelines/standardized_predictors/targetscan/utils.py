@@ -13,13 +13,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
-from funmirbench.logger import (
-    DEFAULT_DATE_FORMAT,
-    DEFAULT_LOG_FORMAT,
-    parse_log_level,
-    setup_logging as setup_root_logging,
-)
-
+from common import display_path
 
 logger = logging.getLogger(__name__)
 
@@ -70,42 +64,27 @@ def assert_fasta(path: pathlib.Path) -> None:
     raise RuntimeError("FASTA check failed: file appears empty.")
 
 
-def configure_logging(log_path: pathlib.Path, *, log_level: str) -> logging.Logger:
-    setup_root_logging(parse_log_level(log_level))
-
-    root_logger = logging.getLogger()
-    file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
-    file_handler.setLevel(root_logger.level)
-    file_handler.setFormatter(
-        logging.Formatter(
-            fmt=DEFAULT_LOG_FORMAT,
-            datefmt=DEFAULT_DATE_FORMAT,
-        )
-    )
-    root_logger.addHandler(file_handler)
-    return logging.getLogger(__name__)
-
-
 def step1_download_targetscan_files(
     data_dir: pathlib.Path,
+    resources_dir: pathlib.Path,
     *,
     force: bool = False,
 ) -> Dict[str, pathlib.Path]:
-    logger.info("\n=== STEP 1/7: Download + unzip TargetScan inputs ===")
-
     data_dir = pathlib.Path(data_dir).resolve()
     data_dir.mkdir(parents=True, exist_ok=True)
+    resources_dir = pathlib.Path(resources_dir).resolve()
+    resources_dir.mkdir(parents=True, exist_ok=True)
 
     base = "https://www.targetscan.org/vert_80/vert_80_data_download"
-    zips = [
-        "Summary_Counts.all_predictions.txt.zip",
-        "miR_Family_Info.txt.zip",
-        "Gene_info.txt.zip",
-    ]
+    zip_destinations = {
+        "Summary_Counts.all_predictions.txt.zip": data_dir,
+        "miR_Family_Info.txt.zip": resources_dir,
+        "Gene_info.txt.zip": resources_dir,
+    }
 
-    for fname in zips:
+    for fname, destination_dir in zip_destinations.items():
         url = f"{base}/{fname}"
-        zip_path = data_dir / fname
+        zip_path = destination_dir / fname
 
         if not zip_path.exists() or force:
             logger.info("Downloading %s", url)
@@ -116,19 +95,20 @@ def step1_download_targetscan_files(
 
         with zipfile.ZipFile(zip_path, "r") as zf:
             for member in zf.namelist():
-                extracted = data_dir / member
+                extracted = destination_dir / member
                 if extracted.exists() and not force:
                     continue
-                zf.extract(member, data_dir)
+                zf.extract(member, destination_dir)
         logger.info("Unzipped %s", zip_path.name)
 
     expected = {
         "Summary_Counts.all_predictions.txt": data_dir / "Summary_Counts.all_predictions.txt",
-        "miR_Family_Info.txt": data_dir / "miR_Family_Info.txt",
-        "Gene_info.txt": data_dir / "Gene_info.txt",
+        "miR_Family_Info.txt": resources_dir / "miR_Family_Info.txt",
+        "Gene_info.txt": resources_dir / "Gene_info.txt",
     }
 
-    logger.info("✔ TargetScan inputs ready in %s", data_dir)
+    logger.info("✔ TargetScan prediction data ready in %s", display_path(data_dir))
+    logger.info("✔ TargetScan supporting resources ready in %s", display_path(resources_dir))
     return expected
 
 
@@ -138,8 +118,6 @@ def step2_build_representative_transcript_index(
     species_id: str = "9606",
     report_top_n: int = 6,
 ) -> Dict[str, Any]:
-    logger.info("\n=== STEP 2/7: Build representative-transcript index from Gene_info.txt ===")
-
     rep_txs_by_gene_id: Dict[str, List[Tuple[str, int, str]]] = {}
     gene_id_by_tx: Dict[str, str] = {}
     targetscan_gene_id_by_tx: Dict[str, str] = {}
@@ -238,17 +216,13 @@ def step2_build_representative_transcript_index(
 
 
 def step3_download_ensembl115_gtf(
-    data_dir: pathlib.Path,
+    destination: pathlib.Path,
     *,
     force: bool = False,
 ) -> pathlib.Path:
-    logger.info("\n=== STEP 3/7: Download Ensembl v115 GTF (GRCh38) ===")
-
-    data_dir = pathlib.Path(data_dir).resolve()
-    data_dir.mkdir(parents=True, exist_ok=True)
-
     url = "https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/Homo_sapiens.GRCh38.115.gtf.gz"
-    dest = data_dir / "Homo_sapiens.GRCh38.115.gtf.gz"
+    dest = pathlib.Path(destination).resolve()
+    dest.parent.mkdir(parents=True, exist_ok=True)
 
     if dest.exists() and not force:
         logger.info("Skipping %s (already exists)", dest.name)
@@ -266,8 +240,6 @@ def step4_build_and_cache_ensembl115_tables(
     cache_dir: pathlib.Path,
     force_rebuild: bool = False,
 ) -> Dict[str, Dict[str, str]]:
-    logger.info("\n=== STEP 4/7: Build Ensembl v115 mapping tables + cache to TSVs ===")
-
     cache_dir = pathlib.Path(cache_dir).resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -343,8 +315,8 @@ def step4_build_and_cache_ensembl115_tables(
             writer.writerow({"gene_id": gene_id, "gene_name": gene_name})
 
     logger.info("Wrote cached Ensembl tables:")
-    logger.info("  - %s", tx2gene_path)
-    logger.info("  - %s", gene2name_path)
+    logger.info("  - %s", display_path(tx2gene_path))
+    logger.info("  - %s", display_path(gene2name_path))
 
     return {"tx_to_gene": tx_to_gene, "gene_to_name": gene_to_name}
 
@@ -355,8 +327,6 @@ def step5_qc_targetscan_vs_ensembl_transcripts(
     *,
     report_n: int = 10,
 ) -> None:
-    logger.info("\n=== STEP 5/7: QC TargetScan representative transcript overlap with Ensembl v115 ===")
-
     gene_id_by_tx = tx_index["gene_id_by_tx"]
     targetscan_gene_id_by_tx = tx_index["targetscan_gene_id_by_tx"]
     rep_txs_by_gene_id = tx_index["rep_txs_by_gene_id"]
@@ -423,24 +393,20 @@ def step5_qc_targetscan_vs_ensembl_transcripts(
 
 
 def step6_download_mirbase_mature(
-    data_dir: pathlib.Path,
+    destination: pathlib.Path,
     *,
     force: bool = False,
 ) -> pathlib.Path:
-    logger.info("\n=== STEP 6/7: Download miRBase mature.fa (pinned release %s) ===", MIRBASE_RELEASE)
-
-    data_dir = pathlib.Path(data_dir).resolve()
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    dest = data_dir / f"mirbase_mature_v{MIRBASE_RELEASE}.fa"
+    dest = pathlib.Path(destination).resolve()
+    dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() and not force:
-        logger.info("Skipping miRBase mature.fa (already exists): %s", dest)
+        logger.info("Skipping miRBase mature.fa (already exists): %s", display_path(dest))
         return dest
 
     logger.info("Downloading %s", MIRBASE_MATURE_URL)
     download_url(url=MIRBASE_MATURE_URL, dest=dest)
     assert_fasta(dest)
-    logger.info("Downloaded miRBase mature.fa -> %s", dest)
+    logger.info("Downloaded miRBase mature.fa -> %s", display_path(dest))
     return dest
 
 
@@ -472,8 +438,6 @@ def step_build_human_mirna_annotations(
     mirbase_acc2name: Dict[str, str],
     species_id: str = "9606",
 ) -> Dict[str, MirnaEntry]:
-    logger.info("\n=== STEP 7/7 Build human mature miRNA annotation lookup (validated against miRBase v22.1) ===")
-
     annotations: Dict[str, MirnaEntry] = {}
 
     n_total = 0
@@ -550,11 +514,9 @@ def step_write_standardized_predictions(
     tx_index: Dict[str, Any],
     ensembl_tables: Dict[str, Dict[str, str]],
     mirna_annotations: Dict[str, MirnaEntry],
-    out_predictions_dir: pathlib.Path,
+    output_path: pathlib.Path,
     species_id: str = "9606",
 ) -> None:
-    logger.info("\n=== Write standardized predictions (%s) ===", PREDICTOR_NAME)
-
     rep_txs_by_gene_id = tx_index["rep_txs_by_gene_id"]
     targetscan_gene_id_by_tx = tx_index["targetscan_gene_id_by_tx"]
     tx_to_gene_ens = ensembl_tables["tx_to_gene"]
@@ -566,12 +528,8 @@ def step_write_standardized_predictions(
         for tx, _tags, _sym in reps
     }
 
-    out_predictions_dir = pathlib.Path(out_predictions_dir)
-    out_predictions_dir.mkdir(parents=True, exist_ok=True)
-
-    out_dir = out_predictions_dir / PREDICTOR_NAME
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{PREDICTOR_NAME}_standardized.tsv"
+    output_path = pathlib.Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     stats = Counter()
     mismatch_examples = []
@@ -717,7 +675,7 @@ def step_write_standardized_predictions(
             f"Sample rows: {details}"
         )
 
-    with out_path.open("w", encoding="utf-8", newline="") as handle:
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
             fieldnames=["Ensembl_ID", "Gene_Name", "miRNA_ID", "miRNA_Name", "Score"],
@@ -733,18 +691,17 @@ def step_write_standardized_predictions(
             )
 
     logger.info(
-        "%s -> wrote %d unique gene-miRNA rows from %d kept transcript-level rows; output=%s",
+        "%s -> retained %d unique gene-miRNA rows from %d transcript-level rows",
         PREDICTOR_NAME,
         len(unique_rows),
         stats["rows_after_filters"],
-        out_path,
     )
+    logger.info("Output written to: %s", display_path(output_path))
+    logger.info("Rows written: %d", len(unique_rows))
 
 
-def compute_final_statistics(predictions_root: pathlib.Path) -> None:
-    logger.info("\n=== FINAL STATISTICS ===")
-
-    predictions_path = predictions_root / PREDICTOR_NAME / f"{PREDICTOR_NAME}_standardized.tsv"
+def compute_final_statistics(predictions_path: pathlib.Path) -> None:
+    predictions_path = pathlib.Path(predictions_path)
     genes = set()
     mirs = set()
     n_rows = 0
