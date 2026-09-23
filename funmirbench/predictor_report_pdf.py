@@ -9,6 +9,10 @@ import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
 from funmirbench.evaluate import REPORT_PAGE_SIZE, _is_publication_tool
+from funmirbench.experiment_labels import (
+    format_experiment_id_label,
+    format_experiment_label,
+)
 
 
 BLUE = "#17324D"
@@ -61,11 +65,22 @@ def _save_page(pdf, fig):
     plt.close(fig)
 
 
-def _header(ax, title, subtitle):
+def _header(ax, experiment_label, predictor_label, dataset_id):
     ax.text(
         0.06,
-        0.955,
-        title,
+        0.965,
+        experiment_label,
+        fontsize=18.0,
+        fontweight="bold",
+        color=BLUE,
+        va="top",
+        ha="left",
+        family="DejaVu Sans",
+    )
+    ax.text(
+        0.06,
+        0.922,
+        predictor_label,
         fontsize=REPORT_TITLE_SIZE,
         fontweight="bold",
         color=BLUE,
@@ -75,15 +90,15 @@ def _header(ax, title, subtitle):
     )
     ax.text(
         0.06,
-        0.916,
-        subtitle,
-        fontsize=REPORT_SUBTITLE_SIZE,
+        0.882,
+        format_experiment_id_label(dataset_id),
+        fontsize=10.2,
         color=MUTED,
         va="top",
         ha="left",
         family="DejaVu Sans",
     )
-    ax.add_line(plt.Line2D([0.06, 0.94], [0.895, 0.895], color=RULE, linewidth=1.2))
+    ax.add_line(plt.Line2D([0.06, 0.94], [0.858, 0.858], color=RULE, linewidth=1.2))
 
 
 def _metric_card(ax, label, value, *, x, y):
@@ -200,12 +215,19 @@ def _plot_panel_subtitle(label):
     return subtitles.get(str(label), "Dataset-level diagnostic plot.")
 
 
-def _plot_grid_page(pdf, *, title, subtitle, plot_paths):
-    del title, subtitle
-    fig, _ = _new_page()
+def _plot_grid_page(
+    pdf,
+    *,
+    experiment_label,
+    predictor_label,
+    dataset_id,
+    plot_paths,
+):
+    fig, ax = _new_page()
+    _header(ax, experiment_label, predictor_label, dataset_id)
     panels = [
-        {"title_y": 0.965, "subtitle_y": 0.940, "image_box": [0.04, 0.505, 0.92, 0.410]},
-        {"title_y": 0.485, "subtitle_y": 0.460, "image_box": [0.04, 0.025, 0.92, 0.410]},
+        {"title_y": 0.825, "subtitle_y": 0.800, "image_box": [0.04, 0.445, 0.92, 0.325]},
+        {"title_y": 0.405, "subtitle_y": 0.380, "image_box": [0.04, 0.025, 0.92, 0.325]},
     ]
     for (label, path), panel in zip(plot_paths, panels):
         path = pathlib.Path(path)
@@ -314,8 +336,14 @@ def write_publication_predictor_reports(
         ]
 
         with PdfPages(report_path) as pdf:
+            experiment_label = format_experiment_label(
+                geo_accession=geo_accession,
+                mirna=mirna,
+                cell_line=cell_line,
+                perturbation=perturbation,
+            )
             fig, ax = _new_page()
-            _header(ax, f"{dataset_id} - {label}", f"{mirna}, {perturbation}, {cell_line}")
+            _header(ax, experiment_label, label, dataset_id)
             if row_status == "skipped":
                 rows_total = int(row.get("rows_total", 0) or 0)
                 rows_scored = int(row.get("rows_scored", 0) or 0)
@@ -328,7 +356,7 @@ def write_publication_predictor_reports(
                     ("GT pos. scored", f"{int(row.get('positives_scored', 0) or 0):,}", 0.75),
                 ]
                 for label_text, value, x in cards:
-                    _metric_card(ax, label_text, value, x=x, y=0.84)
+                    _metric_card(ax, label_text, value, x=x, y=0.81)
                 _key_value_table(
                     ax,
                     [
@@ -368,6 +396,7 @@ def write_publication_predictor_reports(
                 _wide_table(
                     ax,
                     [
+                        ["Experiment ID", dataset_id],
                         ["GEO accession", geo_accession or "NA"],
                         ["DE table file", _short_path(de_table_path)],
                         ["Predictor file", _short_path(predictor_output_paths.get(tool_id))],
@@ -389,7 +418,7 @@ def write_publication_predictor_reports(
                 ("AUROC", _metric_value(row.get("auroc")), 0.75),
             ]
             for label_text, value, x in cards:
-                _metric_card(ax, label_text, value, x=x, y=0.84)
+                _metric_card(ax, label_text, value, x=x, y=0.81)
 
             metric_table_rows = [
                 ["Coverage", _metric_value(row.get("coverage"), percent=True)],
@@ -427,6 +456,7 @@ def write_publication_predictor_reports(
             _wide_table(
                 ax,
                 [
+                    ["Experiment ID", dataset_id],
                     ["GEO accession", geo_accession or "NA"],
                     ["DE table file", _short_path(de_table_path)],
                     ["Predictor file", _short_path(predictor_output_paths.get(tool_id))],
@@ -442,8 +472,9 @@ def write_publication_predictor_reports(
                 suffix = "" if len(plot_paths) <= 2 else f" ({page_index})"
                 _plot_grid_page(
                     pdf,
-                    title=f"{dataset_id} - {label} figures{suffix}",
-                    subtitle="Per-predictor diagnostics for score ranking, enrichment, and classification behavior.",
+                    experiment_label=experiment_label,
+                    predictor_label=f"{label}{suffix}",
+                    dataset_id=dataset_id,
                     plot_paths=plot_chunk,
                 )
             dataset_context = _dataset_context_plots(plots_dir)
@@ -451,8 +482,9 @@ def write_publication_predictor_reports(
                 suffix = "" if len(dataset_context) <= 2 else f" ({page_index})"
                 _plot_grid_page(
                     pdf,
-                    title=f"{dataset_id} dataset-level figures{suffix}",
-                    subtitle="Top-positive heatmap and own-scored predictor comparisons; common-set comparison plots are excluded.",
+                    experiment_label=experiment_label,
+                    predictor_label=f"All selected predictors{suffix}",
+                    dataset_id=dataset_id,
                     plot_paths=context_chunk,
                 )
         written.append(report_path)
