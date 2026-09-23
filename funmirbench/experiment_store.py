@@ -111,6 +111,27 @@ def _verify_checksum_if_available(dest: pathlib.Path, filename: str, registry: d
         )
 
 
+
+def _resolve_zenodo_filename(filename: str, registry: dict[str, dict]) -> str:
+    """Resolve a curated table filename against the Zenodo record.
+
+    Metadata keeps stable local .tsv paths while the published artifact may
+    store the same table either as .tsv or .tsv.gz.
+    """
+    candidates = [filename]
+    if filename.endswith(".tsv"):
+        candidates.append(f"{filename}.gz")
+    elif filename.endswith(".tsv.gz"):
+        candidates.append(filename[:-3])
+
+    for candidate in candidates:
+        if candidate in registry:
+            return candidate
+    raise KeyError(
+        f"{filename!r} is not present in Zenodo record {ZENODO_RECORD} "
+        f"(checked {candidates!r})."
+    )
+
 def ensure_zenodo_experiment_cached(
     de_table_path: str | pathlib.Path,
     *,
@@ -140,12 +161,8 @@ def ensure_zenodo_experiment_cached(
         _verify_checksum_if_available(dest, filename, registry)
         return dest
 
-    if filename not in registry:
-        raise KeyError(
-            f"{filename!r} is not present in Zenodo record {ZENODO_RECORD} and no local file exists at {dest}."
-        )
-
-    meta = registry[filename]
+    remote_filename = _resolve_zenodo_filename(filename, registry)
+    meta = registry[remote_filename]
     checksum_value = str(meta.get("checksum", "") or "")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -175,8 +192,25 @@ def ensure_zenodo_experiment_cached(
                     f"Checksum mismatch for {filename}: expected {expected_digest}, got {actual_digest}."
                 )
 
-        tmp_path.replace(dest)
-        tmp_path = None
+        if remote_filename.endswith(".gz") and not filename.endswith(".gz"):
+            import gzip
+            import shutil
+
+            with gzip.open(tmp_path, "rb") as source, tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=dest.parent,
+                prefix=f".{dest.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                unpacked_path = pathlib.Path(handle.name)
+                shutil.copyfileobj(source, handle)
+            unpacked_path.replace(dest)
+            tmp_path.unlink()
+            tmp_path = None
+        else:
+            tmp_path.replace(dest)
+            tmp_path = None
         return dest
     finally:
         if tmp_path is not None and tmp_path.exists():
