@@ -47,8 +47,10 @@ def load_experiments(tsv_path, root, filters):
 
     metas = []
     for _, row in df.iterrows():
-        parsed = urllib.parse.urlparse(str(row.get("gse_url", "") or ""))
-        geo = urllib.parse.parse_qs(parsed.query).get("acc", [None])[0]
+        geo = clean_optional_string(row.get("geo_accession"), default="")
+        if not geo:
+            parsed = urllib.parse.urlparse(str(row.get("gse_url", "") or ""))
+            geo = urllib.parse.parse_qs(parsed.query).get("acc", [None])[0]
         metas.append(
             DatasetMeta(
                 id=str(row["id"]),

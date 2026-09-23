@@ -179,20 +179,31 @@ def load_local_source_table(
     return read_table_auto(source_path), source_path
 
 
+def _normalize_pubmed_id(value) -> str:
+    text = normalize_space(value)
+    if not text or text.upper() == "NA" or text.rstrip("/").upper().endswith("/NA"):
+        return ""
+    match = re.search(r"(\d{5,})", text)
+    return match.group(1) if match else text
+
+
 def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
     gse = normalize_space(config.get("gse", ""))
     metadata_cfg = config.get("metadata", {})
+    pubmed_value = metadata_cfg.get(
+        "pubmed_id",
+        metadata_cfg.get("article_pubmed_id", ""),
+    )
     return {
         "id": config["dataset_id"],
+        "geo_accession": gse,
         "mirna_name": config["mirna_name"],
-        "mirna_sequence": metadata_cfg.get("mirna_sequence", ""),
-        "article_pubmed_id": metadata_cfg.get("article_pubmed_id", ""),
-        "organism": metadata_cfg.get("organism", ""),
-        "tested_cell_line": metadata_cfg.get("tested_cell_line", ""),
-        "treatment": metadata_cfg.get("treatment", ""),
-        "tissue": metadata_cfg.get("tissue", ""),
-        "method": metadata_cfg.get("method", "RNA-seq"),
         "experiment_type": config["experiment_type"],
+        "tested_cell_line": metadata_cfg.get("tested_cell_line", ""),
+        "tissue": metadata_cfg.get("tissue", ""),
+        "organism": metadata_cfg.get("organism", ""),
+        "method": metadata_cfg.get("method", "RNA-seq"),
+        "pubmed_id": _normalize_pubmed_id(pubmed_value),
         "gse_url": gse_url(gse) if gse else "",
         "de_table_path": de_table_rel_path,
     }

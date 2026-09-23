@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import re
 import sys
 
 import pandas as pd
@@ -51,6 +52,35 @@ def collect_input_paths(inputs: list[pathlib.Path], repo: pathlib.Path) -> list[
                 paths.append(path)
                 seen.add(str(path))
     return paths
+
+
+def _normalize_pubmed_id(value) -> str:
+    text = str(value or "").strip()
+    if not text or text.upper() == "NA" or text.rstrip("/").upper().endswith("/NA"):
+        return ""
+    match = re.search(r"(\d{5,})", text)
+    return match.group(1) if match else text
+
+
+def _prepare_canonical_columns(incoming: pd.DataFrame) -> pd.DataFrame:
+    incoming = incoming.copy()
+
+    if "pubmed_id" not in incoming.columns and "article_pubmed_id" in incoming.columns:
+        incoming["pubmed_id"] = incoming["article_pubmed_id"].map(_normalize_pubmed_id)
+    elif "pubmed_id" in incoming.columns:
+        incoming["pubmed_id"] = incoming["pubmed_id"].map(_normalize_pubmed_id)
+
+    if "geo_accession" not in incoming.columns:
+        incoming["geo_accession"] = ""
+    if "gse_url" in incoming.columns:
+        missing_geo = incoming["geo_accession"].astype(str).str.strip().eq("")
+        extracted = incoming.loc[missing_geo, "gse_url"].astype(str).str.extract(
+            r"[?&]acc=(GSE\d+)",
+            expand=False,
+        )
+        incoming.loc[missing_geo, "geo_accession"] = extracted.fillna("")
+
+    return incoming
 
 
 def merge_registry(existing: pd.DataFrame, incoming: pd.DataFrame) -> pd.DataFrame:
@@ -103,6 +133,7 @@ def sync_metadata(
             )
 
     incoming = incoming.drop(columns=["_source_path", "_source_mtime"], errors="ignore")
+    incoming = _prepare_canonical_columns(incoming)
     merged = merge_registry(existing, incoming)
     merged.to_csv(registry, sep="\t", index=False)
     return {
