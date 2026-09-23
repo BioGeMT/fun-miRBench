@@ -287,10 +287,11 @@ def run_benchmark(config_path):
     out_root.mkdir(parents=True, exist_ok=True)
     run_dir_name = build_run_dir_name()
     out_dir = out_root / run_dir_name
-    suffix = 2
-    while out_dir.exists():
-        out_dir = out_root / f"{run_dir_name}__r{suffix}"
-        suffix += 1
+    if out_dir.exists():
+        raise FileExistsError(
+            f"Run output directory already exists: {out_dir}. "
+            "Start the benchmark again to create a new timestamped run directory."
+        )
     logger.info(f"Results root: {out_root}")
     logger.info(f"Run output dir: {out_dir}")
     main_layout = _init_run_layout(out_dir)
