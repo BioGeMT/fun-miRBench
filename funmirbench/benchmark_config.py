@@ -65,13 +65,6 @@ def load_experiments(tsv_path, root, filters):
     return metas
 
 
-def selected_experiment_paths(tsv_path, filters) -> list[str]:
-    df = pd.read_csv(tsv_path, sep="\t")
-    if filters:
-        df = filter_df(df, filters)
-    return [str(value) for value in df["de_table_path"].tolist()]
-
-
 def load_predictions(tsv_path, filters):
     df = pd.read_csv(tsv_path, sep="\t")
 
