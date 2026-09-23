@@ -60,17 +60,23 @@ already includes:
 - experiment metadata in `metadata/mirna_experiment_info.tsv`
 - predictor metadata in `metadata/predictions_info.tsv`
 
-Then run the default benchmark:
+To reproduce the published FuNmiRBench benchmark, download the published benchmark inputs once:
+
+```bash
+uv run funmirbench-download-data
+```
+
+This downloads all curated experiment DE tables and all published standardized predictor tables
+from Zenodo record `21671476` into the local `data/` cache.
+
+Then run the benchmark:
 
 ```bash
 uv run funmirbench --config benchmark.yaml
 ```
 
-Before benchmarking, `funmirbench` uses Zenodo record `21671476`
-(https://zenodo.org/records/21671476) as the canonical published data source. It downloads the
-selected curated experiment DE tables into `data/experiments/processed/21671476/` and prepares
-the selected standardized predictor tables under `data/predictions/` when they are not already
-available locally.
+The benchmark command itself does not download experiment or predictor data. The config only
+selects and filters the local files registered in the metadata tables.
 
 The default config already points at:
 
@@ -96,21 +102,21 @@ workflow:
 
 For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the metadata
 rows stay versioned in the repo while the corresponding DE tables are published in Zenodo record
-`21671476`. The benchmark downloads missing selected tables into the local
-`data/experiments/processed/21671476/` cache. The downloader accepts either `.tsv` or
-`.tsv.gz` versions in Zenodo while keeping stable local `.tsv` paths.
+`21671476`. Running `uv run funmirbench-download-data` downloads the full curated experiment
+collection into `data/experiments/processed/21671476/`. The benchmark then only filters and reads
+those local tables according to the selected config.
 
 ### 2. Add Predictor Data
 
 Predictor score files live under `data/predictions/` and are discovered through
 `metadata/predictions_info.tsv`. The published standardized predictor tables are part of Zenodo
-record `21671476`. When a selected predictor file is missing locally, the benchmark downloads the
-published standardized-predictor archive, verifies its Zenodo checksum, and extracts the required
-table into the configured `data/predictions/<tool>/` path.
+record `21671476`. Running `uv run funmirbench-download-data` downloads the published predictor
+archive, verifies its Zenodo checksum, and prepares all registered standardized predictor tables
+under `data/predictions/<tool>/`.
 
 The pipelines under `pipelines/standardized_predictors/` are the reproducibility path for
 regenerating those published standardized tables from their upstream sources. They are not a
-prerequisite for a normal benchmark run using the published Zenodo artifacts.
+prerequisite for using the published Zenodo artifacts.
 
 ### 3. Run The Benchmark
 
@@ -133,17 +139,16 @@ Run it with:
 uv run funmirbench --config benchmark.yaml
 ```
 
-That command automatically prepares the selected published inputs from Zenodo record `21671476`:
-curated experiment DE tables are cached under `data/experiments/processed/21671476/`, and
-standardized predictor tables are cached under `data/predictions/`. On the first protein-coding
-run, it also downloads or reuses the Ensembl v115 GTF and caches the protein-coding gene set at
-`data/common_resources/ensembl/protein_coding_gene_ids.txt`.
-
-If you want to prefetch the full curated experiment cache yourself, you can also run:
+Before the first run with the published FuNmiRBench inputs, prepare the complete local dataset once:
 
 ```bash
-uv run funmirbench-experiments-store
+uv run funmirbench-download-data
 ```
+
+After that, `benchmark.yaml` only controls which experiments and predictors are selected from the
+local metadata registries. On the first protein-coding benchmark run, FuNmiRBench may still
+download or reuse the Ensembl v115 annotation resource and cache the protein-coding gene set at
+`data/common_resources/ensembl/protein_coding_gene_ids.txt`.
 
 During evaluation, DE rows are first restricted to Ensembl protein-coding genes from Ensembl
 release 115. This keeps the evaluation universe aligned with mRNA target predictors and avoids
@@ -193,6 +198,25 @@ Filter behavior:
 
 - different keys are combined with AND
 - values inside one list are combined with OR
+
+### Using Your Own Data
+
+Zenodo is optional. To benchmark your own experiments or predictor outputs, provide your own
+metadata TSV files and point a config at them:
+
+```yaml
+experiments_tsv: my_experiments.tsv
+predictions_tsv: my_predictions.tsv
+```
+
+Then run:
+
+```bash
+uv run funmirbench --config my_benchmark.yaml
+```
+
+In this workflow, `funmirbench-download-data` is not needed and the benchmark does not contact
+Zenodo for experiment or predictor inputs.
 
 `benchmark.yaml` already includes other experiment and predictor columns as commented rows, so the
 normal workflow is just to edit or uncomment filters.
@@ -244,8 +268,8 @@ When 2 or more predictors are selected, each dataset gets:
 ## Commands
 
 ```bash
+uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
-uv run funmirbench-experiments-store
 uv run funmirbench-validate-experiments --experiments-tsv metadata/mirna_experiment_info.tsv
 uv run funmirbench-experiments-download-examples
 uv run funmirbench-experiments --config config.yaml
