@@ -356,7 +356,8 @@ def run_benchmark(config_path):
         ]
         if not score_columns or not joined[score_columns].notna().any().any():
             reason = (
-                f"No selected predictor has predictions for miRNA {meta.miRNA}."
+                "No predictor-scored rows remained after joining predictions "
+                "to this experiment."
             )
             logger.info("  Skipping %s: %s", meta.id, reason)
             skipped_datasets.append(
