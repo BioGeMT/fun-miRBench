@@ -1,10 +1,15 @@
 # Experiment Ingestion Pipeline
 
-This pipeline turns raw experiment data (a pre-existing count matrix or FASTQs) into a
-benchmark-ready differential-expression (DE) table under `data/experiments/processed/`, using
-DESeq2 (`funmirbench/experiments_pipeline.py`). It is typically the second stage of the full
-experiment workflow, after the [GEO download pipeline](../geo/README.md) has produced a YAML
-config — though a config can also be written by hand.
+This directory documents the **experiment reproduction and extension workflow** for fun-miRBenvh.
+It is not required to reproduce the published benchmark: the curated DE tables used in the
+publication can be downloaded directly with `uv run funmirbench-download-data`.
+
+Use this pipeline when you want to regenerate a DE table from source data or add a new experiment
+to the benchmark. It converts either a pre-existing count matrix or FASTQs into a benchmark-ready
+differential-expression (DE) table under `data/experiments/processed/` using DESeq2
+(`funmirbench/experiments_pipeline.py`). It is typically run after the
+[GEO download pipeline](../geo/README.md) has produced a YAML config, although configs can also be
+written by hand.
 
 ---
 

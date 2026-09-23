@@ -1,6 +1,12 @@
 # GEO Download Pipeline
 
-This pipeline is the first stage of the fun-miRBenvh experiment processing workflow. It downloads raw FASTQ files from GEO/SRA (or locates local FASTQ files) or verifies a pre-existing count matrix and automatically generates YAML configuration files for the RNA-seq pipeline (`funmirbench/experiments_pipeline.py`).
+This is an **optional experiment acquisition workflow** for extending or reproducing experiment
+processing in fun-miRBenvh. It is not required to run the published benchmark; the curated
+publication inputs are available through `uv run funmirbench-download-data`.
+
+The pipeline downloads raw FASTQ files from GEO/SRA (or locates local FASTQ files), can validate a
+pre-existing count matrix, and generates YAML configuration files for the downstream experiment
+pipeline (`funmirbench/experiments_pipeline.py`).
 
 ---
 
@@ -37,7 +43,7 @@ conda activate funmirbench-geo
 python pipelines/geo/fetch_geo_metadata.py --gse-url GSE93717
 ```
 
-### Option B - With Gemini Flash LLM (recommended)
+### Option B - With Gemini Flash LLM (optional)
 
 Adds LLM-assisted extraction of `mirna_name`, `experiment_type`, `treatment`,
 `tested_cell_line`, `tissue`, and `organism`. Also validates the suggested miRNA
