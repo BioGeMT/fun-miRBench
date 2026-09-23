@@ -10,7 +10,7 @@ import zipfile
 
 import requests
 
-from funmirbench.experiment_store import (
+from funmirbench.zenodo_store import (
     ZENODO_RECORD,
     compute_md5,
     fetch_zenodo_file_registry,
