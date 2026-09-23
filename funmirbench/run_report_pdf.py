@@ -223,7 +223,7 @@ def _draw_common_prediction_page(pdf, combined_outputs):
     summary = _load_common_prediction_summary(combined_outputs)
     if summary is None or summary.empty:
         return
-    selected = summary[summary["summary_type"].isin(["publication_common_set", "all_real_predictors_common_set"])].copy()
+    selected = summary[summary["summary_type"].isin(["report_common_set", "all_real_predictors_common_set"])].copy()
     if selected.empty:
         return
     def _format_tools(value):
@@ -236,7 +236,7 @@ def _draw_common_prediction_page(pdf, combined_outputs):
     )
     selected["Set"] = selected["summary_type"].map(
         {
-            "publication_common_set": "Publication common set",
+            "report_common_set": "Report common set",
             "all_real_predictors_common_set": "All predictors",
         }
     )
