@@ -173,15 +173,13 @@ universe explicit.
 Each run creates a date-based directory:
 
 ```text
-results/YYYYMMDD/
+results/YYYYMMDD_HHMMSS/
 ```
-
-Additional runs on the same date use `__r2`, `__r3`, and so on.
 
 A run contains:
 
 ```text
-results/YYYYMMDD/
+results/YYYYMMDD_HHMMSS/
 ├── benchmark_config.yaml
 ├── README.md
 ├── REPORT.pdf

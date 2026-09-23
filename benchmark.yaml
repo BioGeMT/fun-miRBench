@@ -8,7 +8,7 @@ predictions_tsv: metadata/predictions_info.tsv
 
 # Filter experiments by any column in the experiments TSV.
 # AND across columns, OR within each column's value list.
-# The default repo config ships with a small 2-dataset demo selection.
+# The default repo config selects a small 2-dataset benchmark subset.
 # Edit or comment these active rows to benchmark other subsets.
 experiments:
   id: [GSE169128_KO_miR_3662, GSE124411_OE_miR_150_5p_1]
