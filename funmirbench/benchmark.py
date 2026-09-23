@@ -16,7 +16,6 @@ from funmirbench.benchmark_config import (
     filter_df,
     load_experiments,
     load_predictions,
-    selected_experiment_paths,
     validate_predictor_output_files,
 )
 from funmirbench.benchmark_reports import (
@@ -34,11 +33,9 @@ from funmirbench.evaluate import (
     REPORT_PAGE_SIZE,
     evaluate_joined_dataframe,
 )
-from funmirbench.experiment_store import sync_zenodo_experiments
 from funmirbench.join import build_joined, load_predictor_score_cache
 from funmirbench.logger import parse_log_level, setup_logging
 from funmirbench.predictor_combinations import write_predictor_combination_outputs
-from funmirbench.predictor_store import sync_zenodo_predictors
 from funmirbench.protein_coding import (
     DEFAULT_CACHE_REL_PATH,
     DEFAULT_GTF_REL_PATH,
@@ -238,17 +235,7 @@ def run_benchmark(config_path):
     if not predictions:
         raise ValueError("Predictor selection resolved to no predictors.")
 
-    logger.info("Syncing selected standardized predictor files from Zenodo...")
-    synced_predictors = sync_zenodo_predictors(predictions, repo=root)
-    logger.info("Prepared %d standardized predictor files.", len(synced_predictors))
     validate_predictor_output_files(predictions, root)
-
-    logger.info("Syncing selected experiment DE tables from Zenodo...")
-    synced = sync_zenodo_experiments(
-        selected_experiment_paths(experiments_tsv, experiment_filters),
-        repo=root,
-    )
-    logger.info(f"Synced {len(synced)} experiment DE tables.")
 
     logger.info("Validating selected experiments...")
     validation_summary = validate_experiments(
