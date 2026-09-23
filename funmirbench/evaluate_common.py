@@ -62,6 +62,7 @@ CURVE_COLORS = [
 TOP_PREDICTION_CDF_N = 100
 TOOL_LABELS = {}
 TOOL_COLORS = {}
+DATASET_LABELS = {}
 
 
 def _is_publication_tool(tool_id):
@@ -170,6 +171,15 @@ def _set_tool_labels(tool_labels=None):
     }
 
 
+def _set_dataset_label(dataset_id, label=None):
+    global DATASET_LABELS
+    dataset_id = str(dataset_id)
+    if label:
+        DATASET_LABELS[dataset_id] = str(label).strip()
+    else:
+        DATASET_LABELS.pop(dataset_id, None)
+
+
 def _set_tool_colors(tool_ids=None):
     global TOOL_COLORS
     TOOL_COLORS = {
@@ -194,13 +204,14 @@ def _positive_count_caption(scored_positives, positives_total):
 
 
 def _dataset_heading(dataset_id, *, suffix=None):
+    label = DATASET_LABELS.get(str(dataset_id), str(dataset_id))
     if suffix:
-        return f"{dataset_id} | {suffix}"
-    return str(dataset_id)
+        return f"{label} | {suffix}"
+    return label
 
 
 def _dataset_caption(dataset_id):
-    return str(dataset_id).replace("_", " ")
+    return DATASET_LABELS.get(str(dataset_id), str(dataset_id).replace("_", " "))
 
 
 def _wrap_axis_label(text, *, width=14):

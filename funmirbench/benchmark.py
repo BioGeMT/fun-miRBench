@@ -33,6 +33,7 @@ from funmirbench.evaluate import (
     REPORT_PAGE_SIZE,
     evaluate_joined_dataframe,
 )
+from funmirbench.experiment_labels import format_experiment_label
 from funmirbench.join import build_joined, load_predictor_score_cache
 from funmirbench.logger import parse_log_level, setup_logging
 from funmirbench.predictor_combinations import write_predictor_combination_outputs
@@ -329,7 +330,13 @@ def run_benchmark(config_path):
     )
 
     for meta in experiments:
-        logger.info(f"Dataset: {meta.id} | {meta.miRNA} | {meta.cell_line}")
+        experiment_label = format_experiment_label(
+            geo_accession=meta.geo_accession,
+            mirna=meta.miRNA,
+            cell_line=meta.cell_line,
+            perturbation=meta.perturbation,
+        )
+        logger.info(f"Dataset: {meta.id} | {experiment_label}")
         dataset_dir = main_layout["datasets_dir"] / meta.id
         if dataset_dir.exists():
             shutil.rmtree(dataset_dir)
@@ -366,6 +373,8 @@ def run_benchmark(config_path):
                     "mirna": meta.miRNA,
                     "cell_line": meta.cell_line,
                     "perturbation": meta.perturbation,
+                    "geo_accession": meta.geo_accession,
+                    "display_label": experiment_label,
                     "reason": reason,
                     "joined_tsv": str(joined_path),
                 }
@@ -388,6 +397,7 @@ def run_benchmark(config_path):
             de_table_path=str(meta.full_path),
             joined_tsv=joined_path,
             predictor_output_paths=predictor_output_paths,
+            dataset_label=experiment_label,
             tool_labels=tool_labels,
             write_top_prediction_cdfs=write_top_prediction_cdfs,
             logger=logger.info,
@@ -401,6 +411,8 @@ def run_benchmark(config_path):
                     "mirna": meta.miRNA,
                     "cell_line": meta.cell_line,
                     "perturbation": meta.perturbation,
+                    "geo_accession": meta.geo_accession,
+                    "display_label": experiment_label,
                     "reason": reason,
                     "joined_tsv": str(joined_path),
                 }
@@ -453,6 +465,7 @@ def run_benchmark(config_path):
                 "cell_line": meta.cell_line,
                 "perturbation": meta.perturbation,
                 "geo_accession": meta.geo_accession,
+                "display_label": experiment_label,
                 "de_table_path": str(meta.full_path),
                 "joined_tsv": str(joined_path),
                 "dataset_dir": str(dataset_dir),

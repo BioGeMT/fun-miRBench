@@ -74,7 +74,12 @@ Experiment metadata are versioned in:
 metadata/mirna_experiment_info.tsv
 ```
 
-Each selected row points to a benchmark-ready DE table. The canonical DE schema is:
+Each selected row has a stable `id` for filenames and machine-readable outputs, plus explicit
+human-facing identifiers such as `geo_accession`, `mirna_name`, `tested_cell_line`, and
+`experiment_type`. Reports and plots combine those fields into readable experiment labels while
+retaining the stable `id` for provenance.
+
+Each row points to a benchmark-ready DE table. The canonical DE schema is:
 
 | Column | Meaning |
 |---|---|
