@@ -38,14 +38,14 @@ That environment also includes `uv`, so `uv run ...` keeps working after activat
 Main directories:
 
 - `data/experiments/processed/`: root directory for processed experiment DE tables
-- `data/experiments/processed/21671476/`: local cache for curated benchmark DE tables from Zenodo record `21671476`; the repo currently ships the 3 default benchmark TSVs here
+- `data/experiments/processed/21671476/`: local cache for curated benchmark DE tables from Zenodo record `21671476`
 - `data/experiments/raw/`: local raw GEO inputs such as count matrices and FASTQs
 - `data/common_resources/`: shared, downloaded miRBase and Ensembl annotation cache
-- `data/predictions/`: local generated predictor TSVs
+- `data/predictions/`: local cache for published standardized predictor TSVs; predictor pipelines can also regenerate these files
 - `metadata/mirna_experiment_info.tsv`: experiment registry
 - `metadata/predictions_info.tsv`: predictor registry
 - `pipelines/experiments/`: experiment-ingestion backend files and example configs
-- `pipelines/standardized_predictors/`: predictor pipelines
+- `pipelines/standardized_predictors/`: reproducibility pipelines used to regenerate standardized predictor tables from upstream sources
 - `manuscript_assets/`: final manuscript figure exports and compact supporting tables
 - `results/`: benchmark outputs
 
@@ -66,9 +66,11 @@ Then run the default benchmark:
 uv run funmirbench --config benchmark.yaml
 ```
 
-Before benchmarking, `funmirbench` syncs the selected curated experiment DE tables from Zenodo
-into `data/experiments/processed/21671476/` as needed. The repo currently ships the 3 TSVs used by
-the default benchmark config, while other curated benchmark DE tables are treated as fetched local cache.
+Before benchmarking, `funmirbench` uses Zenodo record `21671476`
+(https://zenodo.org/records/21671476) as the canonical published data source. It downloads the
+selected curated experiment DE tables into `data/experiments/processed/21671476/` and prepares
+the selected standardized predictor tables under `data/predictions/` when they are not already
+available locally.
 
 The default config already points at:
 
@@ -92,19 +94,23 @@ workflow:
 - [Experiment ingestion pipeline](pipelines/experiments/README.md) — run DESeq2 (count matrix or
   reads mode) and sync results into the registry
 
-For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
-workflow is different: those metadata rows stay versioned in the repo, and the corresponding DE
-tables live under the local `data/experiments/processed/21671476/` cache. The repo currently ships
-the 3 default benchmark TSVs there, and other curated tables are fetched from Zenodo when needed.
+For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the metadata
+rows stay versioned in the repo while the corresponding DE tables are published in Zenodo record
+`21671476`. The benchmark downloads missing selected tables into the local
+`data/experiments/processed/21671476/` cache. The downloader accepts either `.tsv` or
+`.tsv.gz` versions in Zenodo while keeping stable local `.tsv` paths.
 
 ### 2. Add Predictor Data
 
 Predictor score files live under `data/predictions/` and are discovered through
-`metadata/predictions_info.tsv`.
+`metadata/predictions_info.tsv`. The published standardized predictor tables are part of Zenodo
+record `21671476`. When a selected predictor file is missing locally, the benchmark downloads the
+published standardized-predictor archive, verifies its Zenodo checksum, and extracts the required
+table into the configured `data/predictions/<tool>/` path.
 
-The repo includes standardization pipelines for the curated external predictors under
-`pipelines/standardized_predictors/`. Run the predictor-specific pipeline for each score file you
-want to generate, then register the resulting standardized TSV in `metadata/predictions_info.tsv`.
+The pipelines under `pipelines/standardized_predictors/` are the reproducibility path for
+regenerating those published standardized tables from their upstream sources. They are not a
+prerequisite for a normal benchmark run using the published Zenodo artifacts.
 
 ### 3. Run The Benchmark
 
@@ -119,7 +125,6 @@ Benchmark config summary:
 - `experiments`: which experiment rows to include
 - `predictors`: which predictor rows to include
 - `evaluation`: thresholds, ranking settings, and the protein-coding benchmark universe
-- `tags`: optional labels included in the per-run output folder name
 - `out_dir`: results root directory; each benchmark run creates its own subfolder under this root
 
 Run it with:
@@ -128,10 +133,11 @@ Run it with:
 uv run funmirbench --config benchmark.yaml
 ```
 
-That command automatically syncs only the experiment DE tables selected by your benchmark config
-from Zenodo into the local `data/experiments/processed/21671476/` cache before joining predictions.
-On the first protein-coding run, it also downloads or reuses the Ensembl v115 GTF and caches the
-protein-coding gene set at `data/common_resources/ensembl/protein_coding_gene_ids.txt`.
+That command automatically prepares the selected published inputs from Zenodo record `21671476`:
+curated experiment DE tables are cached under `data/experiments/processed/21671476/`, and
+standardized predictor tables are cached under `data/predictions/`. On the first protein-coding
+run, it also downloads or reuses the Ensembl v115 GTF and caches the protein-coding gene set at
+`data/common_resources/ensembl/protein_coding_gene_ids.txt`.
 
 If you want to prefetch the full curated experiment cache yourself, you can also run:
 
@@ -206,6 +212,9 @@ generated artifacts and remain gitignored.
 After a benchmark run, `results/` contains one new run folder named with the run date. For example:
 
 - `results/20260510/`
+
+If another run is created on the same date, FuNmiRBench keeps the date-based naming and adds a
+collision suffix such as `results/20260510__r2/`.
 
 Detailed dataset, miRNA, predictor, perturbation, cell-line, evaluation-threshold, and
 protein-coding-universe metadata is recorded inside the run folder.
