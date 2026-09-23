@@ -111,7 +111,8 @@ The published standardized tables use Ensembl release 115 (GRCh38) and miRBase 2
 
 ## Benchmark configuration
 
-The benchmark is driven by one YAML file:
+The benchmark is controlled by a single YAML file. The included `benchmark.yaml` is a runnable
+configuration for the published data:
 
 ```yaml
 experiments_tsv: metadata/mirna_experiment_info.tsv
@@ -138,31 +139,52 @@ evaluation:
 out_dir: results/
 ```
 
-Experiment and predictor filters use **AND across columns** and **OR within a column's value list**.
+### Configuration reference
 
-Paths may be absolute or relative to the YAML file.
+| Key | Meaning |
+|---|---|
+| `experiments_tsv` | Experiment registry to use. Each selected row must point to a benchmark-ready DE table. |
+| `predictions_tsv` | Predictor registry to use. Each selected row defines a standardized predictor file and its score direction. |
+| `experiments` | Optional filters applied to the experiment registry. Omit this block to use all registered experiments. |
+| `predictors` | Optional filters applied to the predictor registry. Omit this block to use all registered predictors. |
+| `evaluation` | Evaluation and reporting settings described below. |
+| `out_dir` | Root directory for benchmark outputs. Each run creates a timestamped subdirectory such as `results/20260923_120807/`. |
 
-## Evaluation design
+Filters can target any column in the corresponding metadata table. Different filter keys are
+combined with **AND**; multiple values for one key are combined with **OR**. Paths may be absolute
+or relative to the YAML file.
 
-By default, evaluation is restricted to Ensembl release 115 protein-coding genes. The annotation
-resource is downloaded or reused on the first protein-coding run and cached under
-`data/common_resources/`.
+### Evaluation settings
 
-For each experiment:
+| Setting | Example | Meaning |
+|---|---:|---|
+| `predictor_load_workers` | `2` | Number of workers used to load standardized predictor tables in parallel. This affects loading speed, not benchmark results. |
+| `fdr_threshold` | `0.05` | FDR cutoff used when defining ground-truth positive genes. A positive must satisfy `FDR < threshold`. Set to `null` to define positives from effect size only. |
+| `effect_threshold` | `1.0` | Minimum perturbation-aware effect used for ground-truth positives. The effect is `-logFC` for overexpression experiments and `+logFC` for knockout/knockdown experiments. |
+| `predictor_top_fraction` | `0.10` | Fraction of each predictor's scored genes treated as its top predictions in agreement analyses. Selection uses an exact top-k with deterministic tie breaking. |
+| `write_top_prediction_cdfs` | `true` | Whether to write the optional top-prediction effect CDF diagnostic plots. |
+| `report_min_common_coverage` | `0.10` | Minimum fraction of experiment rows a predictor must score to be included in report-level common-set comparison plots. |
+| `protein_coding_only` | `true` | Restrict the evaluation universe to Ensembl protein-coding genes. |
+| `protein_coding_gtf` | Ensembl v115 GTF | GTF used to derive the protein-coding gene set. If the configured file is absent, the default Ensembl resource is downloaded. |
+| `protein_coding_gene_cache` | `.../protein_coding_gene_ids.txt` | Local cache of protein-coding Ensembl gene IDs derived from the GTF. |
+| `figure_dpi` | `600` | Resolution used for raster benchmark figures. |
 
-- predictor scores are joined to the DE table by miRNA-gene pair;
-- missing predictor pairs remain missing and are not converted to zero-valued predictions;
-- coverage is reported explicitly for each predictor;
-- ground-truth positives are derived from the configured FDR and effect-size thresholds;
-- predictor-specific score direction is respected;
-- per-dataset plots use dataset-local tie-aware ranks;
-- cross-dataset rank analyses use ranks derived from the full standardized predictor table;
-- exact top-k selection with deterministic tie breaking is used for predictor-agreement analyses;
-- combined PR, ROC, and GSEA comparisons use the common scored set for the predictors being
-  compared.
+## Evaluation behavior
 
-This keeps predictive performance separate from prediction coverage and makes the evaluated gene
-universe explicit.
+The configuration above defines the evaluation choices that a user may change. The remaining
+benchmark mechanics are fixed by the software:
+
+- predictor scores are joined to each DE table by miRNA-gene pair, and missing predictions remain
+  missing rather than being replaced with zero;
+- coverage is reported separately from predictive performance, so a predictor is not penalized by
+  silently treating unscored pairs as negative predictions;
+- predictor score direction is normalized internally so that stronger predictions are interpreted
+  consistently across tools;
+- multi-predictor PR, ROC, and GSEA comparisons are calculated on the common set of genes scored by
+  all predictors being compared.
+
+The generated run `README.md`, `REPORT.pdf`, and `summary.json` record the settings and
+evaluation details for that specific run.
 
 ## Outputs
 
