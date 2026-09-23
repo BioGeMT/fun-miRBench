@@ -404,16 +404,19 @@ def write_run_readme(
             )
             + " |"
         )
-    lines.extend(
-        [
-            "",
-            "## Key Files",
-            "- `REPORT.pdf`: polished run-level summary with the main cross-dataset table and selected plots",
-            "- `tables/combined/cross_dataset_predictor_summary.tsv`: exact numeric cross-dataset summary used in the report",
-            "",
-            "### Per-Experiment Tables",
-        ]
-    )
+    lines.extend(["", "## Key Files"])
+    lines.append("- `REPORT.pdf`: run-level summary and evaluation notes")
+    if dataset_outputs:
+        lines.append(
+            "- `tables/combined/cross_dataset_predictor_summary.tsv`: "
+            "exact numeric cross-dataset summary used in the report"
+        )
+    else:
+        lines.append(
+            "- No cross-dataset metric tables were generated because no selected "
+            "dataset had evaluable predictor rows."
+        )
+    lines.extend(["", "### Per-Experiment Tables"])
     metric_descriptions = {
         "coverage": "fraction of genes with predictor scores",
         "positive_coverage": "fraction of GT-positive genes that were scored",
