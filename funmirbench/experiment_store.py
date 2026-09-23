@@ -9,6 +9,8 @@ import tempfile
 import pandas as pd
 import requests
 
+logger = logging.getLogger(__name__)
+
 from funmirbench.zenodo_store import (
     ZENODO_RECORD,
     compute_md5,
@@ -148,6 +150,7 @@ def ensure_zenodo_experiment_cached(
 
         if remote_filename.endswith(".gz") and not filename.endswith(".gz"):
             import gzip
+import logging
             import shutil
 
             with gzip.open(tmp_path, "rb") as source, tempfile.NamedTemporaryFile(
@@ -214,13 +217,13 @@ def sync_zenodo_experiments(
 
         dest = resolve_cached_experiment_path(rel_path, repo=repo)
         if dest.exists() and not force:
-            print(f"local {rel_path.name}")
+            logger.info("Using cached experiment: %s", rel_path.name)
             saved.append(dest)
             continue
 
         if registry_cache is None:
             registry_cache = fetch_zenodo_file_registry(token=token, timeout=timeout)
-        print(f"sync {rel_path.name}")
+        logger.info("Downloading experiment: %s", rel_path.name)
         saved.append(
             ensure_zenodo_experiment_cached(
                 rel_path,

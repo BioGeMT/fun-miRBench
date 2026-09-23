@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import gzip
+import logging
 import pathlib
 import shutil
 import tempfile
 import zipfile
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 from funmirbench.zenodo_store import (
     ZENODO_RECORD,
@@ -55,11 +58,28 @@ def _select_predictor_archive(registry: dict[str, dict]) -> dict:
     return candidates[0]
 
 
+def _format_bytes(value: int) -> str:
+    size = float(value)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if size < 1024 or unit == "TiB":
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TiB"
+
+
 def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> pathlib.Path:
     directory.mkdir(parents=True, exist_ok=True)
+    filename = str(meta.get("filename") or "standardized predictor archive")
+    expected_size = int(meta.get("size", 0) or 0)
+    size_label = _format_bytes(expected_size) if expected_size else "unknown size"
+    logger.info("Downloading predictor archive: %s (%s)", filename, size_label)
+
     response = requests.get(str(meta["url"]), stream=True, timeout=timeout)
     response.raise_for_status()
 
+    downloaded = 0
+    next_progress = 10
+    chunk_size = 4 * 1024 * 1024
     with tempfile.NamedTemporaryFile(
         mode="wb",
         dir=directory,
@@ -68,9 +88,24 @@ def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> p
         delete=False,
     ) as handle:
         archive_path = pathlib.Path(handle.name)
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
-            if chunk:
-                handle.write(chunk)
+        for chunk in response.iter_content(chunk_size=chunk_size):
+            if not chunk:
+                continue
+            handle.write(chunk)
+            downloaded += len(chunk)
+            if expected_size:
+                progress = int(downloaded * 100 / expected_size)
+                if progress >= next_progress:
+                    logger.info(
+                        "Predictor archive download: %d%% (%s / %s)",
+                        min(progress, 100),
+                        _format_bytes(downloaded),
+                        _format_bytes(expected_size),
+                    )
+                    while next_progress <= progress:
+                        next_progress += 10
+
+    logger.info("Predictor archive download complete: %s", _format_bytes(downloaded))
 
     checksum_value = str(meta.get("checksum", "") or "")
     if checksum_value:
@@ -78,6 +113,7 @@ def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> p
         if algorithm != "md5":
             archive_path.unlink(missing_ok=True)
             raise ValueError(f"Unsupported checksum algorithm: {algorithm}")
+        logger.info("Verifying predictor archive checksum...")
         actual_digest = compute_md5(archive_path)
         if actual_digest != expected_digest:
             archive_path.unlink(missing_ok=True)
@@ -163,7 +199,10 @@ def sync_zenodo_predictors(
     if not missing:
         return [path for _, path in destinations]
 
-    registry = registry or fetch_zenodo_file_registry(timeout=timeout)
+    if registry is None:
+        logger.info("Fetching Zenodo record %s metadata...", ZENODO_RECORD)
+        registry = fetch_zenodo_file_registry(timeout=timeout)
+        logger.info("Zenodo metadata loaded: %d files.", len(registry))
     archive_meta = _select_predictor_archive(registry)
     archive_path = _download_archive(
         archive_meta,
@@ -174,6 +213,7 @@ def sync_zenodo_predictors(
         with zipfile.ZipFile(archive_path, "r") as archive:
             for tool_id, destination in missing:
                 member = _find_archive_member(archive, destination.name)
+                logger.info("Extracting predictor %s -> %s", tool_id, destination.relative_to(repo))
                 _extract_member(archive, member, destination)
                 if not destination.is_file():
                     raise FileNotFoundError(
