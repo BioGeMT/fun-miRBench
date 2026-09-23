@@ -27,6 +27,8 @@ REQUIRED_DE_COLUMNS = ("gene_id", "logFC", "FDR")
 VALID_PERTURBATIONS = {"Overexpression", "Knockout", "Knockdown"}
 MAX_LOGGED_ISSUES = 20
 _ENSEMBL_GENE_ID = re.compile(r"^ENS[A-Z]*G\d+(?:\.\d+)?$", re.IGNORECASE)
+_GEO_ACCESSION = re.compile(r"^GSE\d+$", re.IGNORECASE)
+_PUBMED_ID = re.compile(r"^\d+$")
 
 
 @dataclass(frozen=True)
@@ -318,6 +320,26 @@ def _validate_registry_row(row: pd.Series) -> list[ValidationIssue]:
                     f"Registry row is missing required value {column!r}.",
                 )
             )
+
+    geo_accession = _text(row.get("geo_accession"))
+    if geo_accession and not _GEO_ACCESSION.fullmatch(geo_accession):
+        issues.append(
+            ValidationIssue(
+                dataset_id,
+                "geo_accession",
+                f"Invalid geo_accession {geo_accession!r}; expected a value like 'GSE115646'.",
+            )
+        )
+
+    pubmed_id = _text(row.get("pubmed_id"))
+    if pubmed_id and not _PUBMED_ID.fullmatch(pubmed_id):
+        issues.append(
+            ValidationIssue(
+                dataset_id,
+                "pubmed_id",
+                f"Invalid pubmed_id {pubmed_id!r}; expected digits only.",
+            )
+        )
 
     perturbation = _normalize_perturbation(row.get("experiment_type"))
     if perturbation and perturbation not in VALID_PERTURBATIONS:

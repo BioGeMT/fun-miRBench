@@ -219,13 +219,20 @@ def _load_common_prediction_summary(combined_outputs):
         return None
 
 
-def _draw_common_prediction_page(pdf, combined_outputs):
+def _draw_common_prediction_page(pdf, combined_outputs, dataset_outputs=None):
     summary = _load_common_prediction_summary(combined_outputs)
     if summary is None or summary.empty:
         return
     selected = summary[summary["summary_type"].isin(["report_common_set", "all_real_predictors_common_set"])].copy()
     if selected.empty:
         return
+    display_labels = {
+        str(item["dataset_id"]): item.get("display_label") or str(item["dataset_id"])
+        for item in (dataset_outputs or [])
+    }
+    selected["dataset_id"] = selected["dataset_id"].map(
+        lambda value: display_labels.get(str(value), str(value))
+    )
     def _format_tools(value):
         return " + ".join(_tool_label(tool_id.strip()) for tool_id in str(value).split(",") if tool_id.strip())
 
@@ -623,7 +630,7 @@ def write_publication_run_pdf_report(
         )
         _save_page(pdf, fig)
 
-        _draw_common_prediction_page(pdf, combined_outputs)
+        _draw_common_prediction_page(pdf, combined_outputs, dataset_outputs)
 
         paired_rank_keys = set()
         paired_rank_keys |= _draw_rank_pair_page(pdf, combined_outputs, rank_type="local")
