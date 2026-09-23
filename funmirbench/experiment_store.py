@@ -151,7 +151,6 @@ def ensure_zenodo_experiment_cached(
 
         if remote_filename.endswith(".gz") and not filename.endswith(".gz"):
             import gzip
-import logging
             import shutil
 
             with gzip.open(tmp_path, "rb") as source, tempfile.NamedTemporaryFile(
