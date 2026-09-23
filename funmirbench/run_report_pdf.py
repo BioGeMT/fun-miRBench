@@ -469,7 +469,7 @@ def write_publication_run_pdf_report(
         fig, ax = _new_page()
         _header(
             ax,
-            "FuNmiRBench Benchmark Report",
+            "fun-miRBenvh Benchmark Report",
             _run_subtitle(len(dataset_outputs), len(display_tool_ids), config_path),
         )
         _draw_basic_table(

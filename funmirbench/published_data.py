@@ -1,4 +1,4 @@
-"""Download the complete published FuNmiRBench benchmark dataset."""
+"""Download the complete published fun-miRBenvh benchmark dataset."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Download all published FuNmiRBench experiments and standardized "
+            "Download all published fun-miRBenvh experiments and standardized "
             f"predictors from Zenodo record {ZENODO_RECORD}."
         )
     )
@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     setup_logging(parse_log_level(args.log_level))
-    logger.info("Preparing published FuNmiRBench data from Zenodo record %s.", ZENODO_RECORD)
+    logger.info("Preparing published fun-miRBenvh data from Zenodo record %s.", ZENODO_RECORD)
 
     experiments = sync_all_zenodo_experiments(
         repo=args.repo,

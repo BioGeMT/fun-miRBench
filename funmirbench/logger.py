@@ -1,4 +1,4 @@
-"""Centralized logging configuration for FuNmiRBench."""
+"""Centralized logging configuration for fun-miRBenvh."""
 
 from __future__ import annotations
 

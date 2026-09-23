@@ -1,4 +1,4 @@
-"""Shared helpers for accessing the FuNmiRBench Zenodo record."""
+"""Shared helpers for accessing the fun-miRBenvh Zenodo record."""
 
 from __future__ import annotations
 

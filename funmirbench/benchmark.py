@@ -1,4 +1,4 @@
-"""Run the FuNmiRBench benchmark from a single YAML config."""
+"""Run the fun-miRBenvh benchmark from a single YAML config."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run the FuNmiRBench benchmark.")
+    parser = argparse.ArgumentParser(description="Run the fun-miRBenvh benchmark.")
     parser.add_argument("--config", type=pathlib.Path, required=True)
     parser.add_argument(
         "--log-level",

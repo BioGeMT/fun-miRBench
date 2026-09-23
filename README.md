@@ -1,6 +1,6 @@
-# FuNmiRBench
+# fun-miRBenvh
 
-FuNmiRBench is a reproducible framework for evaluating **functional miRNA target predictors**
+fun-miRBenvh is a reproducible framework for evaluating **functional miRNA target predictors**
 against differential-expression (DE) experiments following miRNA perturbation.
 
 The repository contains the benchmark software, curated experiment and predictor registries,
