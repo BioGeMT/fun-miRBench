@@ -520,14 +520,23 @@ def write_publication_run_pdf_report(
             y=next_y - 0.020,
             width=0.92,
         )
-        _draw_basic_table(
-            ax,
+        primary_files = (
             [
                 ["cross_dataset_predictor_summary.tsv", "Rankings and coverage diagnostics"],
                 ["common_prediction_summary.tsv", "Common scored-gene overlap by dataset"],
                 ["predictor_combination_summary.tsv", "Predictor and rank-mean combination metrics"],
                 ["datasets/<dataset_id>/", "Joined tables, plots, and predictor reports"],
-            ],
+            ]
+            if dataset_outputs
+            else [
+                ["REPORT.pdf", "Run summary and skipped-dataset notes"],
+                ["summary.json", "Machine-readable run summary, including skipped datasets"],
+                ["datasets/<dataset_id>/joined.tsv", "Joined tables retained for skipped datasets"],
+            ]
+        )
+        _draw_basic_table(
+            ax,
+            primary_files,
             columns=["Primary file", "Purpose"],
             col_widths=[0.43, 0.57],
             bbox=[0.04, 0.045, 0.92, 0.155],
