@@ -439,10 +439,8 @@ def _run_subtitle(dataset_count, predictor_count, config_path):
 def _dataset_report_rows(dataset_outputs):
     return [
         {
-            "Dataset": item["dataset_id"],
-            "miRNA": item["mirna"],
-            "Perturbation": item["perturbation"],
-            "Cell line": item["cell_line"],
+            "Experiment": item.get("display_label") or item["dataset_id"],
+            "Experiment ID": item["dataset_id"],
         }
         for item in dataset_outputs
     ]
@@ -577,7 +575,7 @@ def write_publication_run_pdf_report(
                 ax,
                 dataset_df.values.tolist(),
                 columns=dataset_df.columns.tolist(),
-                col_widths=[0.35, 0.25, 0.15, 0.25],
+                col_widths=[0.62, 0.38],
                 bbox=[0.06, 0.61, 0.88, 0.20],
                 font_size=REPORT_TABLE_SIZE,
             )
@@ -594,8 +592,8 @@ def write_publication_run_pdf_report(
         if skipped_datasets:
             skipped_rows = [
                 [
+                    item.get("display_label") or item["dataset_id"],
                     item["dataset_id"],
-                    item["mirna"],
                     item["reason"],
                 ]
                 for item in skipped_datasets
@@ -603,8 +601,8 @@ def write_publication_run_pdf_report(
             _draw_basic_table(
                 ax,
                 skipped_rows,
-                columns=["Skipped dataset", "miRNA", "Reason"],
-                col_widths=[0.30, 0.22, 0.48],
+                columns=["Skipped experiment", "Experiment ID", "Reason"],
+                col_widths=[0.36, 0.27, 0.37],
                 bbox=[0.06, 0.31, 0.88, 0.22],
                 font_size=REPORT_TABLE_SIZE,
             )

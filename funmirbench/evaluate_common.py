@@ -235,7 +235,26 @@ def _nice_symmetric_limit(values, *, floor=1.0):
 
 
 def _add_figure_heading(fig, *, title, subtitle, x=0.08, title_y=0.975, subtitle_y=0.93):
-    del fig, title, subtitle, x, title_y, subtitle_y
+    fig.text(
+        x,
+        title_y,
+        str(title),
+        fontsize=PLOT_TITLE_SIZE,
+        fontweight="bold",
+        color="#17324D",
+        va="top",
+        ha="left",
+    )
+    if subtitle:
+        fig.text(
+            x,
+            subtitle_y,
+            str(subtitle),
+            fontsize=PLOT_SUBTITLE_SIZE,
+            color="#5B6577",
+            va="top",
+            ha="left",
+        )
 
 
 def _add_horizontal_colorbar(fig, *, mappable, anchor_ax, label, ticks=None, height=0.014, pad=0.05):

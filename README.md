@@ -79,6 +79,25 @@ human-facing identifiers such as `geo_accession`, `mirna_name`, `tested_cell_lin
 `experiment_type`. Reports and plots combine those fields into readable experiment labels while
 retaining the stable `id` for provenance.
 
+The registry uses the following identity fields:
+
+| Column | Meaning |
+|---|---|
+| `id` | stable experiment identifier used in filenames, directories, configs, and machine-readable outputs |
+| `geo_accession` | GEO series accession, for example `GSE115646` |
+| `mirna_name` | mature miRNA name |
+| `experiment_type` | perturbation type, such as Overexpression, Knockout, or Knockdown |
+| `tested_cell_line` | experimental cell line or cell context when available |
+| `tissue` | tissue context when available |
+| `organism` | source organism |
+| `method` | expression profiling method |
+| `pubmed_id` | PubMed identifier when available |
+| `gse_url` | GEO record URL |
+| `de_table_path` | local benchmark-ready DE table path |
+
+The default reporting label is `GEO accession · miRNA · cell line · experiment type`. Missing
+optional fields are omitted from the label rather than shown as `NA`.
+
 Each row points to a benchmark-ready DE table. The canonical DE schema is:
 
 | Column | Meaning |

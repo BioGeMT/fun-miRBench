@@ -386,8 +386,8 @@ def write_run_readme(
             "- `summary.json`: machine-readable run summary",
             "",
             "## Datasets",
-            "| Dataset | miRNA | Perturbation | Cell line | Joined table |",
-            "| --- | --- | --- | --- | --- |",
+            "| Experiment | Experiment ID | Joined table |",
+            "| --- | --- | --- |",
         ]
     )
     for item in dataset_outputs:
@@ -395,10 +395,8 @@ def write_run_readme(
             "| "
             + " | ".join(
                 [
+                    item.get("display_label") or f"`{item['dataset_id']}`",
                     f"`{item['dataset_id']}`",
-                    f"`{item['mirna']}`",
-                    f"`{item['perturbation']}`",
-                    f"`{item['cell_line']}`",
                     f"`{_relative_display_path(item['joined_tsv'], base_dir=out_dir)}`",
                 ]
             )
