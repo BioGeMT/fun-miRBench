@@ -10,14 +10,15 @@ import tempfile
 import pandas as pd
 import requests
 
-logger = logging.getLogger(__name__)
-
 from funmirbench.zenodo_store import (
     ZENODO_RECORD,
     compute_md5,
     fetch_zenodo_file_registry,
     parse_checksum,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def repo_root() -> pathlib.Path:
@@ -66,7 +67,6 @@ def _verify_checksum_if_available(dest: pathlib.Path, filename: str, registry: d
         raise ValueError(
             f"Existing file {dest} failed checksum verification for {filename}."
         )
-
 
 
 def _resolve_zenodo_filename(filename: str, registry: dict[str, dict]) -> str:
@@ -180,7 +180,7 @@ def sync_all_zenodo_experiments(
     token: str | None = None,
     timeout: int = 120,
     force: bool = False,
-    ) -> list[pathlib.Path]:
+) -> list[pathlib.Path]:
     repo = (repo or repo_root()).resolve()
     df = pd.read_csv(experiments_metadata_tsv(repo=repo), sep="\t")
     de_table_paths = [str(value) for value in df["de_table_path"].dropna().tolist()]
@@ -234,7 +234,6 @@ def sync_zenodo_experiments(
             )
         )
     return saved
-
 
 
 def parse_args() -> argparse.Namespace:
