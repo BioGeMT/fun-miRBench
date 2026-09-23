@@ -19,14 +19,12 @@ def clean_optional_string(value, default=""):
     return text if text else default
 
 
-def build_run_dir_name(*, experiments, tool_ids, eval_cfg, tags=None, run_date=None):
-    """Return the timestamp-based run directory name.
-    """
-    del experiments, tool_ids, eval_cfg, tags
-    run_timestamp = run_date or dt.datetime.now()
-    if isinstance(run_timestamp, dt.datetime):
-        return run_timestamp.strftime("%Y%m%d_%H%M%S")
-    return run_timestamp.strftime("%Y%m%d")
+def build_run_dir_name(*, run_date=None):
+    """Return the date-based run directory name."""
+    run_date = run_date or dt.date.today()
+    if isinstance(run_date, dt.datetime):
+        run_date = run_date.date()
+    return run_date.strftime("%Y%m%d")
 
 
 def filter_df(df, filters):

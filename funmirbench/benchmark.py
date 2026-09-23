@@ -110,7 +110,6 @@ def _finalize_run_bundle(
     out_root,
     config_path,
     config_snapshot_path,
-    tags,
     dataset_outputs,
     tool_ids,
     metric_rows,
@@ -185,7 +184,6 @@ def _finalize_run_bundle(
         "out_root": str(out_root),
         "out_dir": str(out_dir),
         "run_dir_name": out_dir.name,
-        "tags": tags or [],
         "dataset_ids": [item["dataset_id"] for item in dataset_outputs],
         "tool_ids": tool_ids,
         "readme": str(readme_path),
@@ -300,12 +298,7 @@ def run_benchmark(config_path):
     evaluate_module.FIGURE_DPI = int(eval_cfg.get("figure_dpi", eval_cfg.get("publication_figure_dpi", 450)))
     out_root = (root / config.get("out_dir", "results")).resolve()
     out_root.mkdir(parents=True, exist_ok=True)
-    run_dir_name = build_run_dir_name(
-        experiments=experiments,
-        tool_ids=list(predictions),
-        eval_cfg=eval_cfg,
-        tags=config.get("tags"),
-    )
+    run_dir_name = build_run_dir_name()
     out_dir = out_root / run_dir_name
     suffix = 2
     while out_dir.exists():
@@ -442,7 +435,6 @@ def run_benchmark(config_path):
         out_root=out_root,
         config_path=config_path,
         config_snapshot_path=config_snapshot_path,
-        tags=config.get("tags"),
         dataset_outputs=dataset_outputs,
         tool_ids=tool_ids,
         metric_rows=metric_rows,
