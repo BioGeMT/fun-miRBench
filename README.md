@@ -188,7 +188,7 @@ evaluation details for that specific run.
 
 ## Outputs
 
-Each run creates a date-based directory:
+Each run creates a timestamped directory:
 
 ```text
 results/YYYYMMDD_HHMMSS/
