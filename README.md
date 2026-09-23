@@ -1,11 +1,10 @@
 # fun-miRBenvh
 
-fun-miRBenvh is a reproducible framework for evaluating **functional miRNA target predictors**
+fun-miRBenvh is a benchmarking system for evaluating **functional miRNA target predictors**
 against differential-expression (DE) experiments following miRNA perturbation.
 
-The repository contains the benchmark software, curated experiment and predictor registries,
-reproducibility pipelines, manuscript-supporting assets, and a one-command workflow for obtaining
-the published benchmark inputs from Zenodo.
+The repository contains the benchmark software, curated experiment and predictor registries and
+reproducibility pipelines.
 
 ## Published data
 
@@ -63,8 +62,7 @@ uv run funmirbench --config benchmark.yaml
 ```
 
 `benchmark.yaml` selects experiments and predictors from the versioned metadata registries. The
-published data only need to be downloaded once; changing the config changes the subset evaluated,
-not the downloaded dataset.
+published data only need to be downloaded once; changing the config changes the subset evaluated.
 
 The included configuration currently selects two curated experiment datasets and all five
 registered predictors. Edit the filters in `benchmark.yaml` to evaluate a different subset of the
