@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import difflib
 import os
 import pathlib
 import urllib.parse
@@ -85,20 +84,7 @@ def load_predictions(tsv_path, filters):
         unknown = [str(value) for value in requested if str(value) not in available]
         if unknown:
             lines = ["Unknown predictor tool_id value(s) in benchmark config:", ""]
-            for tool_id in unknown:
-                lines.append(f"- {tool_id}")
-                matches = difflib.get_close_matches(tool_id, available, n=1, cutoff=0.5)
-                if matches:
-                    lines.append(f"  Did you mean: {matches[0]}?")
-            lines.extend(
-                [
-                    "",
-                    "Registered predictor IDs:",
-                    *[f"- {tool_id}" for tool_id in available],
-                    "",
-                    f"Predictor registry: {tsv_path}",
-                ]
-            )
+            lines.extend(f"- {tool_id}" for tool_id in unknown)
             raise ValueError("\n".join(lines))
 
     if filters:
