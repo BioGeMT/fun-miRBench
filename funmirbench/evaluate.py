@@ -245,7 +245,15 @@ def evaluate_joined_dataframe(
         dataset_plots[f"{tool_id}_roc_curve"] = str(roc_curve_png)
 
     if not evaluated_score_cols:
-        raise ValueError(f"No predictors had scored rows for {dataset_id}.")
+        reason = "No selected predictor had evaluable scored rows after DE/GT filtering."
+        _emit_log(logger, f"    Dataset: {dataset_id} | skipped: {reason}")
+        return {
+            "metric_rows": [],
+            "skipped_tool_rows": skipped_tool_rows,
+            "plots": dataset_plots,
+            "predictor_correlation_tsv": None,
+            "dataset_skip_reason": reason,
+        }
 
     plot_entries = [
         (score_col, tool_id, rank_col, comparison)

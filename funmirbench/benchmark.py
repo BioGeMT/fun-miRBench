@@ -391,6 +391,21 @@ def run_benchmark(config_path):
             write_top_prediction_cdfs=write_top_prediction_cdfs,
             logger=logger.info,
         )
+        if evaluation.get("dataset_skip_reason"):
+            reason = evaluation["dataset_skip_reason"]
+            logger.info("  Skipping %s: %s", meta.id, reason)
+            skipped_datasets.append(
+                {
+                    "dataset_id": meta.id,
+                    "mirna": meta.miRNA,
+                    "cell_line": meta.cell_line,
+                    "perturbation": meta.perturbation,
+                    "reason": reason,
+                    "joined_tsv": str(joined_path),
+                }
+            )
+            continue
+
         write_common_comparison_plots(
             joined,
             evaluation=evaluation,
@@ -446,6 +461,19 @@ def run_benchmark(config_path):
             }
         )
         logger.info(f"  Finished {meta.id}")
+
+    logger.info(
+        "Evaluation complete: %d dataset(s) evaluated, %d skipped.",
+        len(dataset_outputs),
+        len(skipped_datasets),
+    )
+    for item in skipped_datasets:
+        logger.info(
+            "  Skipped dataset: %s | %s | %s",
+            item["dataset_id"],
+            item["mirna"],
+            item["reason"],
+        )
 
     logger.info("Writing metric tables...")
     logger.info("Writing cross-dataset summaries...")

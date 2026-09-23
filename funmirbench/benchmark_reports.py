@@ -299,7 +299,7 @@ def write_run_readme(
             [
                 "",
                 "## Skipped Datasets",
-                "These experiments were not evaluated because none of the selected predictors provided scores for the experiment miRNA.",
+                "These experiments were selected by the config but could not be evaluated with the selected predictors.",
                 "",
                 "| Dataset | miRNA | Reason | Joined table |",
                 "| --- | --- | --- | --- |",
