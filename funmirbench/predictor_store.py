@@ -183,3 +183,27 @@ def sync_zenodo_predictors(
         archive_path.unlink(missing_ok=True)
 
     return [path for _, path in destinations]
+
+
+def sync_all_zenodo_predictors(
+    *,
+    repo: pathlib.Path | None = None,
+    timeout: int = 120,
+    force: bool = False,
+) -> list[pathlib.Path]:
+    """Ensure every registered published predictor is available locally."""
+    import pandas as pd
+
+    repo = (repo or repo_root()).resolve()
+    metadata_path = repo / "metadata" / "predictions_info.tsv"
+    df = pd.read_csv(metadata_path, sep="\t")
+    predictions = {
+        str(row["tool_id"]): row.to_dict()
+        for _, row in df.iterrows()
+    }
+    return sync_zenodo_predictors(
+        predictions,
+        repo=repo,
+        timeout=timeout,
+        force=force,
+    )

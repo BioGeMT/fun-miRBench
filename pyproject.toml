@@ -15,7 +15,7 @@ dependencies = [
 funmirbench = "funmirbench.benchmark:main"
 funmirbench-experiments = "funmirbench.experiments_pipeline:main"
 funmirbench-experiments-download-examples = "funmirbench.experiments_download_examples:main"
-funmirbench-experiments-store = "funmirbench.experiment_store:main"
+funmirbench-download-data = "funmirbench.published_data:main"
 funmirbench-sync-metadata = "funmirbench.sync_metadata:main"
 funmirbench-validate-experiments = "funmirbench.validate_experiments:main"
 
