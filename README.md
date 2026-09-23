@@ -3,7 +3,7 @@
 fun-miRBenvh is a benchmarking system for evaluating **functional miRNA target predictors**
 against differential-expression (DE) experiments following miRNA perturbation.
 
-The repository contains the benchmark software, curated experiment and predictor registries and
+The repository contains the benchmark software, curated experiments, predictor registries and
 reproducibility pipelines.
 
 ## Published data
@@ -17,7 +17,6 @@ The published data include:
 - curated miRNA perturbation DE tables;
 - standardized outputs for the registered target predictors.
 
-The repository tracks metadata and processing code rather than the large published data files.
 Download the complete published input collection once with:
 
 ```bash
@@ -30,9 +29,6 @@ The files are cached locally under:
 data/experiments/processed/21671476/
 data/predictions/<tool>/
 ```
-
-Subsequent benchmark runs use these local files. The benchmark command itself does **not** download
-experiment or predictor data.
 
 ## Reproduce a benchmark run
 
