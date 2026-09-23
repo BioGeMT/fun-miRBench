@@ -296,9 +296,3 @@ uv run funmirbench-experiments --config <experiment-config.yaml>
 # Synchronize generated experiment metadata into the registry
 uv run funmirbench-sync-metadata
 ```
-
-## Data availability
-
-The curated benchmark inputs are archived in Zenodo record **21671476**. The repository contains
-the metadata, source code, reproducibility pipelines, and manuscript-supporting assets required to
-interpret and regenerate the benchmark workflow.
