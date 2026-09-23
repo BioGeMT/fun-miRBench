@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import difflib
 import os
 import pathlib
 import urllib.parse
@@ -74,6 +75,32 @@ def selected_experiment_paths(tsv_path, filters) -> list[str]:
 
 def load_predictions(tsv_path, filters):
     df = pd.read_csv(tsv_path, sep="\t")
+
+    if filters and "tool_id" in filters:
+        requested = filters["tool_id"]
+        if not isinstance(requested, list):
+            requested = [requested]
+
+        available = [str(value) for value in df["tool_id"].dropna().tolist()]
+        unknown = [str(value) for value in requested if str(value) not in available]
+        if unknown:
+            lines = ["Unknown predictor tool_id value(s) in benchmark config:", ""]
+            for tool_id in unknown:
+                lines.append(f"- {tool_id}")
+                matches = difflib.get_close_matches(tool_id, available, n=1, cutoff=0.5)
+                if matches:
+                    lines.append(f"  Did you mean: {matches[0]}?")
+            lines.extend(
+                [
+                    "",
+                    "Registered predictor IDs:",
+                    *[f"- {tool_id}" for tool_id in available],
+                    "",
+                    f"Predictor registry: {tsv_path}",
+                ]
+            )
+            raise ValueError("\n".join(lines))
+
     if filters:
         df = filter_df(df, filters)
     if df["tool_id"].duplicated().any():
