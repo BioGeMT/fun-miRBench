@@ -459,8 +459,10 @@ def write_publication_run_pdf_report(
     fdr_threshold,
     effect_threshold,
     predictor_top_fraction,
+    skipped_datasets=None,
 ):
     del metric_tables
+    skipped_datasets = list(skipped_datasets or [])
     summary_df = _load_cross_dataset_summary(combined_outputs)
     report_path = pathlib.Path(out_dir) / "REPORT.pdf"
     display_tool_ids = _publication_tool_ids(tool_ids) or list(tool_ids)
@@ -475,7 +477,8 @@ def write_publication_run_pdf_report(
         _draw_basic_table(
             ax,
             [
-                ["Datasets", str(len(dataset_outputs))],
+                ["Datasets evaluated", str(len(dataset_outputs))],
+                ["Datasets skipped", str(len(skipped_datasets))],
                 ["Predictors evaluated", str(len(display_tool_ids))],
                 [
                     "GT positives",
@@ -489,7 +492,7 @@ def write_publication_run_pdf_report(
             ],
             columns=["Run setting", "Value"],
             col_widths=[0.25, 0.75],
-            bbox=[0.04, 0.625, 0.92, 0.23],
+            bbox=[0.04, 0.605, 0.92, 0.25],
             font_size=REPORT_TABLE_SIZE,
         )
         next_y = _bullet_block(
@@ -501,7 +504,7 @@ def write_publication_run_pdf_report(
                 "Cross-dataset global ranks use each full standardized predictor file.",
             ],
             x=0.04,
-            y=0.57,
+            y=0.54,
             width=0.92,
         )
         _bullet_block(
@@ -558,16 +561,45 @@ def write_publication_run_pdf_report(
         _save_page(pdf, fig)
 
         fig, ax = _new_page()
-        _header(ax, "Dataset Inventory", "Datasets included in this benchmark run.")
-        dataset_df = pd.DataFrame(_dataset_report_rows(dataset_outputs))
-        _draw_basic_table(
-            ax,
-            dataset_df.values.tolist(),
-            columns=dataset_df.columns.tolist(),
-            col_widths=[0.35, 0.25, 0.15, 0.25],
-            bbox=[0.06, 0.57, 0.88, 0.25],
-            font_size=REPORT_TABLE_SIZE,
-        )
+        _header(ax, "Dataset Inventory", "Evaluated and skipped experiments for this benchmark run.")
+        if dataset_outputs:
+            dataset_df = pd.DataFrame(_dataset_report_rows(dataset_outputs))
+            _draw_basic_table(
+                ax,
+                dataset_df.values.tolist(),
+                columns=dataset_df.columns.tolist(),
+                col_widths=[0.35, 0.25, 0.15, 0.25],
+                bbox=[0.06, 0.61, 0.88, 0.20],
+                font_size=REPORT_TABLE_SIZE,
+            )
+        else:
+            _text_block(
+                ax,
+                "Evaluated datasets",
+                ["No datasets were evaluated."],
+                x=0.06,
+                y=0.80,
+                width=0.88,
+            )
+
+        if skipped_datasets:
+            skipped_rows = [
+                [
+                    item["dataset_id"],
+                    item["mirna"],
+                    item["reason"],
+                ]
+                for item in skipped_datasets
+            ]
+            _draw_basic_table(
+                ax,
+                skipped_rows,
+                columns=["Skipped dataset", "miRNA", "Reason"],
+                col_widths=[0.30, 0.22, 0.48],
+                bbox=[0.06, 0.31, 0.88, 0.22],
+                font_size=REPORT_TABLE_SIZE,
+            )
+
         _bullet_block(
             ax,
             "Included figure families",
@@ -579,7 +611,7 @@ def write_publication_run_pdf_report(
                 "Dataset reports include heatmaps, CDFs, and predictor diagnostics.",
             ],
             x=0.06,
-            y=0.46,
+            y=0.24,
             width=0.88,
         )
         _save_page(pdf, fig)

@@ -257,8 +257,10 @@ def write_run_readme(
     effect_threshold,
     predictor_top_fraction,
     protein_coding_filter=None,
+    skipped_datasets=None,
 ):
     summary_df = _load_cross_dataset_summary(combined_outputs)
+    skipped_datasets = list(skipped_datasets or [])
     display_tool_ids = _publication_tool_ids(tool_ids) or list(tool_ids)
     relative_metric_tables = {
         key: _relative_display_path(path, base_dir=out_dir)
@@ -277,7 +279,8 @@ def write_run_readme(
         "## Summary",
         f"- Config: `{config_path}`",
         f"- Run directory: `{out_dir}`",
-        f"- Datasets: `{len(dataset_outputs)}`",
+        f"- Datasets evaluated: `{len(dataset_outputs)}`",
+        f"- Datasets skipped: `{len(skipped_datasets)}`",
         f"- Predictors: `{', '.join(display_tool_ids)}`",
         "",
         "## Evaluation Settings",
@@ -291,6 +294,31 @@ def write_run_readme(
         "- Cross-dataset rank-distribution plots: global tie-aware dense ranking over each predictor's full standardized file",
         "- Combined PR/ROC/GSEA comparison plots: computed on the common set of genes scored by all compared predictors",
     ]
+    if skipped_datasets:
+        lines.extend(
+            [
+                "",
+                "## Skipped Datasets",
+                "These experiments were not evaluated because none of the selected predictors provided scores for the experiment miRNA.",
+                "",
+                "| Dataset | miRNA | Reason | Joined table |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for item in skipped_datasets:
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        f"`{item['dataset_id']}`",
+                        f"`{item['mirna']}`",
+                        item["reason"],
+                        f"`{_relative_display_path(item['joined_tsv'], base_dir=out_dir)}`",
+                    ]
+                )
+                + " |"
+            )
+
     if protein_coding_filter and protein_coding_filter.get("enabled"):
         lines.extend(
             [

@@ -117,41 +117,46 @@ def _finalize_run_bundle(
     effect_threshold,
     predictor_top_fraction,
     protein_coding_filter,
+    skipped_datasets,
 ):
     layout = _init_run_layout(out_dir)
-    metric_tables = write_metric_tables(
-        metric_rows,
-        layout["per_experiment_tables_dir"],
-        logger=logger.info,
-    )
-    combined_outputs = write_cross_dataset_summaries(
-        metric_rows,
-        layout["combined_tables_dir"],
-        layout["combined_plots_dir"],
-        joined_frames=joined_frames,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        tool_labels=tool_labels,
-        logger=logger.info,
-    )
-    common_summary_path = write_combined_common_prediction_summary(
-        common_prediction_summaries,
-        layout["combined_tables_dir"],
-    )
-    combined_outputs.setdefault("tables", {})["common_prediction_summary"] = str(common_summary_path)
-    combination_outputs = write_predictor_combination_outputs(
-        joined_frames,
-        layout["combined_tables_dir"],
-        layout["combined_plots_dir"],
-        tool_ids=tool_ids,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        logger=logger.info,
-    )
-    combined_outputs.setdefault("tables", {}).update(combination_outputs.get("tables", {}))
-    combined_outputs.setdefault("plots", {}).update(combination_outputs.get("plots", {}))
+    if metric_rows:
+        metric_tables = write_metric_tables(
+            metric_rows,
+            layout["per_experiment_tables_dir"],
+            logger=logger.info,
+        )
+        combined_outputs = write_cross_dataset_summaries(
+            metric_rows,
+            layout["combined_tables_dir"],
+            layout["combined_plots_dir"],
+            joined_frames=joined_frames,
+            fdr_threshold=fdr_threshold,
+            effect_threshold=effect_threshold,
+            predictor_top_fraction=predictor_top_fraction,
+            tool_labels=tool_labels,
+            logger=logger.info,
+        )
+        common_summary_path = write_combined_common_prediction_summary(
+            common_prediction_summaries,
+            layout["combined_tables_dir"],
+        )
+        combined_outputs.setdefault("tables", {})["common_prediction_summary"] = str(common_summary_path)
+        combination_outputs = write_predictor_combination_outputs(
+            joined_frames,
+            layout["combined_tables_dir"],
+            layout["combined_plots_dir"],
+            tool_ids=tool_ids,
+            fdr_threshold=fdr_threshold,
+            effect_threshold=effect_threshold,
+            predictor_top_fraction=predictor_top_fraction,
+            logger=logger.info,
+        )
+        combined_outputs.setdefault("tables", {}).update(combination_outputs.get("tables", {}))
+        combined_outputs.setdefault("plots", {}).update(combination_outputs.get("plots", {}))
+    else:
+        metric_tables = {}
+        combined_outputs = {"tables": {}, "plots": {}}
     readme_path = write_run_readme(
         out_dir,
         config_path=config_path,
@@ -163,6 +168,7 @@ def _finalize_run_bundle(
         effect_threshold=effect_threshold,
         predictor_top_fraction=predictor_top_fraction,
         protein_coding_filter=protein_coding_filter,
+        skipped_datasets=skipped_datasets,
     )
     report_path = write_run_pdf_report(
         out_dir,
@@ -174,6 +180,7 @@ def _finalize_run_bundle(
         fdr_threshold=fdr_threshold,
         effect_threshold=effect_threshold,
         predictor_top_fraction=predictor_top_fraction,
+        skipped_datasets=skipped_datasets,
     )
     summary = {
         "config": str(config_path),
@@ -189,6 +196,7 @@ def _finalize_run_bundle(
         "cross_dataset_outputs": combined_outputs,
         "protein_coding_filter": protein_coding_filter,
         "datasets": dataset_outputs,
+        "skipped_datasets": skipped_datasets,
     }
     summary_path = out_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -308,6 +316,7 @@ def run_benchmark(config_path):
     dataset_outputs = []
     joined_frames = []
     common_prediction_summaries = []
+    skipped_datasets = []
     logger.info(f"Experiments: {len(experiments)}")
     logger.info(f"Predictors:  {tool_ids}")
     logger.info("Loading predictor score files once for this run with %d worker(s)...", predictor_load_workers)
@@ -339,6 +348,28 @@ def run_benchmark(config_path):
         joined_path = dataset_dir / "joined.tsv"
         joined.to_csv(joined_path, sep="\t", index=False)
         logger.info(f"  Wrote joined table: {joined_path}")
+
+        score_columns = [
+            f"score_{tool_id}"
+            for tool_id in tool_ids
+            if f"score_{tool_id}" in joined.columns
+        ]
+        if not score_columns or not joined[score_columns].notna().any().any():
+            reason = (
+                f"No selected predictor has predictions for miRNA {meta.miRNA}."
+            )
+            logger.info("  Skipping %s: %s", meta.id, reason)
+            skipped_datasets.append(
+                {
+                    "dataset_id": meta.id,
+                    "mirna": meta.miRNA,
+                    "cell_line": meta.cell_line,
+                    "perturbation": meta.perturbation,
+                    "reason": reason,
+                    "joined_tsv": str(joined_path),
+                }
+            )
+            continue
 
         logger.info(f"  Evaluating metrics and plots for {meta.id}...")
         evaluation = evaluate_joined_dataframe(
@@ -433,6 +464,7 @@ def run_benchmark(config_path):
         effect_threshold=effect_threshold,
         predictor_top_fraction=predictor_top_fraction,
         protein_coding_filter=protein_coding_filter,
+        skipped_datasets=skipped_datasets,
     )
     return out_dir
 
