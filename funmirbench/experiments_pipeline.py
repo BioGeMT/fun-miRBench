@@ -185,6 +185,36 @@ def _normalize_pubmed_id(value) -> str:
 def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
     gse = normalize_space(config.get("gse", ""))
     metadata_cfg = config.get("metadata", {})
+    comparison_cfg = config.get("comparison", {})
+    source_mode = normalize_space(config.get("source", {}).get("mode", ""))
+
+    def sample_ids(entries):
+        values = []
+        for entry in entries or []:
+            if isinstance(entry, dict):
+                value = entry.get("sample_id") or entry.get("accession") or ""
+            else:
+                value = entry
+            value = normalize_space(value)
+            if value:
+                values.append(value)
+        return values
+
+    if source_mode == "count_matrix":
+        control_samples = [
+            normalize_space(value)
+            for value in comparison_cfg.get("control_columns", [])
+            if normalize_space(value)
+        ]
+        condition_samples = [
+            normalize_space(value)
+            for value in comparison_cfg.get("treated_columns", [])
+            if normalize_space(value)
+        ]
+    else:
+        control_samples = sample_ids(comparison_cfg.get("control_samples", []))
+        condition_samples = sample_ids(comparison_cfg.get("treated_samples", []))
+
     pubmed_value = metadata_cfg.get(
         "pubmed_id",
         metadata_cfg.get("article_pubmed_id", ""),
@@ -199,6 +229,8 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
         "organism": metadata_cfg.get("organism", ""),
         "method": metadata_cfg.get("method", "RNA-seq"),
         "pubmed_id": _normalize_pubmed_id(pubmed_value),
+        "control_samples": ",".join(control_samples),
+        "condition_samples": ",".join(condition_samples),
         "de_table_path": de_table_rel_path,
     }
 
