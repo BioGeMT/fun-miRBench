@@ -53,6 +53,6 @@ def fetch_zenodo_file_registry(
             "filename": key,
             "size": int(item.get("size", 0) or 0),
             "checksum": str(item.get("checksum", "")),
-            "url": item.get("links", {}).get("self") or zenodo_download_url(key),
+            "url": item.get("links", {}).get("content") or zenodo_download_url(key),
         }
     return registry
