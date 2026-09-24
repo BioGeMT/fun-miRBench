@@ -1,6 +1,6 @@
 # Experiment Ingestion Pipeline
 
-This directory documents the **experiment reproduction and extension workflow** for fun-miRBenvh.
+This directory documents the **experiment reproduction and extension workflow** for fun-miRBench.
 It is not required to reproduce the published benchmark: the curated DE tables used in the
 publication can be downloaded directly with `uv run funmirbench-download-data`.
 

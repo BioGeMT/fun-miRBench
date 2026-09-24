@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the coverage panels for manuscript Figure 2.
 
-The script reads the ``joined.tsv`` files from one completed fun-miRBenvh run and
+The script reads the ``joined.tsv`` files from one completed fun-miRBench run and
 writes each panel as a separate publication-ready plot plus the exact summary
 values used to draw it. Manuscript figures are written to
 ``manuscript_assets/figure2`` and manuscript tables are written to
@@ -118,7 +118,7 @@ class Figure2Inputs:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate manuscript Figure 2 coverage panels from a fun-miRBenvh run."
+        description="Generate manuscript Figure 2 coverage panels from a fun-miRBench run."
     )
     parser.add_argument(
         "--run-dir",

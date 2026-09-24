@@ -1,4 +1,4 @@
-"""Configuration and metadata helpers for fun-miRBenvh benchmark runs."""
+"""Configuration and metadata helpers for fun-miRBench benchmark runs."""
 
 from __future__ import annotations
 

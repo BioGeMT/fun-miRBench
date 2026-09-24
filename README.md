@@ -1,6 +1,6 @@
-# fun-miRBenvh
+# fun-miRBench
 
-fun-miRBenvh is a benchmarking system for evaluating **functional miRNA target predictors**
+fun-miRBench is a benchmarking system for evaluating **functional miRNA target predictors**
 against differential-expression (DE) experiments following miRNA perturbation.
 
 The repository contains the benchmark software, curated experiments, predictor registries and

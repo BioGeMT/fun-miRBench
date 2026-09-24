@@ -1,4 +1,4 @@
-"""Cache published standardized predictor artifacts from the fun-miRBenvh Zenodo record."""
+"""Cache published standardized predictor artifacts from the fun-miRBench Zenodo record."""
 
 from __future__ import annotations
 

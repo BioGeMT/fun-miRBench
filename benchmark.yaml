@@ -1,4 +1,4 @@
-# fun-miRBenvh benchmark configuration.
+# fun-miRBench benchmark configuration.
 #
 # All file paths are relative to this YAML file's directory.
 # Run: uv run funmirbench --config benchmark.yaml

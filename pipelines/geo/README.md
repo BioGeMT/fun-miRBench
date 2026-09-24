@@ -1,7 +1,7 @@
 # GEO Download Pipeline
 
 This is an **optional experiment acquisition workflow** for extending or reproducing experiment
-processing in fun-miRBenvh. It is not required to run the published benchmark; the curated
+processing in fun-miRBench. It is not required to run the published benchmark; the curated
 publication inputs are available through `uv run funmirbench-download-data`.
 
 The default source of experiment identity is the canonical registry:

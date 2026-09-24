@@ -1,4 +1,4 @@
-"""README and PDF reporting helpers for fun-miRBenvh benchmark runs."""
+"""README and PDF reporting helpers for fun-miRBench benchmark runs."""
 
 from __future__ import annotations
 
@@ -274,7 +274,7 @@ def write_run_readme(
         for section, values in combined_outputs.items()
     }
     lines = [
-        "# fun-miRBenvh Run README",
+        "# fun-miRBench Run README",
         "",
         "## Summary",
         f"- Config: `{config_path}`",
@@ -557,7 +557,7 @@ def write_run_pdf_report(
         fig, ax = new_page()
         add_header(
             ax,
-            "fun-miRBenvh Run Report",
+            "fun-miRBench Run Report",
             f"{len(dataset_outputs)} datasets | {len(tool_ids)} predictors | generated from {config_path.name}",
         )
         summary_boxes = [

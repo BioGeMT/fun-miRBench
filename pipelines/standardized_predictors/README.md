@@ -1,7 +1,7 @@
 # Standardized Predictor Pipelines
 
 This directory contains the **reproduction workflows** used to generate the standardized predictor
-tables evaluated by fun-miRBenvh.
+tables evaluated by fun-miRBench.
 
 These pipelines are not required to reproduce the published benchmark. The published standardized
 predictor tables can be downloaded directly from the project Zenodo release with:
