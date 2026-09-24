@@ -35,7 +35,7 @@ logger = logging.getLogger("pipeline")
 
 
 def parse_args(root: Path) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Standardize miRDB predictions for FuNmiRBench.")
+    parser = argparse.ArgumentParser(description="Standardize miRDB predictions for fun-miRBench.")
     add_standard_pipeline_args(
         parser,
         tool_id="mirdb_mirtarget",

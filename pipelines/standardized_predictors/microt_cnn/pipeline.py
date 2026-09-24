@@ -36,7 +36,7 @@ logger = logging.getLogger("pipeline")
 
 
 def parse_args(root: Path) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Standardize microT-CNN predictions for FuNmiRBench.")
+    parser = argparse.ArgumentParser(description="Standardize microT-CNN predictions for fun-miRBench.")
     add_standard_pipeline_args(
         parser,
         tool_id="microt_cnn",
