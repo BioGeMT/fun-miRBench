@@ -21,7 +21,6 @@ import yaml
 
 from funmirbench.logger import parse_log_level, setup_logging
 
-GSE_URL_TEMPLATE = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse}"
 DEFAULT_HSA_MATURE_MIRNAS_PATH = pathlib.Path(
     "data/experiments/raw/refs/mirbase/hsa_mature_mirnas.txt"
 )
@@ -38,10 +37,6 @@ def utc_now_stamp() -> str:
 
 def normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", str(value).strip())
-
-
-def gse_url(gse: str) -> str:
-    return GSE_URL_TEMPLATE.format(gse=gse)
 
 
 def ensure_clean_dir(path: pathlib.Path, *, force: bool) -> None:
@@ -204,7 +199,6 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
         "organism": metadata_cfg.get("organism", ""),
         "method": metadata_cfg.get("method", "RNA-seq"),
         "pubmed_id": _normalize_pubmed_id(pubmed_value),
-        "gse_url": gse_url(gse) if gse else "",
         "de_table_path": de_table_rel_path,
     }
 
