@@ -1,31 +1,31 @@
-id	geo_accession	mirna_name	experiment_type	tested_cell_line	tissue	organism	method	pubmed_id	de_table_path
-GSE112859_OE_miR_574_5p	GSE112859	hsa-miR-574-5p	Overexpression	MGC-803	Gastric	Homo sapiens	RNA-seq	31562301	data/experiments/processed/21671476/GSE112859_OE_miR-574-5p_MGC-803.tsv
-GSE115646_OE_miR-101-3p_HepG2	GSE115646	hsa-miR-101-3p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE115646_OE_miR-101-3p_HepG2.tsv
-GSE115646_OE_miR-133a-3p_HepG2	GSE115646	hsa-miR-133a-3p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE115646_OE_miR-133a-3p_HepG2.tsv
-GSE115646_OE_miR-140-3p_HepG2	GSE115646	hsa-miR-140-3p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE115646_OE_miR-140-3p_HepG2.tsv
-GSE115646_OE_miR-140-5p_HepG2	GSE115646	hsa-miR-140-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE115646_OE_miR-140-5p_HepG2.tsv
-GSE115646_OE_miR-18a-5p_HepG2	GSE115646	hsa-miR-18a-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE115646_OE_miR-18a-5p_HepG2.tsv
-GSE115646_OE_miR-211-5p_HepG2	GSE115646	hsa-miR-211-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE115646_OE_miR-211-5p_HepG2.tsv
-GSE118315_KO_miR_124_3p	GSE118315	hsa-miR-124-3p	Knockout	iNGN		Homo sapiens	RNA-seq	30292704	data/experiments/processed/21671476/GSE118315_KO_miR-124-3p_iNGN.tsv
-GSE124411_OE_miR_150_5p_1	GSE124411	hsa-miR-150-5p	Overexpression	LX-2	Liver	Homo sapiens	RNA-seq	31833387	data/experiments/processed/21671476/GSE124411_OE_miR-150-5p_LX-2.tsv
-GSE129076_OE_miR_450a_5p_1	GSE129076	hsa-miR-450a-5p	Overexpression	A2780	Ovary	Homo sapiens	RNA-seq	31101765	data/experiments/processed/21671476/GSE129076_OE_miR-450a-5p_A2780.tsv
-GSE129076_OE_miR_450a_5p_2	GSE129076	hsa-miR-450a-5p	Overexpression	SKOV-3	Ovary	Homo sapiens	RNA-seq	31101765	data/experiments/processed/21671476/GSE129076_OE_miR-450a-5p_SKOV-3.tsv
-GSE148684_KO_miR_21-5p_A549	GSE148684	hsa-miR-21-5p	Knockout	A549	Lung	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE148684_KO_miR-21-5p_A549.tsv
-GSE148827_OE_miR_1271_5p	GSE148827	hsa-miR-1271-5p	Overexpression	SH-SY5Y	Bone Marrow	Homo sapiens	RNA-seq	32325711	data/experiments/processed/21671476/GSE148827_OE_miR-1271-5p_SH-SY5Y.tsv
-GSE154968_OE_miR_21_3p	GSE154968	hsa-miR-21-3p	Overexpression	HaCaT	Skin	Homo sapiens	RNA-seq	34685526	data/experiments/processed/21671476/GSE154968_OE_miR-21-3p_HaCaT.tsv
-GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq	34964438	data/experiments/processed/21671476/GSE168484_OE_miR-20b-5p_HepG2.tsv
-GSE169128_KO_miR_3662	GSE169128	hsa-miR-3662	Knockout	MDA-MB-231	Breast	Homo sapiens	RNA-seq	34728806	data/experiments/processed/21671476/GSE169128_KO_miR-3662_MDA-MB-231.tsv
-GSE175729_OE_miR-100-3p_Kelly	GSE175729	hsa-miR-100-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE175729_OE_miR-100-3p_Kelly.tsv
-GSE175729_OE_miR-1915-3p_Kelly	GSE175729	hsa-miR-1915-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE175729_OE_miR-1915-3p_Kelly.tsv
-GSE175729_OE_miR-380-3p_Kelly	GSE175729	hsa-miR-380-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE175729_OE_miR-380-3p_Kelly.tsv
-GSE175729_OE_miR-485-3p_Kelly	GSE175729	hsa-miR-485-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE175729_OE_miR-485-3p_Kelly.tsv
-GSE175729_OE_miR-99b-5p_Kelly	GSE175729	hsa-miR-99b-5p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE175729_OE_miR-99b-5p_Kelly.tsv
-GSE199332_KO_miR_27a-3p_HepG2	GSE199332	hsa-miR-27a-3p	Knockout	HepG2	Liver	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE199332_KO_miR-27a-3p_HepG2.tsv
-GSE202135_OE_miR_130a_3p	GSE202135	hsa-miR-130a-3p	Overexpression	Primary isolated cells	Bone Marrow	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE202135_OE_miR-130a-3p_NA.tsv
-GSE202135_OE_miR_130b_3p	GSE202135	hsa-miR-130b-3p	Overexpression	Primary isolated cells	Bone Marrow	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE202135_OE_miR-130b-3p_NA.tsv
-GSE210778_OE_miR_375_3p	GSE210778	hsa-miR-375-3p	Overexpression	HUV-EC-C	Umbilical cord, Umbilical vein, Vascular endothelium	Homo sapiens	RNA-seq	36074222	data/experiments/processed/21671476/GSE210778_OE_miR-375-3p_HUV-EC-C.tsv
-GSE259375_KO_miR_100-5p_HCA7	GSE259375	hsa-miR-100-5p	Knockout	HCA7	Colon	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE259375_KO_miR-100-5p_HCA7.tsv
-GSE259375_KO_miR_125b-5p_HCA7	GSE259375	hsa-miR-125b-5p	Knockout	HCA7	Colon	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE259375_KO_miR-125b-5p_HCA7.tsv
-GSE51217_KO_miR-200c-3p_SK-BR-3	GSE51217	hsa-miR-200c-3p	Knockout	SK-BR-3	Breast, Mammary gland	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE51217_KO_miR-200c-3p_SK-BR-3.tsv
-GSE80064_KO_miR_221-3p_SNU638	GSE80064	hsa-miR-221-3p	Knockout	SNU638	Gastric	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE80064_KO_miR-221-3p_SNU638.tsv
-GSE80064_KO_miR_222-3p_SNU638	GSE80064	hsa-miR-222-3p	Knockout	SNU638	Gastric	Homo sapiens	RNA-seq		data/experiments/processed/21671476/GSE80064_KO_miR-222-3p_SNU638.tsv
+id	geo_accession	mirna_name	experiment_type	tested_cell_line	tissue	organism	method	pubmed_id	control_samples	condition_samples	de_table_path
+GSE112859_OE_miR_574_5p	GSE112859	hsa-miR-574-5p	Overexpression	MGC-803	Gastric	Homo sapiens	RNA-seq	31562301			data/experiments/processed/21671476/GSE112859_OE_miR-574-5p_MGC-803.tsv
+GSE115646_OE_miR-101-3p_HepG2	GSE115646	hsa-miR-101-3p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE115646_OE_miR-101-3p_HepG2.tsv
+GSE115646_OE_miR-133a-3p_HepG2	GSE115646	hsa-miR-133a-3p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE115646_OE_miR-133a-3p_HepG2.tsv
+GSE115646_OE_miR-140-3p_HepG2	GSE115646	hsa-miR-140-3p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE115646_OE_miR-140-3p_HepG2.tsv
+GSE115646_OE_miR-140-5p_HepG2	GSE115646	hsa-miR-140-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE115646_OE_miR-140-5p_HepG2.tsv
+GSE115646_OE_miR-18a-5p_HepG2	GSE115646	hsa-miR-18a-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE115646_OE_miR-18a-5p_HepG2.tsv
+GSE115646_OE_miR-211-5p_HepG2	GSE115646	hsa-miR-211-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE115646_OE_miR-211-5p_HepG2.tsv
+GSE118315_KO_miR_124_3p	GSE118315	hsa-miR-124-3p	Knockout	iNGN		Homo sapiens	RNA-seq	30292704			data/experiments/processed/21671476/GSE118315_KO_miR-124-3p_iNGN.tsv
+GSE124411_OE_miR_150_5p_1	GSE124411	hsa-miR-150-5p	Overexpression	LX-2	Liver	Homo sapiens	RNA-seq	31833387			data/experiments/processed/21671476/GSE124411_OE_miR-150-5p_LX-2.tsv
+GSE129076_OE_miR_450a_5p_1	GSE129076	hsa-miR-450a-5p	Overexpression	A2780	Ovary	Homo sapiens	RNA-seq	31101765			data/experiments/processed/21671476/GSE129076_OE_miR-450a-5p_A2780.tsv
+GSE129076_OE_miR_450a_5p_2	GSE129076	hsa-miR-450a-5p	Overexpression	SKOV-3	Ovary	Homo sapiens	RNA-seq	31101765			data/experiments/processed/21671476/GSE129076_OE_miR-450a-5p_SKOV-3.tsv
+GSE148684_KO_miR_21-5p_A549	GSE148684	hsa-miR-21-5p	Knockout	A549	Lung	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE148684_KO_miR-21-5p_A549.tsv
+GSE148827_OE_miR_1271_5p	GSE148827	hsa-miR-1271-5p	Overexpression	SH-SY5Y	Bone Marrow	Homo sapiens	RNA-seq	32325711			data/experiments/processed/21671476/GSE148827_OE_miR-1271-5p_SH-SY5Y.tsv
+GSE154968_OE_miR_21_3p	GSE154968	hsa-miR-21-3p	Overexpression	HaCaT	Skin	Homo sapiens	RNA-seq	34685526			data/experiments/processed/21671476/GSE154968_OE_miR-21-3p_HaCaT.tsv
+GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	Overexpression	HepG2	Liver	Homo sapiens	RNA-seq	34964438			data/experiments/processed/21671476/GSE168484_OE_miR-20b-5p_HepG2.tsv
+GSE169128_KO_miR_3662	GSE169128	hsa-miR-3662	Knockout	MDA-MB-231	Breast	Homo sapiens	RNA-seq	34728806			data/experiments/processed/21671476/GSE169128_KO_miR-3662_MDA-MB-231.tsv
+GSE175729_OE_miR-100-3p_Kelly	GSE175729	hsa-miR-100-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE175729_OE_miR-100-3p_Kelly.tsv
+GSE175729_OE_miR-1915-3p_Kelly	GSE175729	hsa-miR-1915-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE175729_OE_miR-1915-3p_Kelly.tsv
+GSE175729_OE_miR-380-3p_Kelly	GSE175729	hsa-miR-380-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE175729_OE_miR-380-3p_Kelly.tsv
+GSE175729_OE_miR-485-3p_Kelly	GSE175729	hsa-miR-485-3p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE175729_OE_miR-485-3p_Kelly.tsv
+GSE175729_OE_miR-99b-5p_Kelly	GSE175729	hsa-miR-99b-5p	Overexpression	Kelly	Peripheral nervous system	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE175729_OE_miR-99b-5p_Kelly.tsv
+GSE199332_KO_miR_27a-3p_HepG2	GSE199332	hsa-miR-27a-3p	Knockout	HepG2	Liver	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE199332_KO_miR-27a-3p_HepG2.tsv
+GSE202135_OE_miR_130a_3p	GSE202135	hsa-miR-130a-3p	Overexpression	Primary isolated cells	Bone Marrow	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE202135_OE_miR-130a-3p_NA.tsv
+GSE202135_OE_miR_130b_3p	GSE202135	hsa-miR-130b-3p	Overexpression	Primary isolated cells	Bone Marrow	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE202135_OE_miR-130b-3p_NA.tsv
+GSE210778_OE_miR_375_3p	GSE210778	hsa-miR-375-3p	Overexpression	HUV-EC-C	Umbilical cord, Umbilical vein, Vascular endothelium	Homo sapiens	RNA-seq	36074222			data/experiments/processed/21671476/GSE210778_OE_miR-375-3p_HUV-EC-C.tsv
+GSE259375_KO_miR_100-5p_HCA7	GSE259375	hsa-miR-100-5p	Knockout	HCA7	Colon	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE259375_KO_miR-100-5p_HCA7.tsv
+GSE259375_KO_miR_125b-5p_HCA7	GSE259375	hsa-miR-125b-5p	Knockout	HCA7	Colon	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE259375_KO_miR-125b-5p_HCA7.tsv
+GSE51217_KO_miR-200c-3p_SK-BR-3	GSE51217	hsa-miR-200c-3p	Knockout	SK-BR-3	Breast, Mammary gland	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE51217_KO_miR-200c-3p_SK-BR-3.tsv
+GSE80064_KO_miR_221-3p_SNU638	GSE80064	hsa-miR-221-3p	Knockout	SNU638	Gastric	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE80064_KO_miR-221-3p_SNU638.tsv
+GSE80064_KO_miR_222-3p_SNU638	GSE80064	hsa-miR-222-3p	Knockout	SNU638	Gastric	Homo sapiens	RNA-seq				data/experiments/processed/21671476/GSE80064_KO_miR-222-3p_SNU638.tsv

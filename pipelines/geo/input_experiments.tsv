@@ -1,2 +1,2 @@
-id	mirna_name	article_pubmed_id	organism	tested_cell_line	treatment	tissue	method	experiment_type	gse_url	raw_data_dir	control_samples	condition_samples	count_matrix_path	gene_id_column
-GSE129076_OE_miR_450a-5p_A2780	hsa-miR-450a-5p	https://pubmed.ncbi.nlm.nih.gov/31101765/	Homo sapiens	A2780	Overexpression of miR-450a-5p	Ovarian	RNA-seq	Overexpression	https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129076		GSM3692987,GSM3692988,GSM3692989	GSM3692990,GSM3692991,GSM3692992
+id	geo_accession	mirna_name	experiment_type	tested_cell_line	tissue	organism	method	pubmed_id	control_samples	condition_samples	raw_data_dir	count_matrix_path	gene_id_column	treatment
+GSE129076_OE_miR_450a-5p_A2780		hsa-miR-450a-5p	Overexpression	A2780	Ovarian	Homo sapiens	RNA-seq		GSM3692987,GSM3692988,GSM3692989	GSM3692990,GSM3692991,GSM3692992				Overexpression of miR-450a-5p

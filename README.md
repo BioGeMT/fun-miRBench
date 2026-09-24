@@ -92,6 +92,8 @@ The registry uses the following identity fields:
 | `organism` | source organism |
 | `method` | expression profiling method |
 | `pubmed_id` | PubMed identifier when available |
+| `control_samples` | curated control sample identifiers used only by the optional GEO reproduction workflow |
+| `condition_samples` | curated perturbed-condition sample identifiers used only by the optional GEO reproduction workflow |
 | `de_table_path` | local benchmark-ready DE table path |
 
 The default reporting label is `GEO accession · miRNA · cell line · experiment type`. Missing

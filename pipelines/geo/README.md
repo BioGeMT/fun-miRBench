@@ -1,103 +1,94 @@
 # GEO Download Pipeline
 
-This is an **optional experiment acquisition workflow** for extending or reproducing experiment
-processing in fun-miRBench. It is not required to run the published benchmark; the curated
-publication inputs are available through `uv run funmirbench-download-data`.
+This is an **optional experiment reproduction workflow**. It is not required to run the published
+benchmark; curated benchmark inputs are available through `uv run funmirbench-download-data`.
 
-The default source of experiment identity is the canonical registry:
+The default metadata source is:
 
 ```text
 metadata/mirna_experiment_info.tsv
 ```
 
-That registry contains the stable experiment ID, GEO accession, miRNA, perturbation, cell/tissue
-context, publication metadata, and processed DE-table path. It intentionally does **not** store
-raw control/condition sample assignments.
+## Methodology
 
-## Workflow
+Control and perturbed-condition samples are **explicitly curated by the user**. The GEO pipeline
+does not infer or replace these assignments.
+
+For each experiment to reproduce, review the metadata row and fill:
+
+```text
+control_samples
+condition_samples
+```
+
+with comma-separated GSM/SRR accessions. Rows where either field is empty are skipped with an INFO
+message, so the registry can be refined incrementally.
+
+The workflow is:
 
 ```text
 metadata/mirna_experiment_info.tsv
         ↓
-geo_download.py discovers GEO samples
+review control_samples / condition_samples
         ↓
-pipelines/geo/sample_assignments/<dataset_id>.tsv
-        ↓
-review group = control / condition / exclude
-        ↓
-rerun geo_download.py
+geo_download.py
         ↓
 FASTQs + pipelines/experiments/configs/<dataset_id>.yaml
         ↓
-review YAML
+review generated YAML
         ↓
-run funmirbench/experiments_pipeline.py
+funmirbench/experiments_pipeline.py
 ```
 
-The sample-assignment review step is deliberate. GEO sample titles and characteristics are used to
-suggest groups, but those suggestions are not treated as ground truth.
+## Environment
 
-## 1. Discover samples from the canonical registry
+The GEO workflow has external dependencies that are intentionally kept in its Conda environment
+(Biopython, SRA tools, pigz):
 
-Process one experiment:
+```bash
+conda env create -f pipelines/geo/environment.yml
+conda activate funmirbench-geo
+```
+
+Run this workflow with `python` inside that environment, not with the root `uv run` environment.
+
+## Canonical metadata fields
+
+The GEO workflow requires these columns:
+
+```text
+id
+geo_accession
+mirna_name
+experiment_type
+control_samples
+condition_samples
+```
+
+The canonical registry also carries cell/tissue context, organism, method, PubMed ID, and the
+processed DE-table path.
+
+Example sample assignments:
+
+```text
+control_samples:   GSM3692987,GSM3692988,GSM3692989
+condition_samples: GSM3692990,GSM3692991,GSM3692992
+```
+
+These assignments are part of the experiment-reproduction curation and should be checked against
+the GEO record/publication before running the pipeline.
+
+## Run one experiment
+
+From the repository root:
 
 ```bash
 python pipelines/geo/geo_download.py \
-    --dataset-id GSE115646_OE_miR-18a-5p_HepG2
-```
-
-The `--tsv` option is optional. By default the script reads:
-
-```text
-metadata/mirna_experiment_info.tsv
-```
-
-On the first run, if no reviewed sample assignment exists, the script fetches GEO SOFT metadata,
-classifies samples heuristically, and writes:
-
-```text
-pipelines/geo/sample_assignments/<dataset_id>.tsv
-```
-
-No FASTQ files are downloaded at this stage.
-
-The assignment file contains:
-
-| Column | Meaning |
-|---|---|
-| `sample_id` | GEO sample accession, usually GSM |
-| `title` | GEO sample title |
-| `suggested_group` | heuristic suggestion: control, condition, or uncertain |
-| `group` | review field that must be set manually to `control`, `condition`, or `exclude` |
-| `control_score` | heuristic control score |
-| `condition_score` | heuristic condition score |
-| `organism` | sample organism from GEO metadata |
-| `cell_line` | inferred cell-line context when available |
-| `tissue` | inferred tissue context when available |
-
-## 2. Review the sample assignment
-
-Open the generated TSV and fill the `group` column for every row:
-
-```text
-control
-condition
-exclude
-```
-
-The workflow will not continue while any sample has an empty or unsupported group.
-
-At least one control and one condition sample are required.
-
-## 3. Download FASTQs and generate the experiment config
-
-After reviewing the sample assignment, rerun the same command and provide an Entrez email:
-
-```bash
-python pipelines/geo/geo_download.py \
-    --dataset-id GSE115646_OE_miR-18a-5p_HepG2 \
+    --dataset-id GSE129076_OE_miR_450a_5p_1 \
     --entrez-email your@email.com
 ```
+
+`--tsv` is optional and defaults to `metadata/mirna_experiment_info.tsv`.
 
 You can also set:
 
@@ -105,31 +96,24 @@ You can also set:
 export NCBI_ENTREZ_EMAIL="your@email.com"
 ```
 
-The workflow then:
+For GEO/SRA mode, an Entrez email is required when a processable experiment is downloaded.
 
-1. resolves reviewed GSM samples to SRA runs;
-2. downloads the FASTQs;
-3. writes `data/experiments/raw/<GSE>/manifest.json`;
-4. generates `pipelines/experiments/configs/<dataset_id>.yaml`.
+## Multiple experiments
 
-The generated YAML must still be reviewed before running the RNA-seq processing pipeline.
-
-## Selecting experiments
-
-Repeat `--dataset-id` to process multiple experiments:
+Repeat `--dataset-id`:
 
 ```bash
 python pipelines/geo/geo_download.py \
-    --dataset-id GSE115646_OE_miR-18a-5p_HepG2 \
-    --dataset-id GSE169128_KO_miR_3662
+    --dataset-id GSE129076_OE_miR_450a_5p_1 \
+    --dataset-id GSE129076_OE_miR_450a_5p_2 \
+    --entrez-email your@email.com
 ```
 
-If no `--dataset-id` is supplied, all rows in the selected metadata TSV are considered. For normal
-manual reproduction work, selecting experiments explicitly is recommended.
+If no dataset ID is provided, all rows with complete control/condition assignments are processed.
 
 ## Custom TSVs
 
-A custom TSV can still be supplied:
+A custom TSV can be supplied with:
 
 ```bash
 python pipelines/geo/geo_download.py \
@@ -137,47 +121,28 @@ python pipelines/geo/geo_download.py \
     --entrez-email your@email.com
 ```
 
-The required identity columns are:
+`pipelines/geo/input_experiments.tsv` is kept as a filled example of the same explicit-assignment
+workflow.
 
-```text
-id
-geo_accession
-mirna_name
-experiment_type
-```
+Custom TSVs may also use:
 
-Custom TSVs may additionally contain `control_samples` and `condition_samples`. If both are
-present for an experiment, the review-file discovery step is skipped and those explicit assignments
-are used directly.
+- `raw_data_dir` for local FASTQ files;
+- `count_matrix_path` and `gene_id_column` for a pre-existing count matrix.
 
-The older `pipelines/geo/input_experiments.tsv` format remains usable as a custom-input workflow,
-but it is no longer the canonical source of experiment identity.
+Both modes still use explicit `control_samples` and `condition_samples`.
 
-## Local reads and count-matrix modes
+## Optional metadata helper
 
-Custom TSVs may also provide:
-
-- `raw_data_dir` plus explicit `control_samples` / `condition_samples` for local FASTQ files;
-- `count_matrix_path`, `gene_id_column`, and explicit sample assignments for count-matrix mode.
-
-These modes require explicit sample assignments because GEO discovery is not involved.
+`fetch_geo_metadata.py` remains an optional helper for inspecting/prefilling GEO metadata.
+Any suggested biological metadata or sample grouping must be reviewed before being used in the
+canonical registry.
 
 ## Outputs
 
 | Path | Description |
 |---|---|
-| `pipelines/geo/sample_assignments/<dataset_id>.tsv` | review-required control/condition assignment |
 | `data/experiments/raw/<GSE>/*.fastq.gz` | downloaded FASTQ files |
 | `data/experiments/raw/<GSE>/manifest.json` | sample-to-run/file manifest |
 | `pipelines/experiments/configs/<dataset_id>.yaml` | generated experiment-processing config |
 
-## Notes
-
-- The canonical registry remains focused on experiment identity and benchmark provenance.
-- Sample grouping stays in a separate review artifact because it is a reproduction decision, not a
-  benchmark identity field.
-- GEO-derived group suggestions are heuristic and must be reviewed.
-- `--entrez-email` is needed only after sample assignments are reviewed and SRA resolution begins.
-- If any run download fails, config generation is aborted for that experiment so incomplete inputs
-  are not propagated.
-
+Always review the generated YAML before running `funmirbench/experiments_pipeline.py`.

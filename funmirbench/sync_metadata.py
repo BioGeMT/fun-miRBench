@@ -94,6 +94,15 @@ def merge_registry(existing: pd.DataFrame, incoming: pd.DataFrame) -> pd.DataFra
             incoming[column] = ""
     incoming = incoming[existing.columns].copy()
 
+    existing_by_key = existing.set_index(REGISTRY_KEY)
+    for column in ("control_samples", "condition_samples"):
+        if column not in existing.columns:
+            continue
+        for index, key in incoming[REGISTRY_KEY].items():
+            value = incoming.at[index, column]
+            if (pd.isna(value) or str(value).strip() == "") and key in existing_by_key.index:
+                incoming.at[index, column] = existing_by_key.at[key, column]
+
     incoming_keys = incoming[REGISTRY_KEY].tolist()
     if len(set(incoming_keys)) != len(incoming_keys):
         raise ValueError(f"Incoming metadata contains duplicate {REGISTRY_KEY} values: {incoming_keys}")
