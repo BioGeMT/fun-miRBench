@@ -1,2 +1,2 @@
 id	geo_accession	mirna_name	experiment_type	tested_cell_line	tissue	organism	method	pubmed_id	control_samples	condition_samples	raw_data_dir	count_matrix_path	gene_id_column	treatment
-GSE129076_OE_miR_450a-5p_A2780		hsa-miR-450a-5p	Overexpression	A2780	Ovarian	Homo sapiens	RNA-seq		GSM3692987,GSM3692988,GSM3692989	GSM3692990,GSM3692991,GSM3692992				Overexpression of miR-450a-5p
+GSE129076_OE_miR_450a-5p_A2780	GSE129076	hsa-miR-450a-5p	Overexpression	A2780	Ovarian	Homo sapiens	RNA-seq		GSM3692987,GSM3692988,GSM3692989	GSM3692990,GSM3692991,GSM3692992				Overexpression of miR-450a-5p
