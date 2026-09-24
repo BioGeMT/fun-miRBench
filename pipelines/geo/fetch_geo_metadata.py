@@ -1,5 +1,5 @@
 """
-Fetch GEO series metadata and append a new row to pipelines/geo/input_experiments.tsv.
+Fetch GEO series metadata and append a review row to pipelines/geo/input_experiments.tsv.
 
 Uses the GEO SOFT text API to retrieve series and sample-level metadata without
 requiring SRA credentials. Optionally uses the Gemini Flash LLM for smarter field
@@ -29,10 +29,10 @@ INPUT_TSV = Path(__file__).resolve().parent / "input_experiments.tsv"
 MIRBASE_CACHE_DIR = REPO_ROOT / "data" / "mirbase"
 
 TSV_COLUMNS = [
-    "id", "mirna_name", "article_pubmed_id", "organism", "tested_cell_line",
-    "treatment", "tissue", "method", "experiment_type", "gse_url",
-    "raw_data_dir", "control_samples", "condition_samples",
-    "count_matrix_path", "gene_id_column",
+    "id", "geo_accession", "mirna_name", "experiment_type",
+    "tested_cell_line", "tissue", "organism", "method", "pubmed_id",
+    "control_samples", "condition_samples", "raw_data_dir",
+    "count_matrix_path", "gene_id_column", "treatment",
 ]
 
 
@@ -166,11 +166,11 @@ def _first(value, default="") -> str:
     return lst[0].strip() if lst else default
 
 
-def extract_pubmed_url(series: dict) -> str:
+def extract_pubmed_id(series: dict) -> str:
     pmids = _as_list(series.get("Series_pubmed_id"))
     if pmids:
-        return f"https://pubmed.ncbi.nlm.nih.gov/{pmids[0].strip()}"
-    return "NA"
+        return pmids[0].strip()
+    return ""
 
 
 _CELL_LINE_SUFFIXES = (" cells", " cell line", " cell")
@@ -424,8 +424,7 @@ def build_row(
     series = soft_parsed["series"]
     classified = classify_samples(soft_parsed["samples"])
 
-    pubmed_url = extract_pubmed_url(series)
-    gse_url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse}"
+    pubmed_id = extract_pubmed_id(series)
 
     organisms = [s["organism"] for s in classified.values() if s["organism"]]
     cell_lines = [s["cell_line"] for s in classified.values() if s["cell_line"]]
@@ -439,38 +438,38 @@ def build_row(
 
     row = {
         "id": "TO BE FILLED",
+        "geo_accession": gse,
         "mirna_name": "TO BE FILLED",
-        "article_pubmed_id": pubmed_url,
-        "organism": majority(organisms),
-        "tested_cell_line": majority(cell_lines),
-        "treatment": "TO BE FILLED",
-        "tissue": majority(tissues),
-        "method": "RNA-seq",
         "experiment_type": "TO BE FILLED",
-        "gse_url": gse_url,
-        "raw_data_dir": "",
+        "tested_cell_line": majority(cell_lines),
+        "tissue": majority(tissues),
+        "organism": majority(organisms),
+        "method": "RNA-seq",
+        "pubmed_id": pubmed_id,
         "control_samples": ",".join(control_gsms),
         "condition_samples": ",".join(condition_gsms),
+        "raw_data_dir": "",
         "count_matrix_path": "",
         "gene_id_column": "",
+        "treatment": "TO BE FILLED",
     }
 
     sources = {
         "id": "manual",
+        "geo_accession": "rule-based",
         "mirna_name": "manual",
-        "article_pubmed_id": "rule-based" if pubmed_url != "NA" else "default",
-        "organism": "rule-based" if organisms else "manual",
-        "tested_cell_line": "rule-based" if cell_lines else "manual",
-        "treatment": "manual",
-        "tissue": "rule-based" if tissues else "manual",
-        "method": "default",
         "experiment_type": "manual",
-        "gse_url": "rule-based",
-        "raw_data_dir": "default",
+        "tested_cell_line": "rule-based" if cell_lines else "manual",
+        "tissue": "rule-based" if tissues else "manual",
+        "organism": "rule-based" if organisms else "manual",
+        "method": "default",
+        "pubmed_id": "rule-based" if pubmed_id else "default",
         "control_samples": "rule-based",
         "condition_samples": "rule-based",
+        "raw_data_dir": "default",
         "count_matrix_path": "default",
         "gene_id_column": "default",
+        "treatment": "manual",
     }
 
     # Merge LLM fields where available
@@ -512,16 +511,24 @@ def build_row(
 
 def append_to_tsv(row: dict, tsv_path: Path) -> bool:
     """
-    Append row to tsv_path. Returns False (and warns) if gse_url already exists.
-    Creates the file with a header if it does not exist yet.
+    Append a review row using the current GEO input schema.
+
+    Refuse to append if an existing TSV has a different header, preventing
+    values from being silently written under stale column names.
     """
     if tsv_path.exists():
         with open(tsv_path, newline="") as f:
             reader = csv.DictReader(f, delimiter="\t")
+            existing_columns = reader.fieldnames or []
+            if existing_columns != TSV_COLUMNS:
+                raise ValueError(
+                    f"{tsv_path} uses an incompatible header. "
+                    f"Expected: {TSV_COLUMNS}; found: {existing_columns}"
+                )
             for existing in reader:
-                if existing.get("gse_url") == row["gse_url"]:
+                if existing.get("geo_accession") == row["geo_accession"]:
                     print(
-                        f"WARNING: {row['gse_url']} already exists in {tsv_path.name}. "
+                        f"WARNING: {row['geo_accession']} already exists in {tsv_path.name}. "
                         "Skipping. Remove the existing row first if you want to re-add it.",
                         file=sys.stderr,
                     )
@@ -641,7 +648,7 @@ def print_summary(
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Fetch GEO series metadata and append a row to input_experiments.tsv."
+            "Fetch GEO series metadata and append a review row to input_experiments.tsv."
         )
     )
     parser.add_argument(
