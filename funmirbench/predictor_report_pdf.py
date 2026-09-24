@@ -65,11 +65,11 @@ def _save_page(pdf, fig):
     plt.close(fig)
 
 
-def _header(ax, experiment_label, predictor_label, dataset_id):
+def _header(ax, geo_accession, experiment_context, predictor_label, dataset_id):
     ax.text(
         0.06,
-        0.965,
-        experiment_label,
+        0.970,
+        geo_accession or "GEO accession unavailable",
         fontsize=18.0,
         fontweight="bold",
         color=BLUE,
@@ -79,7 +79,17 @@ def _header(ax, experiment_label, predictor_label, dataset_id):
     )
     ax.text(
         0.06,
-        0.922,
+        0.935,
+        experiment_context,
+        fontsize=REPORT_SUBTITLE_SIZE,
+        color=MUTED,
+        va="top",
+        ha="left",
+        family="DejaVu Sans",
+    )
+    ax.text(
+        0.06,
+        0.895,
         predictor_label,
         fontsize=REPORT_TITLE_SIZE,
         fontweight="bold",
@@ -90,7 +100,7 @@ def _header(ax, experiment_label, predictor_label, dataset_id):
     )
     ax.text(
         0.06,
-        0.882,
+        0.855,
         format_experiment_id_label(dataset_id),
         fontsize=10.2,
         color=MUTED,
@@ -98,7 +108,7 @@ def _header(ax, experiment_label, predictor_label, dataset_id):
         ha="left",
         family="DejaVu Sans",
     )
-    ax.add_line(plt.Line2D([0.06, 0.94], [0.858, 0.858], color=RULE, linewidth=1.2))
+    ax.add_line(plt.Line2D([0.06, 0.94], [0.832, 0.832], color=RULE, linewidth=1.2))
 
 
 def _metric_card(ax, label, value, *, x, y):
@@ -215,19 +225,11 @@ def _plot_panel_subtitle(label):
     return subtitles.get(str(label), "Dataset-level diagnostic plot.")
 
 
-def _plot_grid_page(
-    pdf,
-    *,
-    experiment_label,
-    predictor_label,
-    dataset_id,
-    plot_paths,
-):
-    fig, ax = _new_page()
-    _header(ax, experiment_label, predictor_label, dataset_id)
+def _plot_grid_page(pdf, *, plot_paths):
+    fig, _ = _new_page()
     panels = [
-        {"title_y": 0.825, "subtitle_y": 0.800, "image_box": [0.04, 0.445, 0.92, 0.325]},
-        {"title_y": 0.405, "subtitle_y": 0.380, "image_box": [0.04, 0.025, 0.92, 0.325]},
+        {"title_y": 0.965, "subtitle_y": 0.940, "image_box": [0.04, 0.505, 0.92, 0.410]},
+        {"title_y": 0.485, "subtitle_y": 0.460, "image_box": [0.04, 0.025, 0.92, 0.410]},
     ]
     for (label, path), panel in zip(plot_paths, panels):
         path = pathlib.Path(path)
@@ -336,14 +338,13 @@ def write_publication_predictor_reports(
         ]
 
         with PdfPages(report_path) as pdf:
-            experiment_label = format_experiment_label(
-                geo_accession=geo_accession,
+            experiment_context = format_experiment_label(
                 mirna=mirna,
                 cell_line=cell_line,
                 perturbation=perturbation,
             )
             fig, ax = _new_page()
-            _header(ax, experiment_label, label, dataset_id)
+            _header(ax, geo_accession, experiment_context, label, dataset_id)
             if row_status == "skipped":
                 rows_total = int(row.get("rows_total", 0) or 0)
                 rows_scored = int(row.get("rows_scored", 0) or 0)
@@ -356,7 +357,7 @@ def write_publication_predictor_reports(
                     ("GT pos. scored", f"{int(row.get('positives_scored', 0) or 0):,}", 0.75),
                 ]
                 for label_text, value, x in cards:
-                    _metric_card(ax, label_text, value, x=x, y=0.81)
+                    _metric_card(ax, label_text, value, x=x, y=0.785)
                 _key_value_table(
                     ax,
                     [
@@ -418,7 +419,7 @@ def write_publication_predictor_reports(
                 ("AUROC", _metric_value(row.get("auroc")), 0.75),
             ]
             for label_text, value, x in cards:
-                _metric_card(ax, label_text, value, x=x, y=0.81)
+                _metric_card(ax, label_text, value, x=x, y=0.785)
 
             metric_table_rows = [
                 ["Coverage", _metric_value(row.get("coverage"), percent=True)],
@@ -468,23 +469,15 @@ def write_publication_predictor_reports(
                 font_size=REPORT_TABLE_SIZE,
             )
             _save_page(pdf, fig)
-            for page_index, plot_chunk in enumerate(_chunks(plot_paths, 2), start=1):
-                suffix = "" if len(plot_paths) <= 2 else f" ({page_index})"
+            for plot_chunk in _chunks(plot_paths, 2):
                 _plot_grid_page(
                     pdf,
-                    experiment_label=experiment_label,
-                    predictor_label=f"{label}{suffix}",
-                    dataset_id=dataset_id,
                     plot_paths=plot_chunk,
                 )
             dataset_context = _dataset_context_plots(plots_dir)
-            for page_index, context_chunk in enumerate(_chunks(dataset_context, 2), start=1):
-                suffix = "" if len(dataset_context) <= 2 else f" ({page_index})"
+            for context_chunk in _chunks(dataset_context, 2):
                 _plot_grid_page(
                     pdf,
-                    experiment_label=experiment_label,
-                    predictor_label=f"All selected predictors{suffix}",
-                    dataset_id=dataset_id,
                     plot_paths=context_chunk,
                 )
         written.append(report_path)
