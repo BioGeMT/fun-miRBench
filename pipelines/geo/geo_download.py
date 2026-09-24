@@ -1,26 +1,22 @@
 """
-GEO Download Pipeline - Downloads FASTQ files from GEO/SRA and generates RNA-seq pipeline configs.
+GEO acquisition helper for experiment reproduction.
 
-Reads experiment metadata from a TSV file (e.g. metadata/mirna_experiment_info.tsv),
-downloads raw FASTQ files from GEO/SRA (GEO mode) or locates local files (local mode),
-and auto-generates YAML configuration files for the RNA-seq pipeline (funmirbench-experiments).
+By default, experiment identity comes from metadata/mirna_experiment_info.tsv.
+For GEO experiments without explicit sample assignments, the script discovers
+the GEO samples and writes a review file under pipelines/geo/sample_assignments/.
+No FASTQs are downloaded until that assignment has been reviewed.
 
 Usage:
-    python geo_download.py --tsv metadata/mirna_experiment_info.tsv
+    python pipelines/geo/geo_download.py --dataset-id <experiment_id>
 
-The TSV must contain the columns:
-    id, mirna_name, experiment_type, gse_url, control_samples, condition_samples
-
-Optional column:
-    raw_data_dir  -- if set, local mode is used instead of GEO download.
-                     control_samples/condition_samples are then interpreted as sample
-                     base-names (without extension) rather than GSM accession IDs.
+Custom TSVs may still provide control_samples and condition_samples directly.
 """
 
 import argparse
 import csv
 import json
 import logging
+import os
 import shutil
 import subprocess
 import time
@@ -31,6 +27,11 @@ from urllib.parse import parse_qs, urlparse
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
+
+try:
+    from .fetch_geo_metadata import classify_samples, fetch_soft, parse_soft
+except ImportError:
+    from fetch_geo_metadata import classify_samples, fetch_soft, parse_soft
 
 import yaml
 from Bio import Entrez
@@ -47,15 +48,27 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 REQUIRED_TSV_COLUMNS = [
     "id",
+    "geo_accession",
     "mirna_name",
     "experiment_type",
-    "gse_url",
-    "control_samples",
-    "condition_samples",
 ]
 
+DEFAULT_METADATA_TSV = REPO_ROOT / "metadata" / "mirna_experiment_info.tsv"
 FASTQ_OUTPUT_DIR = REPO_ROOT / "data/experiments/raw"
 CONFIG_OUTPUT_DIR = REPO_ROOT / "pipelines/experiments/configs"
+SAMPLE_ASSIGNMENTS_DIR = REPO_ROOT / "pipelines/geo/sample_assignments"
+SAMPLE_ASSIGNMENT_COLUMNS = [
+    "sample_id",
+    "title",
+    "suggested_group",
+    "group",
+    "control_score",
+    "condition_score",
+    "organism",
+    "cell_line",
+    "tissue",
+]
+VALID_REVIEWED_GROUPS = {"control", "condition", "exclude"}
 
 # Default genome reference paths (Ensembl v115, downloaded by
 # funmirbench-experiments-download-examples)
@@ -414,60 +427,45 @@ def download_srr(srr, output_dir, threads, layout="PAIRED"):
 
 
 # ---------------------------------------------------------------------------
-# TSV parsing
+# TSV parsing and sample review
 # ---------------------------------------------------------------------------
 
-def parse_experiment_metadata(tsv_path):
-    """
-    Parse the experiments TSV and return a list of experiment dicts.
-
-    Rows where control_samples or condition_samples are empty are skipped
-    with a warning (they have not been filled in yet).
-    """
+def parse_experiment_metadata(tsv_path, *, dataset_ids=None):
+    """Parse canonical or custom experiment metadata into acquisition records."""
     df = pd.read_csv(tsv_path, sep="\t", dtype=str, keep_default_na=False)
     _validate_tsv_header(list(df.columns), tsv_path)
+
+    if dataset_ids:
+        requested = [str(value) for value in dataset_ids]
+        available = set(df["id"].astype(str))
+        missing = [dataset_id for dataset_id in requested if dataset_id not in available]
+        if missing:
+            raise ValueError(f"Unknown experiment id value(s): {missing}")
+        df = df[df["id"].isin(requested)]
 
     experiments = []
     for row_num, row in enumerate(df.to_dict(orient="records"), start=2):
         def get(col):
             return (row.get(col) or "").strip()
 
-        control_samples = parse_sample_list(row.get("control_samples", ""))
-        condition_samples = parse_sample_list(row.get("condition_samples", ""))
-
-        # Skip rows not yet filled in — do this before any other validation
-        # so that partially-filled placeholder rows don't cause errors.
-        if not control_samples or not condition_samples:
-            logger.warning(
-                "Row %d: skipping — control_samples or condition_samples is empty.",
-                row_num,
-            )
-            continue
-
         dataset_id = get("id")
         mirna = get("mirna_name")
         experiment_type = get("experiment_type")
-        gse_url_val = get("gse_url")
-        gse = extract_gse_accession(gse_url_val)
+        gse = get("geo_accession")
         raw_data_dir = get("raw_data_dir")
         count_matrix_path = get("count_matrix_path")
         gene_id_column = get("gene_id_column")
+        control_samples = parse_sample_list(row.get("control_samples", ""))
+        condition_samples = parse_sample_list(row.get("condition_samples", ""))
 
-        # Hard errors for fields required on processable rows
         if not dataset_id:
             raise ValueError(f"Row {row_num} missing id in {tsv_path}")
         if not mirna:
             raise ValueError(f"Row {row_num} missing mirna_name in {tsv_path}")
         if not experiment_type:
             raise ValueError(f"Row {row_num} missing experiment_type in {tsv_path}")
-        if not gse_url_val:
-            raise ValueError(f"Row {row_num} missing gse_url in {tsv_path}")
         if not gse:
-            raise ValueError(
-                f"Row {row_num} has invalid gse_url with no GEO accession: {gse_url_val}"
-            )
-
-        # count_matrix mode requires gene_id_column
+            raise ValueError(f"Row {row_num} missing geo_accession in {tsv_path}")
         if count_matrix_path and not gene_id_column:
             raise ValueError(
                 f"Row {row_num} ({dataset_id}): count_matrix_path is set but gene_id_column is missing."
@@ -483,15 +481,107 @@ def parse_experiment_metadata(tsv_path):
             "raw_data_dir": raw_data_dir,
             "count_matrix_path": count_matrix_path,
             "gene_id_column": gene_id_column,
-            # fields for the YAML metadata section
             "organism": get("organism"),
             "tested_cell_line": get("tested_cell_line"),
             "treatment": get("treatment"),
             "tissue": get("tissue"),
-            "article_pubmed_id": get("article_pubmed_id"),
+            "article_pubmed_id": get("pubmed_id") or get("article_pubmed_id"),
         })
 
     return experiments
+
+
+def sample_assignment_path(dataset_id, *, assignment_dir=SAMPLE_ASSIGNMENTS_DIR):
+    return Path(assignment_dir) / f"{dataset_id}.tsv"
+
+
+def discover_sample_assignment(experiment, *, assignment_dir=SAMPLE_ASSIGNMENTS_DIR):
+    """Discover GEO samples and write a review-required assignment TSV."""
+    assignment_path = sample_assignment_path(
+        experiment["id"],
+        assignment_dir=assignment_dir,
+    )
+    assignment_path.parent.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Discovering GEO samples for %s...", experiment["gse"])
+    soft_parsed = parse_soft(fetch_soft(experiment["gse"]))
+    classified = classify_samples(soft_parsed.get("samples", {}))
+    if not classified:
+        raise ValueError(f"No GEO samples were found for {experiment['gse']}.")
+
+    rows = []
+    for sample_id, info in classified.items():
+        rows.append(
+            {
+                "sample_id": sample_id,
+                "title": info.get("title", ""),
+                "suggested_group": info.get("group", "uncertain"),
+                "group": "",
+                "control_score": info.get("ctrl_score", 0),
+                "condition_score": info.get("cond_score", 0),
+                "organism": info.get("organism", ""),
+                "cell_line": info.get("cell_line", ""),
+                "tissue": info.get("tissue", ""),
+            }
+        )
+
+    pd.DataFrame(rows, columns=SAMPLE_ASSIGNMENT_COLUMNS).to_csv(
+        assignment_path,
+        sep="\t",
+        index=False,
+    )
+    logger.warning(
+        "Sample review required for %s. Review %s and set group to "
+        "control, condition, or exclude; then rerun.",
+        experiment["id"],
+        assignment_path,
+    )
+    return assignment_path
+
+
+def load_reviewed_sample_assignment(path):
+    """Load a reviewed assignment TSV and return control/condition GSM IDs."""
+    path = Path(path)
+    df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+    required = {"sample_id", "group"}
+    missing = sorted(required - set(df.columns))
+    if missing:
+        raise ValueError(f"Sample assignment {path} is missing columns: {missing}")
+
+    groups = df["group"].astype(str).str.strip().str.lower()
+    unresolved = df.loc[~groups.isin(VALID_REVIEWED_GROUPS), "sample_id"].tolist()
+    if unresolved:
+        raise ValueError(
+            f"Sample assignment still needs review: {path}. "
+            f"Set group=control, condition, or exclude for: {unresolved}"
+        )
+
+    control = df.loc[groups == "control", "sample_id"].astype(str).str.strip().tolist()
+    condition = df.loc[groups == "condition", "sample_id"].astype(str).str.strip().tolist()
+    if not control or not condition:
+        raise ValueError(
+            f"Sample assignment {path} must contain at least one control and one condition sample."
+        )
+    return control, condition
+
+
+def prepare_geo_sample_assignment(experiment, *, assignment_dir=SAMPLE_ASSIGNMENTS_DIR):
+    """Populate experiment sample groups, or create a review file and defer processing."""
+    if experiment["control_samples"] and experiment["condition_samples"]:
+        return True, None
+
+    assignment_path = sample_assignment_path(
+        experiment["id"],
+        assignment_dir=assignment_dir,
+    )
+    if not assignment_path.exists():
+        discover_sample_assignment(experiment, assignment_dir=assignment_dir)
+        return False, assignment_path
+
+    control, condition = load_reviewed_sample_assignment(assignment_path)
+    experiment["control_samples"] = control
+    experiment["condition_samples"] = condition
+    return True, assignment_path
 
 
 # ---------------------------------------------------------------------------
@@ -822,41 +912,59 @@ def generate_yaml_config(experiment, control_entries, treated_entries, config_ou
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Download FASTQ files from GEO/SRA (or locate local files) "
-            "and generate RNA-seq pipeline YAML configs."
+            "Discover/review GEO samples, download FASTQs, and generate "
+            "RNA-seq pipeline YAML configs."
         )
     )
     parser.add_argument(
-        "--tsv", required=True,
-        help="Path to experiments TSV (e.g. metadata/mirna_experiment_info.tsv)",
+        "--tsv",
+        default=str(DEFAULT_METADATA_TSV),
+        help=f"Experiment metadata TSV (default: {DEFAULT_METADATA_TSV})",
+    )
+    parser.add_argument(
+        "--dataset-id",
+        action="append",
+        default=[],
+        help="Process only this experiment id. Repeat to select multiple experiments.",
     )
     parser.add_argument(
         "--threads", "-t", type=int, default=4,
         help="Threads for fasterq-dump (default: 4)",
     )
     parser.add_argument(
-        "--entrez-email", required=True,
-        help="Email address for NCBI Entrez API (required by NCBI)",
+        "--entrez-email",
+        default=os.environ.get("NCBI_ENTREZ_EMAIL", ""),
+        help=(
+            "Email for NCBI Entrez. Required only when reviewed GEO samples "
+            "are resolved/downloaded. Can also be set with NCBI_ENTREZ_EMAIL."
+        ),
     )
 
     args = parser.parse_args()
-    Entrez.email = args.entrez_email
+    if args.entrez_email:
+        Entrez.email = args.entrez_email
 
     total_steps = 4
     log_step(1, total_steps, f"loading experiments metadata from {args.tsv}")
     try:
-        experiments = parse_experiment_metadata(args.tsv)
+        experiments = parse_experiment_metadata(
+            args.tsv,
+            dataset_ids=args.dataset_id or None,
+        )
     except (ValueError, FileNotFoundError) as e:
         logger.error("Failed to load TSV: %s", e)
         return 1
-    log_step(2, total_steps, f"parsed {len(experiments)} processable experiment(s)")
+    log_step(2, total_steps, f"parsed {len(experiments)} experiment(s)")
 
     FASTQ_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    SAMPLE_ASSIGNMENTS_DIR.mkdir(parents=True, exist_ok=True)
     log_step(3, total_steps, f"output directory ready: {FASTQ_OUTPUT_DIR}")
     log_step(4, total_steps, "starting experiment processing")
 
     total_experiments = len(experiments)
     failed_experiments = []
+    pending_review = []
+    completed = 0
 
     for exp_idx, exp in enumerate(experiments, start=1):
         exp_label = f"{exp['gse']} | {exp['mirna']} | {exp['experiment_type']}"
@@ -866,16 +974,43 @@ def main():
                 exp_idx, total_experiments, exp_label,
             )
             if exp.get("count_matrix_path", "").strip():
+                if not exp["control_samples"] or not exp["condition_samples"]:
+                    raise ValueError(
+                        "Count-matrix mode requires control_samples and condition_samples "
+                        "in the custom TSV."
+                    )
                 process_count_matrix_experiment(exp)
                 generate_count_matrix_yaml_config(exp, CONFIG_OUTPUT_DIR)
             elif exp.get("raw_data_dir", "").strip():
+                if not exp["control_samples"] or not exp["condition_samples"]:
+                    raise ValueError(
+                        "Local-read mode requires control_samples and condition_samples "
+                        "in the custom TSV."
+                    )
                 control_entries, treated_entries = process_local_experiment(exp)
                 generate_yaml_config(exp, control_entries, treated_entries, CONFIG_OUTPUT_DIR)
             else:
+                ready, assignment_path = prepare_geo_sample_assignment(exp)
+                if not ready:
+                    pending_review.append((exp_label, str(assignment_path)))
+                    logger.info(
+                        "[EXPERIMENT %d/%d] %s — REVIEW REQUIRED",
+                        exp_idx,
+                        total_experiments,
+                        exp_label,
+                    )
+                    continue
+                if not args.entrez_email:
+                    raise ValueError(
+                        "Reviewed GEO samples are ready, but --entrez-email is required "
+                        "to resolve/download SRA runs."
+                    )
                 control_entries, treated_entries = download_experiment(
                     exp, FASTQ_OUTPUT_DIR, args.threads
                 )
                 generate_yaml_config(exp, control_entries, treated_entries, CONFIG_OUTPUT_DIR)
+
+            completed += 1
             logger.info("[EXPERIMENT %d/%d] %s — DONE", exp_idx, total_experiments, exp_label)
         except Exception as e:
             logger.error(
@@ -886,23 +1021,21 @@ def main():
 
     sep = "=" * 60
     logger.info(sep)
-    if failed_experiments:
-        logger.error(
-            "FINISHED WITH ERRORS — %d/%d experiment(s) failed:",
-            len(failed_experiments), total_experiments,
-        )
-        for label, reason in failed_experiments:
-            logger.error("  ✗ %s", label)
-            logger.error("    Reason: %s", reason)
-        logger.error(sep)
-        return 1
-    else:
-        logger.info(
-            "ALL DONE — %d/%d experiment(s) completed successfully.",
-            total_experiments, total_experiments,
-        )
-        logger.info(sep)
-        return 0
+    logger.info(
+        "GEO workflow summary: %d completed, %d awaiting review, %d failed.",
+        completed,
+        len(pending_review),
+        len(failed_experiments),
+    )
+    for label, path in pending_review:
+        logger.info("  Review required: %s", label)
+        logger.info("    %s", path)
+    for label, reason in failed_experiments:
+        logger.error("  Failed: %s", label)
+        logger.error("    Reason: %s", reason)
+    logger.info(sep)
+
+    return 1 if failed_experiments else 0
 
 
 if __name__ == "__main__":
