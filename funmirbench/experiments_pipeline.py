@@ -370,7 +370,7 @@ def run_de_from_counts(
         output_path=de_results_path,
     )
     de_df = read_table_auto(de_results_path)
-    required = {"gene_id", "logFC", "FDR"}
+    required = {"gene_id", "logFC", "control_mean_normalized_count", "FDR"}
     if not required.issubset(de_df.columns):
         raise ValueError(
             f"DE output is missing required benchmark columns. Expected at least {sorted(required)}, "
