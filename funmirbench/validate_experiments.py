@@ -23,7 +23,7 @@ REQUIRED_REGISTRY_COLUMNS = (
     "experiment_type",
     "de_table_path",
 )
-REQUIRED_DE_COLUMNS = ("gene_id", "logFC", "FDR")
+REQUIRED_DE_COLUMNS = ("gene_id", "logFC", "control_mean_normalized_count", "FDR")
 VALID_PERTURBATIONS = {"Overexpression", "Knockout", "Knockdown"}
 MAX_LOGGED_ISSUES = 20
 _ENSEMBL_GENE_ID = re.compile(r"^ENS[A-Z]*G\d+(?:\.\d+)?$", re.IGNORECASE)

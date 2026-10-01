@@ -36,6 +36,7 @@ PERTURBATION_EFFECT_SIGN = {
 }
 
 BASELINE_EXPRESSION_ALIASES = (
+    "control_mean_normalized_count",
     "normalized_control_mean",
     "raw_control_mean",
     "control_mean",
