@@ -73,7 +73,7 @@ dds <- DESeqDataSetFromMatrix(countData = count_matrix, colData = col_data, desi
 dds <- dds[rowSums(counts(dds)) > 0, ]
 dds <- DESeq(dds)
 res <- results(dds, contrast = c("condition", "treated", "control"))
-
+raw_counts <- counts(dds, normalized = FALSE)
 normalized_counts <- counts(dds, normalized = TRUE)
 control_mean_normalized_count <- rowMeans(
   normalized_counts[, control_columns, drop = FALSE]
@@ -81,10 +81,17 @@ control_mean_normalized_count <- rowMeans(
 
 out <- data.frame(
   gene_id = sub("\\.[0-9]+$", "", rownames(res)),
+  baseMean = res$baseMean,
   logFC = res$log2FoldChange,
   control_mean_normalized_count = control_mean_normalized_count[rownames(res)],
+  lfcSE = res$lfcSE,
+  stat = res$stat,
   PValue = res$pvalue,
   FDR = res$padj,
+  raw_control_mean = rowMeans(raw_counts[, control_columns, drop = FALSE]),
+  raw_treated_mean = rowMeans(raw_counts[, treated_columns, drop = FALSE]),
+  normalized_control_mean = rowMeans(normalized_counts[, control_columns, drop = FALSE]),
+  normalized_treated_mean = rowMeans(normalized_counts[, treated_columns, drop = FALSE]),
   stringsAsFactors = FALSE
 )
 out <- out[order(out$PValue, na.last = TRUE), ]

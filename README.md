@@ -211,6 +211,28 @@ benchmark mechanics are fixed by the software:
 The generated run `README.md`, `REPORT.pdf`, and `summary.json` record the settings and
 evaluation details for that specific run.
 
+## Reference Audit
+
+Use the reference audit when inspecting whether current positive/background labels are
+compositionally tied to expression, uncertainty, or repeated gene response patterns. It writes
+diagnostic tables only; it does not change benchmark labels or predictor rankings.
+
+```bash
+uv run funmirbench-reference-audit --config benchmark.yaml --sync
+```
+
+Primary outputs are written under `results/reference_bias_audit/tables/`:
+
+- `per_experiment_summary.tsv`: selected rows, assessable rows, current positives, and available diagnostics
+- `expression_bins.tsv`: current positive rate and logFC summaries by baseline-expression bin
+- `zero_count_categories.tsv`: zero-baseline/treated summaries when expression columns are available
+- `gene_response_propensity.tsv`: repeated gene response tendency across selected experiments
+- `missing_diagnostics.tsv`: missing DE tables or diagnostic columns that block deeper audit steps
+
+New DESeq2 outputs generated through `pipelines/experiments/run_deseq2_counts.R` include
+`baseMean`, `lfcSE`, `stat`, raw control/treated means, and normalized control/treated means so
+future audit runs can separate expression composition from effect uncertainty more directly.
+
 ## Outputs
 
 Each run creates a timestamped directory:
