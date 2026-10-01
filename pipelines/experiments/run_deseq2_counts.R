@@ -74,9 +74,15 @@ dds <- dds[rowSums(counts(dds)) > 0, ]
 dds <- DESeq(dds)
 res <- results(dds, contrast = c("condition", "treated", "control"))
 
+normalized_counts <- counts(dds, normalized = TRUE)
+control_mean_normalized_count <- rowMeans(
+  normalized_counts[, control_columns, drop = FALSE]
+)
+
 out <- data.frame(
   gene_id = sub("\\.[0-9]+$", "", rownames(res)),
   logFC = res$log2FoldChange,
+  control_mean_normalized_count = control_mean_normalized_count[rownames(res)],
   PValue = res$pvalue,
   FDR = res$padj,
   stringsAsFactors = FALSE
