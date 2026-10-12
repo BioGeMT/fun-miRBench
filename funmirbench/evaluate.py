@@ -12,7 +12,7 @@ def evaluate_joined_dataframe(
     dataset_id=None, mirna=None, cell_line=None,
     perturbation=None, geo_accession=None,
     de_table_path=None, joined_tsv=None,
-    predictor_output_paths=None,
+    predictor_output_paths=None, dataset_label=None,
     tool_labels=None,
     write_top_prediction_cdfs=False,
     logger=None,
@@ -31,6 +31,7 @@ def evaluate_joined_dataframe(
     mirna = mirna or (
         str(joined["mirna"].iloc[0]) if "mirna" in joined.columns else None
     )
+    _set_dataset_label(dataset_id, dataset_label)
     dataset_plots_dir = plots_dir
     predictor_plots_dir = dataset_plots_dir / "predictors"
     comparison_plots_dir = dataset_plots_dir / "comparisons"
@@ -245,7 +246,15 @@ def evaluate_joined_dataframe(
         dataset_plots[f"{tool_id}_roc_curve"] = str(roc_curve_png)
 
     if not evaluated_score_cols:
-        raise ValueError(f"No predictors had scored rows for {dataset_id}.")
+        reason = "No selected predictor had evaluable scored rows after DE/GT filtering."
+        _emit_log(logger, f"    Dataset: {dataset_id} | skipped: {reason}")
+        return {
+            "metric_rows": [],
+            "skipped_tool_rows": skipped_tool_rows,
+            "plots": dataset_plots,
+            "predictor_correlation_tsv": None,
+            "dataset_skip_reason": reason,
+        }
 
     plot_entries = [
         (score_col, tool_id, rank_col, comparison)

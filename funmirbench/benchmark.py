@@ -1,4 +1,4 @@
-"""Run the FuNmiRBench benchmark from a single YAML config."""
+"""Run the fun-miRBench benchmark from a single YAML config."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from funmirbench.benchmark_config import (
     filter_df,
     load_experiments,
     load_predictions,
-    selected_experiment_paths,
     validate_predictor_output_files,
 )
 from funmirbench.benchmark_reports import (
@@ -34,7 +33,7 @@ from funmirbench.evaluate import (
     REPORT_PAGE_SIZE,
     evaluate_joined_dataframe,
 )
-from funmirbench.experiment_store import sync_zenodo_experiments
+from funmirbench.experiment_labels import format_experiment_label
 from funmirbench.join import build_joined, load_predictor_score_cache
 from funmirbench.logger import parse_log_level, setup_logging
 from funmirbench.predictor_combinations import write_predictor_combination_outputs
@@ -56,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run the FuNmiRBench benchmark.")
+    parser = argparse.ArgumentParser(description="Run the fun-miRBench benchmark.")
     parser.add_argument("--config", type=pathlib.Path, required=True)
     parser.add_argument(
         "--log-level",
@@ -109,7 +108,6 @@ def _finalize_run_bundle(
     out_root,
     config_path,
     config_snapshot_path,
-    tags,
     dataset_outputs,
     tool_ids,
     metric_rows,
@@ -120,41 +118,46 @@ def _finalize_run_bundle(
     effect_threshold,
     predictor_top_fraction,
     protein_coding_filter,
+    skipped_datasets,
 ):
     layout = _init_run_layout(out_dir)
-    metric_tables = write_metric_tables(
-        metric_rows,
-        layout["per_experiment_tables_dir"],
-        logger=logger.info,
-    )
-    combined_outputs = write_cross_dataset_summaries(
-        metric_rows,
-        layout["combined_tables_dir"],
-        layout["combined_plots_dir"],
-        joined_frames=joined_frames,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        tool_labels=tool_labels,
-        logger=logger.info,
-    )
-    common_summary_path = write_combined_common_prediction_summary(
-        common_prediction_summaries,
-        layout["combined_tables_dir"],
-    )
-    combined_outputs.setdefault("tables", {})["common_prediction_summary"] = str(common_summary_path)
-    combination_outputs = write_predictor_combination_outputs(
-        joined_frames,
-        layout["combined_tables_dir"],
-        layout["combined_plots_dir"],
-        tool_ids=tool_ids,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        logger=logger.info,
-    )
-    combined_outputs.setdefault("tables", {}).update(combination_outputs.get("tables", {}))
-    combined_outputs.setdefault("plots", {}).update(combination_outputs.get("plots", {}))
+    if metric_rows:
+        metric_tables = write_metric_tables(
+            metric_rows,
+            layout["per_experiment_tables_dir"],
+            logger=logger.info,
+        )
+        combined_outputs = write_cross_dataset_summaries(
+            metric_rows,
+            layout["combined_tables_dir"],
+            layout["combined_plots_dir"],
+            joined_frames=joined_frames,
+            fdr_threshold=fdr_threshold,
+            effect_threshold=effect_threshold,
+            predictor_top_fraction=predictor_top_fraction,
+            tool_labels=tool_labels,
+            logger=logger.info,
+        )
+        common_summary_path = write_combined_common_prediction_summary(
+            common_prediction_summaries,
+            layout["combined_tables_dir"],
+        )
+        combined_outputs.setdefault("tables", {})["common_prediction_summary"] = str(common_summary_path)
+        combination_outputs = write_predictor_combination_outputs(
+            joined_frames,
+            layout["combined_tables_dir"],
+            layout["combined_plots_dir"],
+            tool_ids=tool_ids,
+            fdr_threshold=fdr_threshold,
+            effect_threshold=effect_threshold,
+            predictor_top_fraction=predictor_top_fraction,
+            logger=logger.info,
+        )
+        combined_outputs.setdefault("tables", {}).update(combination_outputs.get("tables", {}))
+        combined_outputs.setdefault("plots", {}).update(combination_outputs.get("plots", {}))
+    else:
+        metric_tables = {}
+        combined_outputs = {"tables": {}, "plots": {}}
     readme_path = write_run_readme(
         out_dir,
         config_path=config_path,
@@ -166,6 +169,7 @@ def _finalize_run_bundle(
         effect_threshold=effect_threshold,
         predictor_top_fraction=predictor_top_fraction,
         protein_coding_filter=protein_coding_filter,
+        skipped_datasets=skipped_datasets,
     )
     report_path = write_run_pdf_report(
         out_dir,
@@ -177,6 +181,7 @@ def _finalize_run_bundle(
         fdr_threshold=fdr_threshold,
         effect_threshold=effect_threshold,
         predictor_top_fraction=predictor_top_fraction,
+        skipped_datasets=skipped_datasets,
     )
     summary = {
         "config": str(config_path),
@@ -184,7 +189,6 @@ def _finalize_run_bundle(
         "out_root": str(out_root),
         "out_dir": str(out_dir),
         "run_dir_name": out_dir.name,
-        "tags": tags or [],
         "dataset_ids": [item["dataset_id"] for item in dataset_outputs],
         "tool_ids": tool_ids,
         "readme": str(readme_path),
@@ -193,6 +197,7 @@ def _finalize_run_bundle(
         "cross_dataset_outputs": combined_outputs,
         "protein_coding_filter": protein_coding_filter,
         "datasets": dataset_outputs,
+        "skipped_datasets": skipped_datasets,
     }
     summary_path = out_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -238,14 +243,8 @@ def run_benchmark(config_path):
     )
     if not predictions:
         raise ValueError("Predictor selection resolved to no predictors.")
-    validate_predictor_output_files(predictions, root)
 
-    logger.info("Syncing selected experiment DE tables from Zenodo...")
-    synced = sync_zenodo_experiments(
-        selected_experiment_paths(experiments_tsv, experiment_filters),
-        repo=root,
-    )
-    logger.info(f"Synced {len(synced)} experiment DE tables.")
+    validate_predictor_output_files(predictions, root)
 
     logger.info("Validating selected experiments...")
     validation_summary = validate_experiments(
@@ -295,17 +294,13 @@ def run_benchmark(config_path):
     evaluate_module.FIGURE_DPI = int(eval_cfg.get("figure_dpi", eval_cfg.get("publication_figure_dpi", 450)))
     out_root = (root / config.get("out_dir", "results")).resolve()
     out_root.mkdir(parents=True, exist_ok=True)
-    run_dir_name = build_run_dir_name(
-        experiments=experiments,
-        tool_ids=list(predictions),
-        eval_cfg=eval_cfg,
-        tags=config.get("tags"),
-    )
+    run_dir_name = build_run_dir_name()
     out_dir = out_root / run_dir_name
-    suffix = 2
-    while out_dir.exists():
-        out_dir = out_root / f"{run_dir_name}__r{suffix}"
-        suffix += 1
+    if out_dir.exists():
+        raise FileExistsError(
+            f"Run output directory already exists: {out_dir}. "
+            "Start the benchmark again to create a new timestamped run directory."
+        )
     logger.info(f"Results root: {out_root}")
     logger.info(f"Run output dir: {out_dir}")
     main_layout = _init_run_layout(out_dir)
@@ -322,6 +317,7 @@ def run_benchmark(config_path):
     dataset_outputs = []
     joined_frames = []
     common_prediction_summaries = []
+    skipped_datasets = []
     logger.info(f"Experiments: {len(experiments)}")
     logger.info(f"Predictors:  {tool_ids}")
     logger.info("Loading predictor score files once for this run with %d worker(s)...", predictor_load_workers)
@@ -334,7 +330,13 @@ def run_benchmark(config_path):
     )
 
     for meta in experiments:
-        logger.info(f"Dataset: {meta.id} | {meta.miRNA} | {meta.cell_line}")
+        experiment_label = format_experiment_label(
+            geo_accession=meta.geo_accession,
+            mirna=meta.miRNA,
+            cell_line=meta.cell_line,
+            perturbation=meta.perturbation,
+        )
+        logger.info(f"Dataset: {meta.id} | {experiment_label}")
         dataset_dir = main_layout["datasets_dir"] / meta.id
         if dataset_dir.exists():
             shutil.rmtree(dataset_dir)
@@ -354,6 +356,31 @@ def run_benchmark(config_path):
         joined.to_csv(joined_path, sep="\t", index=False)
         logger.info(f"  Wrote joined table: {joined_path}")
 
+        score_columns = [
+            f"score_{tool_id}"
+            for tool_id in tool_ids
+            if f"score_{tool_id}" in joined.columns
+        ]
+        if not score_columns or not joined[score_columns].notna().any().any():
+            reason = (
+                "No predictor-scored rows remained after joining predictions "
+                "to this experiment."
+            )
+            logger.info("  Skipping %s: %s", meta.id, reason)
+            skipped_datasets.append(
+                {
+                    "dataset_id": meta.id,
+                    "mirna": meta.miRNA,
+                    "cell_line": meta.cell_line,
+                    "perturbation": meta.perturbation,
+                    "geo_accession": meta.geo_accession,
+                    "display_label": experiment_label,
+                    "reason": reason,
+                    "joined_tsv": str(joined_path),
+                }
+            )
+            continue
+
         logger.info(f"  Evaluating metrics and plots for {meta.id}...")
         evaluation = evaluate_joined_dataframe(
             joined,
@@ -370,10 +397,28 @@ def run_benchmark(config_path):
             de_table_path=str(meta.full_path),
             joined_tsv=joined_path,
             predictor_output_paths=predictor_output_paths,
+            dataset_label=experiment_label,
             tool_labels=tool_labels,
             write_top_prediction_cdfs=write_top_prediction_cdfs,
             logger=logger.info,
         )
+        if evaluation.get("dataset_skip_reason"):
+            reason = evaluation["dataset_skip_reason"]
+            logger.info("  Skipping %s: %s", meta.id, reason)
+            skipped_datasets.append(
+                {
+                    "dataset_id": meta.id,
+                    "mirna": meta.miRNA,
+                    "cell_line": meta.cell_line,
+                    "perturbation": meta.perturbation,
+                    "geo_accession": meta.geo_accession,
+                    "display_label": experiment_label,
+                    "reason": reason,
+                    "joined_tsv": str(joined_path),
+                }
+            )
+            continue
+
         write_common_comparison_plots(
             joined,
             evaluation=evaluation,
@@ -420,6 +465,7 @@ def run_benchmark(config_path):
                 "cell_line": meta.cell_line,
                 "perturbation": meta.perturbation,
                 "geo_accession": meta.geo_accession,
+                "display_label": experiment_label,
                 "de_table_path": str(meta.full_path),
                 "joined_tsv": str(joined_path),
                 "dataset_dir": str(dataset_dir),
@@ -430,6 +476,19 @@ def run_benchmark(config_path):
         )
         logger.info(f"  Finished {meta.id}")
 
+    logger.info(
+        "Evaluation complete: %d dataset(s) evaluated, %d skipped.",
+        len(dataset_outputs),
+        len(skipped_datasets),
+    )
+    for item in skipped_datasets:
+        logger.info(
+            "  Skipped dataset: %s | %s | %s",
+            item["dataset_id"],
+            item["mirna"],
+            item["reason"],
+        )
+
     logger.info("Writing metric tables...")
     logger.info("Writing cross-dataset summaries...")
     _finalize_run_bundle(
@@ -437,7 +496,6 @@ def run_benchmark(config_path):
         out_root=out_root,
         config_path=config_path,
         config_snapshot_path=config_snapshot_path,
-        tags=config.get("tags"),
         dataset_outputs=dataset_outputs,
         tool_ids=tool_ids,
         metric_rows=metric_rows,
@@ -448,6 +506,7 @@ def run_benchmark(config_path):
         effect_threshold=effect_threshold,
         predictor_top_fraction=predictor_top_fraction,
         protein_coding_filter=protein_coding_filter,
+        skipped_datasets=skipped_datasets,
     )
     return out_dir
 

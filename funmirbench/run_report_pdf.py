@@ -219,13 +219,20 @@ def _load_common_prediction_summary(combined_outputs):
         return None
 
 
-def _draw_common_prediction_page(pdf, combined_outputs):
+def _draw_common_prediction_page(pdf, combined_outputs, dataset_outputs=None):
     summary = _load_common_prediction_summary(combined_outputs)
     if summary is None or summary.empty:
         return
-    selected = summary[summary["summary_type"].isin(["publication_common_set", "all_real_predictors_common_set"])].copy()
+    selected = summary[summary["summary_type"].isin(["report_common_set", "all_real_predictors_common_set"])].copy()
     if selected.empty:
         return
+    display_labels = {
+        str(item["dataset_id"]): item.get("display_label") or str(item["dataset_id"])
+        for item in (dataset_outputs or [])
+    }
+    selected["dataset_id"] = selected["dataset_id"].map(
+        lambda value: display_labels.get(str(value), str(value))
+    )
     def _format_tools(value):
         return " + ".join(_tool_label(tool_id.strip()) for tool_id in str(value).split(",") if tool_id.strip())
 
@@ -236,7 +243,7 @@ def _draw_common_prediction_page(pdf, combined_outputs):
     )
     selected["Set"] = selected["summary_type"].map(
         {
-            "publication_common_set": "Publication common set",
+            "report_common_set": "Report common set",
             "all_real_predictors_common_set": "All predictors",
         }
     )
@@ -439,10 +446,8 @@ def _run_subtitle(dataset_count, predictor_count, config_path):
 def _dataset_report_rows(dataset_outputs):
     return [
         {
-            "Dataset": item["dataset_id"],
-            "miRNA": item["mirna"],
-            "Perturbation": item["perturbation"],
-            "Cell line": item["cell_line"],
+            "Experiment": item.get("display_label") or item["dataset_id"],
+            "Experiment ID": item["dataset_id"],
         }
         for item in dataset_outputs
     ]
@@ -459,8 +464,10 @@ def write_publication_run_pdf_report(
     fdr_threshold,
     effect_threshold,
     predictor_top_fraction,
+    skipped_datasets=None,
 ):
     del metric_tables
+    skipped_datasets = list(skipped_datasets or [])
     summary_df = _load_cross_dataset_summary(combined_outputs)
     report_path = pathlib.Path(out_dir) / "REPORT.pdf"
     display_tool_ids = _publication_tool_ids(tool_ids) or list(tool_ids)
@@ -469,13 +476,14 @@ def write_publication_run_pdf_report(
         fig, ax = _new_page()
         _header(
             ax,
-            "FuNmiRBench Benchmark Report",
+            "fun-miRBench Benchmark Report",
             _run_subtitle(len(dataset_outputs), len(display_tool_ids), config_path),
         )
         _draw_basic_table(
             ax,
             [
-                ["Datasets", str(len(dataset_outputs))],
+                ["Datasets evaluated", str(len(dataset_outputs))],
+                ["Datasets skipped", str(len(skipped_datasets))],
                 ["Predictors evaluated", str(len(display_tool_ids))],
                 [
                     "GT positives",
@@ -489,7 +497,7 @@ def write_publication_run_pdf_report(
             ],
             columns=["Run setting", "Value"],
             col_widths=[0.25, 0.75],
-            bbox=[0.04, 0.625, 0.92, 0.23],
+            bbox=[0.04, 0.605, 0.92, 0.25],
             font_size=REPORT_TABLE_SIZE,
         )
         next_y = _bullet_block(
@@ -501,7 +509,7 @@ def write_publication_run_pdf_report(
                 "Cross-dataset global ranks use each full standardized predictor file.",
             ],
             x=0.04,
-            y=0.57,
+            y=0.54,
             width=0.92,
         )
         _bullet_block(
@@ -517,14 +525,23 @@ def write_publication_run_pdf_report(
             y=next_y - 0.020,
             width=0.92,
         )
-        _draw_basic_table(
-            ax,
+        primary_files = (
             [
                 ["cross_dataset_predictor_summary.tsv", "Rankings and coverage diagnostics"],
                 ["common_prediction_summary.tsv", "Common scored-gene overlap by dataset"],
                 ["predictor_combination_summary.tsv", "Predictor and rank-mean combination metrics"],
                 ["datasets/<dataset_id>/", "Joined tables, plots, and predictor reports"],
-            ],
+            ]
+            if dataset_outputs
+            else [
+                ["REPORT.pdf", "Run summary and skipped-dataset notes"],
+                ["summary.json", "Machine-readable run summary, including skipped datasets"],
+                ["datasets/<dataset_id>/joined.tsv", "Joined tables retained for skipped datasets"],
+            ]
+        )
+        _draw_basic_table(
+            ax,
+            primary_files,
             columns=["Primary file", "Purpose"],
             col_widths=[0.43, 0.57],
             bbox=[0.04, 0.045, 0.92, 0.155],
@@ -558,16 +575,45 @@ def write_publication_run_pdf_report(
         _save_page(pdf, fig)
 
         fig, ax = _new_page()
-        _header(ax, "Dataset Inventory", "Datasets included in this benchmark run.")
-        dataset_df = pd.DataFrame(_dataset_report_rows(dataset_outputs))
-        _draw_basic_table(
-            ax,
-            dataset_df.values.tolist(),
-            columns=dataset_df.columns.tolist(),
-            col_widths=[0.35, 0.25, 0.15, 0.25],
-            bbox=[0.06, 0.57, 0.88, 0.25],
-            font_size=REPORT_TABLE_SIZE,
-        )
+        _header(ax, "Dataset Inventory", "Evaluated and skipped experiments for this benchmark run.")
+        if dataset_outputs:
+            dataset_df = pd.DataFrame(_dataset_report_rows(dataset_outputs))
+            _draw_basic_table(
+                ax,
+                dataset_df.values.tolist(),
+                columns=dataset_df.columns.tolist(),
+                col_widths=[0.62, 0.38],
+                bbox=[0.06, 0.61, 0.88, 0.20],
+                font_size=REPORT_TABLE_SIZE,
+            )
+        else:
+            _text_block(
+                ax,
+                "Evaluated datasets",
+                ["No datasets were evaluated."],
+                x=0.06,
+                y=0.80,
+                width=0.88,
+            )
+
+        if skipped_datasets:
+            skipped_rows = [
+                [
+                    item.get("display_label") or item["dataset_id"],
+                    item["dataset_id"],
+                    item["reason"],
+                ]
+                for item in skipped_datasets
+            ]
+            _draw_basic_table(
+                ax,
+                skipped_rows,
+                columns=["Skipped experiment", "Experiment ID", "Reason"],
+                col_widths=[0.36, 0.27, 0.37],
+                bbox=[0.06, 0.31, 0.88, 0.22],
+                font_size=REPORT_TABLE_SIZE,
+            )
+
         _bullet_block(
             ax,
             "Included figure families",
@@ -579,12 +625,12 @@ def write_publication_run_pdf_report(
                 "Dataset reports include heatmaps, CDFs, and predictor diagnostics.",
             ],
             x=0.06,
-            y=0.46,
+            y=0.24,
             width=0.88,
         )
         _save_page(pdf, fig)
 
-        _draw_common_prediction_page(pdf, combined_outputs)
+        _draw_common_prediction_page(pdf, combined_outputs, dataset_outputs)
 
         paired_rank_keys = set()
         paired_rank_keys |= _draw_rank_pair_page(pdf, combined_outputs, rank_type="local")
