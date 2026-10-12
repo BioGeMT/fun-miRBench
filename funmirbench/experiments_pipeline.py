@@ -192,7 +192,7 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
         values = []
         for entry in entries or []:
             if isinstance(entry, dict):
-                value = entry.get("sample_id") or entry.get("accession") or ""
+                value = entry.get("sample_id") or entry.get("accession") or entry.get("id") or ""
             else:
                 value = entry
             value = normalize_space(value)
@@ -200,17 +200,9 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
                 values.append(value)
         return values
 
-    if source_mode == "count_matrix":
-        control_samples = [
-            normalize_space(value)
-            for value in comparison_cfg.get("control_columns", [])
-            if normalize_space(value)
-        ]
-        condition_samples = [
-            normalize_space(value)
-            for value in comparison_cfg.get("treated_columns", [])
-            if normalize_space(value)
-        ]
+    if source_mode in {"count_matrix", "local_reads"}:
+        control_samples = []
+        condition_samples = []
     else:
         control_samples = sample_ids(comparison_cfg.get("control_samples", []))
         condition_samples = sample_ids(comparison_cfg.get("treated_samples", []))

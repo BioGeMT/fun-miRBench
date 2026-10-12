@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from funmirbench.experiments_pipeline import (
+    candidate_metadata_row,
     combine_count_matrices,
     group_sample_ids_by_layout,
     infer_library_layout,
@@ -222,6 +223,26 @@ class ExperimentInputTests(unittest.TestCase):
             self.assertEqual(
                 captured["extra_manifest"]["library_layout"], "mixed"
             )
+
+    def test_candidate_metadata_uses_only_geo_sample_ids(self):
+        config = {
+            "dataset_id": "dataset",
+            "gse": "GSE1",
+            "mirna_name": "hsa-miR-1",
+            "experiment_type": "Overexpression",
+            "source": {"mode": "local_reads"},
+            "comparison": {
+                "control_samples": [{"id": "mock_control1"}],
+                "treated_samples": [{"id": "mock_treated1"}],
+            },
+            "metadata": {"pubmed_id": "https://pubmed.ncbi.nlm.nih.gov/12345678/"},
+        }
+
+        row = candidate_metadata_row(config, de_table_rel_path="data/de.tsv")
+
+        self.assertEqual(row["pubmed_id"], "12345678")
+        self.assertEqual(row["control_samples"], "")
+        self.assertEqual(row["condition_samples"], "")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ DEFAULT_GTF = geo_download.DEFAULT_GTF
 SRRInfo = geo_download.SRRInfo
 build_geo_sample_entries = geo_download.build_geo_sample_entries
 generate_yaml_config = geo_download.generate_yaml_config
+parse_experiment_metadata = geo_download.parse_experiment_metadata
 
 
 class GeoDownloadTests(unittest.TestCase):
@@ -69,6 +70,52 @@ class GeoDownloadTests(unittest.TestCase):
     def test_generated_configs_use_downloaded_ensembl_v115_references(self):
         self.assertIn("ensembl_v115", DEFAULT_GENOME_FASTA)
         self.assertIn("GRCh38.115.gtf.gz", DEFAULT_GTF)
+
+    def test_requested_dataset_with_empty_samples_is_error(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "experiments.tsv"
+            path.write_text(
+                "\t".join([
+                    "id",
+                    "geo_accession",
+                    "mirna_name",
+                    "experiment_type",
+                    "tested_cell_line",
+                    "tissue",
+                    "organism",
+                    "method",
+                    "pubmed_id",
+                    "control_samples",
+                    "condition_samples",
+                    "raw_data_dir",
+                    "count_matrix_path",
+                    "gene_id_column",
+                    "treatment",
+                ])
+                + "\n"
+                + "\t".join([
+                    "dataset",
+                    "GSE1",
+                    "hsa-miR-1",
+                    "Overexpression",
+                    "",
+                    "",
+                    "Homo sapiens",
+                    "RNA-seq",
+                    "12345",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                ])
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "empty control_samples"):
+                parse_experiment_metadata(path, dataset_ids=["dataset"])
 
 
 if __name__ == "__main__":
