@@ -234,10 +234,12 @@ class ExperimentInputTests(unittest.TestCase):
             "comparison": {
                 "control_samples": [
                     {"id": "GSM123"},
+                    {"id": "SRR123"},
                     {"id": "mock_control1"},
                 ],
                 "treated_samples": [
-                    {"id": "GSM456"},
+                    {"id": "ERR456"},
+                    {"id": "DRR456"},
                     {"id": "mock_treated1"},
                 ],
             },
@@ -247,8 +249,8 @@ class ExperimentInputTests(unittest.TestCase):
         row = candidate_metadata_row(config, de_table_rel_path="data/de.tsv")
 
         self.assertEqual(row["pubmed_id"], "12345678")
-        self.assertEqual(row["control_samples"], "GSM123")
-        self.assertEqual(row["condition_samples"], "GSM456")
+        self.assertEqual(row["control_samples"], "GSM123,SRR123")
+        self.assertEqual(row["condition_samples"], "ERR456,DRR456")
 
 
 if __name__ == "__main__":

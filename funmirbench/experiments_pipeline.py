@@ -195,7 +195,7 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
             else:
                 value = entry
             value = normalize_space(value)
-            if re.fullmatch(r"GSM\d+", value):
+            if re.fullmatch(r"(?:GSM|SRR|ERR|DRR)\d+", value):
                 values.append(value)
         return values
 
