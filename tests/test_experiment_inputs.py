@@ -230,10 +230,16 @@ class ExperimentInputTests(unittest.TestCase):
             "gse": "GSE1",
             "mirna_name": "hsa-miR-1",
             "experiment_type": "Overexpression",
-            "source": {"mode": "local_reads"},
+            "source": {"mode": "reads"},
             "comparison": {
-                "control_samples": [{"id": "mock_control1"}],
-                "treated_samples": [{"id": "mock_treated1"}],
+                "control_samples": [
+                    {"id": "GSM123"},
+                    {"id": "mock_control1"},
+                ],
+                "treated_samples": [
+                    {"id": "GSM456"},
+                    {"id": "mock_treated1"},
+                ],
             },
             "metadata": {"pubmed_id": "https://pubmed.ncbi.nlm.nih.gov/12345678/"},
         }
@@ -241,8 +247,8 @@ class ExperimentInputTests(unittest.TestCase):
         row = candidate_metadata_row(config, de_table_rel_path="data/de.tsv")
 
         self.assertEqual(row["pubmed_id"], "12345678")
-        self.assertEqual(row["control_samples"], "")
-        self.assertEqual(row["condition_samples"], "")
+        self.assertEqual(row["control_samples"], "GSM123")
+        self.assertEqual(row["condition_samples"], "GSM456")
 
 
 if __name__ == "__main__":

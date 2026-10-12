@@ -186,7 +186,6 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
     gse = normalize_space(config.get("gse", ""))
     metadata_cfg = config.get("metadata", {})
     comparison_cfg = config.get("comparison", {})
-    source_mode = normalize_space(config.get("source", {}).get("mode", ""))
 
     def sample_ids(entries):
         values = []
@@ -196,16 +195,12 @@ def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
             else:
                 value = entry
             value = normalize_space(value)
-            if value:
+            if re.fullmatch(r"GSM\d+", value):
                 values.append(value)
         return values
 
-    if source_mode in {"count_matrix", "local_reads"}:
-        control_samples = []
-        condition_samples = []
-    else:
-        control_samples = sample_ids(comparison_cfg.get("control_samples", []))
-        condition_samples = sample_ids(comparison_cfg.get("treated_samples", []))
+    control_samples = sample_ids(comparison_cfg.get("control_samples", []))
+    condition_samples = sample_ids(comparison_cfg.get("treated_samples", []))
 
     pubmed_value = metadata_cfg.get(
         "pubmed_id",
