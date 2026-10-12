@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
+import json
+import logging
 import pathlib
 import tempfile
-from urllib.parse import quote
 
 import pandas as pd
 import requests
 
+from funmirbench.zenodo_store import (
+    ZENODO_RECORD,
+    compute_md5,
+    fetch_zenodo_file_registry,
+    parse_checksum,
+)
 
-ZENODO_RECORD = "21671476"
-ZENODO_API_RECORD_URL = f"https://zenodo.org/api/records/{ZENODO_RECORD}"
+
+logger = logging.getLogger(__name__)
 
 
 def repo_root() -> pathlib.Path:
@@ -37,53 +43,6 @@ def experiment_cache_relpath(filename: str | pathlib.Path) -> pathlib.Path:
     return pathlib.Path("data") / "experiments" / "processed" / ZENODO_RECORD / pathlib.Path(filename).name
 
 
-def compute_md5(path: str | pathlib.Path, *, chunk_size: int = 1024 * 1024) -> str:
-    digest = hashlib.md5()
-    path = pathlib.Path(path)
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(chunk_size), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def parse_checksum(value: str) -> tuple[str, str]:
-    algorithm, _, digest = str(value).partition(":")
-    if not algorithm or not digest:
-        raise ValueError(f"Unsupported checksum value: {value!r}")
-    return algorithm.lower(), digest.lower()
-
-
-def zenodo_download_url(filename: str) -> str:
-    return (
-        f"{ZENODO_API_RECORD_URL}/files/{quote(str(filename), safe='')}/content"
-    )
-
-
-def fetch_zenodo_file_registry(
-    *,
-    token: str | None = None,
-    timeout: int = 120,
-) -> dict[str, dict]:
-    url = ZENODO_API_RECORD_URL
-    if token:
-        url = f"{url}?token={token}"
-
-    response = requests.get(url, timeout=timeout)
-    response.raise_for_status()
-    payload = response.json()
-
-    registry = {}
-    for item in payload.get("files", []):
-        key = str(item["key"])
-        registry[key] = {
-            "filename": key,
-            "size": int(item.get("size", 0) or 0),
-            "checksum": str(item.get("checksum", "")),
-            "url": item.get("links", {}).get("self") or zenodo_download_url(key),
-        }
-    return registry
-
-
 def resolve_cached_experiment_path(
     de_table_path: str | pathlib.Path,
     *,
@@ -96,18 +55,114 @@ def resolve_cached_experiment_path(
 
 
 def _verify_checksum_if_available(dest: pathlib.Path, filename: str, registry: dict[str, dict]) -> None:
-    meta = registry.get(filename)
-    if not meta:
+    try:
+        remote_filename = _resolve_zenodo_filename(filename, registry)
+    except KeyError:
         return
+    meta = registry[remote_filename]
     checksum_value = str(meta.get("checksum", "") or "")
     if not checksum_value:
         return
     algorithm, expected_digest = parse_checksum(checksum_value)
     if algorithm != "md5":
         raise ValueError(f"Unsupported checksum algorithm: {algorithm}")
+
+    if remote_filename != filename:
+        _verify_cache_manifest(
+            dest,
+            remote_filename=remote_filename,
+            remote_checksum=checksum_value,
+        )
+        return
+
     if compute_md5(dest) != expected_digest:
         raise ValueError(
             f"Existing file {dest} failed checksum verification for {filename}."
+        )
+
+
+def _resolve_zenodo_filename(filename: str, registry: dict[str, dict]) -> str:
+    """Resolve a curated table filename against the Zenodo record.
+
+    Metadata keeps stable local .tsv paths while the published artifact may
+    store the same table either as .tsv or .tsv.gz.
+    """
+    candidates = [filename]
+    if filename.endswith(".tsv"):
+        candidates.append(f"{filename}.gz")
+    elif filename.endswith(".tsv.gz"):
+        candidates.append(filename[:-3])
+
+    for candidate in candidates:
+        if candidate in registry:
+            return candidate
+    raise KeyError(
+        f"{filename!r} is not present in Zenodo record {ZENODO_RECORD} "
+        f"(checked {candidates!r})."
+    )
+
+
+def _cache_manifest_path(dest: pathlib.Path) -> pathlib.Path:
+    return dest.with_name(f"{dest.name}.funmirbench.json")
+
+
+def _write_cache_manifest(
+    dest: pathlib.Path,
+    *,
+    remote_filename: str,
+    remote_checksum: str,
+    remote_size: int,
+) -> None:
+    manifest = {
+        "zenodo_record": ZENODO_RECORD,
+        "local_filename": dest.name,
+        "local_md5": compute_md5(dest),
+        "remote_filename": remote_filename,
+        "remote_checksum": remote_checksum,
+        "remote_size": int(remote_size or 0),
+    }
+    _cache_manifest_path(dest).write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _verify_cache_manifest(
+    dest: pathlib.Path,
+    *,
+    remote_filename: str,
+    remote_checksum: str,
+) -> None:
+    manifest_path = _cache_manifest_path(dest)
+    if not manifest_path.is_file():
+        logger.warning(
+            "Existing cached experiment %s cannot be checksum-verified against "
+            "compressed Zenodo artifact %s without sidecar manifest %s.",
+            dest,
+            remote_filename,
+            manifest_path,
+        )
+        return
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    expected = {
+        "zenodo_record": ZENODO_RECORD,
+        "remote_filename": remote_filename,
+        "remote_checksum": remote_checksum,
+    }
+    for key, value in expected.items():
+        if manifest.get(key) != value:
+            raise ValueError(
+                f"Existing cache manifest {manifest_path} does not match Zenodo {key}: "
+                f"expected {value!r}, got {manifest.get(key)!r}."
+            )
+
+    local_md5 = str(manifest.get("local_md5") or "")
+    if not local_md5:
+        raise ValueError(f"Existing cache manifest {manifest_path} is missing local_md5.")
+    if compute_md5(dest) != local_md5:
+        raise ValueError(
+            f"Existing cached file {dest} failed sidecar checksum verification."
         )
 
 
@@ -140,12 +195,8 @@ def ensure_zenodo_experiment_cached(
         _verify_checksum_if_available(dest, filename, registry)
         return dest
 
-    if filename not in registry:
-        raise KeyError(
-            f"{filename!r} is not present in Zenodo record {ZENODO_RECORD} and no local file exists at {dest}."
-        )
-
-    meta = registry[filename]
+    remote_filename = _resolve_zenodo_filename(filename, registry)
+    meta = registry[remote_filename]
     checksum_value = str(meta.get("checksum", "") or "")
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -175,8 +226,31 @@ def ensure_zenodo_experiment_cached(
                     f"Checksum mismatch for {filename}: expected {expected_digest}, got {actual_digest}."
                 )
 
-        tmp_path.replace(dest)
-        tmp_path = None
+        if remote_filename.endswith(".gz") and not filename.endswith(".gz"):
+            import gzip
+            import shutil
+
+            with gzip.open(tmp_path, "rb") as source, tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=dest.parent,
+                prefix=f".{dest.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                unpacked_path = pathlib.Path(handle.name)
+                shutil.copyfileobj(source, handle)
+            unpacked_path.replace(dest)
+            tmp_path.unlink()
+            tmp_path = None
+        else:
+            tmp_path.replace(dest)
+            tmp_path = None
+        _write_cache_manifest(
+            dest,
+            remote_filename=remote_filename,
+            remote_checksum=checksum_value,
+            remote_size=int(meta.get("size", 0) or 0),
+        )
         return dest
     finally:
         if tmp_path is not None and tmp_path.exists():
@@ -189,7 +263,7 @@ def sync_all_zenodo_experiments(
     token: str | None = None,
     timeout: int = 120,
     force: bool = False,
-    ) -> list[pathlib.Path]:
+) -> list[pathlib.Path]:
     repo = (repo or repo_root()).resolve()
     df = pd.read_csv(experiments_metadata_tsv(repo=repo), sep="\t")
     de_table_paths = [str(value) for value in df["de_table_path"].dropna().tolist()]
@@ -226,13 +300,13 @@ def sync_zenodo_experiments(
 
         dest = resolve_cached_experiment_path(rel_path, repo=repo)
         if dest.exists() and not force:
-            print(f"local {rel_path.name}")
+            logger.info("Using cached experiment: %s", rel_path.name)
             saved.append(dest)
             continue
 
         if registry_cache is None:
             registry_cache = fetch_zenodo_file_registry(token=token, timeout=timeout)
-        print(f"sync {rel_path.name}")
+        logger.info("Downloading experiment: %s", rel_path.name)
         saved.append(
             ensure_zenodo_experiment_cached(
                 rel_path,
@@ -243,7 +317,6 @@ def sync_zenodo_experiments(
             )
         )
     return saved
-
 
 
 def parse_args() -> argparse.Namespace:
