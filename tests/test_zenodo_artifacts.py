@@ -6,7 +6,10 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from funmirbench.experiment_store import ensure_zenodo_experiment_cached
+from funmirbench.experiment_store import (
+    ensure_zenodo_experiment_cached,
+    sync_zenodo_experiments,
+)
 from funmirbench.predictor_store import sync_zenodo_predictors
 from funmirbench.zenodo_store import compute_md5
 
@@ -24,6 +27,62 @@ class FakeResponse:
 
 
 class ZenodoArtifactTests(unittest.TestCase):
+    def test_experiment_sync_validates_existing_cache(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = Path(temporary_directory)
+            payload = b"gene_id\tlogFC\tFDR\nENSG1\t1.2\t0.01\n"
+            destination = repo / "data/experiments/processed/21671476/example.tsv"
+            destination.parent.mkdir(parents=True)
+            destination.write_bytes(payload)
+            registry = {
+                "example.tsv": {
+                    "checksum": f"md5:{compute_md5(destination)}",
+                    "url": "https://example.test/example.tsv",
+                }
+            }
+
+            with patch("funmirbench.experiment_store.requests.get") as request:
+                paths = sync_zenodo_experiments(
+                    ["data/experiments/processed/21671476/example.tsv"],
+                    repo=repo,
+                    registry=registry,
+                )
+
+            self.assertEqual(paths, [destination])
+            request.assert_not_called()
+
+            destination.write_bytes(b"corrupt local cache\n")
+            with self.assertRaisesRegex(ValueError, "failed checksum verification"):
+                sync_zenodo_experiments(
+                    ["data/experiments/processed/21671476/example.tsv"],
+                    repo=repo,
+                    registry=registry,
+                )
+
+    def test_compressed_experiment_cache_requires_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = Path(temporary_directory)
+            payload = b"gene_id\tlogFC\tFDR\nENSG1\t1.2\t0.01\n"
+            compressed = gzip.compress(payload)
+            compressed_path = repo / "remote.tsv.gz"
+            compressed_path.write_bytes(compressed)
+            destination = repo / "data/experiments/processed/21671476/example.tsv"
+            destination.parent.mkdir(parents=True)
+            destination.write_bytes(payload)
+            registry = {
+                "example.tsv.gz": {
+                    "checksum": f"md5:{compute_md5(compressed_path)}",
+                    "url": "https://example.test/example.tsv.gz",
+                }
+            }
+
+            with self.assertRaisesRegex(ValueError, "Rerun with --force"):
+                sync_zenodo_experiments(
+                    ["data/experiments/processed/21671476/example.tsv"],
+                    repo=repo,
+                    registry=registry,
+                )
+
     def test_experiment_download_accepts_flat_gzipped_artifact(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             repo = Path(temporary_directory)
