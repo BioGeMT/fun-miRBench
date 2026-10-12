@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import re
 import sys
 
 import pandas as pd
@@ -53,6 +54,35 @@ def collect_input_paths(inputs: list[pathlib.Path], repo: pathlib.Path) -> list[
     return paths
 
 
+def _normalize_pubmed_id(value) -> str:
+    text = str(value or "").strip()
+    if not text or text.upper() == "NA" or text.rstrip("/").upper().endswith("/NA"):
+        return ""
+    match = re.search(r"(\d{5,})", text)
+    return match.group(1) if match else text
+
+
+def _prepare_canonical_columns(incoming: pd.DataFrame) -> pd.DataFrame:
+    incoming = incoming.copy()
+
+    if "pubmed_id" not in incoming.columns and "article_pubmed_id" in incoming.columns:
+        incoming["pubmed_id"] = incoming["article_pubmed_id"].map(_normalize_pubmed_id)
+    elif "pubmed_id" in incoming.columns:
+        incoming["pubmed_id"] = incoming["pubmed_id"].map(_normalize_pubmed_id)
+
+    if "geo_accession" not in incoming.columns:
+        incoming["geo_accession"] = ""
+    if "gse_url" in incoming.columns:
+        missing_geo = incoming["geo_accession"].astype(str).str.strip().eq("")
+        extracted = incoming.loc[missing_geo, "gse_url"].astype(str).str.extract(
+            r"[?&]acc=(GSE\d+)",
+            expand=False,
+        )
+        incoming.loc[missing_geo, "geo_accession"] = extracted.fillna("")
+
+    return incoming
+
+
 def merge_registry(existing: pd.DataFrame, incoming: pd.DataFrame) -> pd.DataFrame:
     if REGISTRY_KEY not in existing.columns:
         raise ValueError(f"Registry is missing key column {REGISTRY_KEY!r}.")
@@ -63,6 +93,15 @@ def merge_registry(existing: pd.DataFrame, incoming: pd.DataFrame) -> pd.DataFra
         if column not in incoming.columns:
             incoming[column] = ""
     incoming = incoming[existing.columns].copy()
+
+    existing_by_key = existing.set_index(REGISTRY_KEY)
+    for column in ("control_samples", "condition_samples"):
+        if column not in existing.columns:
+            continue
+        for index, key in incoming[REGISTRY_KEY].items():
+            value = incoming.at[index, column]
+            if (pd.isna(value) or str(value).strip() == "") and key in existing_by_key.index:
+                incoming.at[index, column] = existing_by_key.at[key, column]
 
     incoming_keys = incoming[REGISTRY_KEY].tolist()
     if len(set(incoming_keys)) != len(incoming_keys):
@@ -103,6 +142,7 @@ def sync_metadata(
             )
 
     incoming = incoming.drop(columns=["_source_path", "_source_mtime"], errors="ignore")
+    incoming = _prepare_canonical_columns(incoming)
     merged = merge_registry(existing, incoming)
     merged.to_csv(registry, sep="\t", index=False)
     return {

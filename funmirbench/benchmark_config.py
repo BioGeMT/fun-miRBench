@@ -1,11 +1,10 @@
-"""Configuration and metadata helpers for FuNmiRBench benchmark runs."""
+"""Configuration and metadata helpers for fun-miRBench benchmark runs."""
 
 from __future__ import annotations
 
 import datetime as dt
 import os
 import pathlib
-import urllib.parse
 
 import pandas as pd
 
@@ -19,14 +18,12 @@ def clean_optional_string(value, default=""):
     return text if text else default
 
 
-def build_run_dir_name(*, experiments, tool_ids, eval_cfg, tags=None, run_date=None):
-    """Return the timestamp-based run directory name.
-    """
-    del experiments, tool_ids, eval_cfg, tags
-    run_timestamp = run_date or dt.datetime.now()
-    if isinstance(run_timestamp, dt.datetime):
-        return run_timestamp.strftime("%Y%m%d_%H%M%S")
-    return run_timestamp.strftime("%Y%m%d")
+def build_run_dir_name(*, run_time=None):
+    """Return the timestamp-based run directory name."""
+    run_time = run_time or dt.datetime.now()
+    if isinstance(run_time, dt.date) and not isinstance(run_time, dt.datetime):
+        run_time = dt.datetime.combine(run_time, dt.time())
+    return run_time.strftime("%Y%m%d_%H%M%S")
 
 
 def filter_df(df, filters):
@@ -49,8 +46,7 @@ def load_experiments(tsv_path, root, filters):
 
     metas = []
     for _, row in df.iterrows():
-        parsed = urllib.parse.urlparse(str(row.get("gse_url", "") or ""))
-        geo = urllib.parse.parse_qs(parsed.query).get("acc", [None])[0]
+        geo = clean_optional_string(row.get("geo_accession"), default="")
         metas.append(
             DatasetMeta(
                 id=str(row["id"]),
@@ -67,15 +63,21 @@ def load_experiments(tsv_path, root, filters):
     return metas
 
 
-def selected_experiment_paths(tsv_path, filters) -> list[str]:
-    df = pd.read_csv(tsv_path, sep="\t")
-    if filters:
-        df = filter_df(df, filters)
-    return [str(value) for value in df["de_table_path"].tolist()]
-
-
 def load_predictions(tsv_path, filters):
     df = pd.read_csv(tsv_path, sep="\t")
+
+    if filters and "tool_id" in filters:
+        requested = filters["tool_id"]
+        if not isinstance(requested, list):
+            requested = [requested]
+
+        available = [str(value) for value in df["tool_id"].dropna().tolist()]
+        unknown = [str(value) for value in requested if str(value) not in available]
+        if unknown:
+            lines = ["Unknown predictor tool_id value(s) in benchmark config:", ""]
+            lines.extend(f"- {tool_id}" for tool_id in unknown)
+            raise ValueError("\n".join(lines))
+
     if filters:
         df = filter_df(df, filters)
     if df["tool_id"].duplicated().any():

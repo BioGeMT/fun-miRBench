@@ -21,7 +21,6 @@ import yaml
 
 from funmirbench.logger import parse_log_level, setup_logging
 
-GSE_URL_TEMPLATE = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={gse}"
 DEFAULT_HSA_MATURE_MIRNAS_PATH = pathlib.Path(
     "data/experiments/raw/refs/mirbase/hsa_mature_mirnas.txt"
 )
@@ -38,10 +37,6 @@ def utc_now_stamp() -> str:
 
 def normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", str(value).strip())
-
-
-def gse_url(gse: str) -> str:
-    return GSE_URL_TEMPLATE.format(gse=gse)
 
 
 def ensure_clean_dir(path: pathlib.Path, *, force: bool) -> None:
@@ -179,21 +174,63 @@ def load_local_source_table(
     return read_table_auto(source_path), source_path
 
 
+def _normalize_pubmed_id(value) -> str:
+    text = normalize_space(value)
+    if not text or text.upper() == "NA" or text.rstrip("/").upper().endswith("/NA"):
+        return ""
+    match = re.search(r"(\d{5,})", text)
+    return match.group(1) if match else text
+
+
 def candidate_metadata_row(config: dict, *, de_table_rel_path: str) -> dict:
     gse = normalize_space(config.get("gse", ""))
     metadata_cfg = config.get("metadata", {})
+    comparison_cfg = config.get("comparison", {})
+    source_mode = normalize_space(config.get("source", {}).get("mode", ""))
+
+    def sample_ids(entries):
+        values = []
+        for entry in entries or []:
+            if isinstance(entry, dict):
+                value = entry.get("sample_id") or entry.get("accession") or ""
+            else:
+                value = entry
+            value = normalize_space(value)
+            if value:
+                values.append(value)
+        return values
+
+    if source_mode == "count_matrix":
+        control_samples = [
+            normalize_space(value)
+            for value in comparison_cfg.get("control_columns", [])
+            if normalize_space(value)
+        ]
+        condition_samples = [
+            normalize_space(value)
+            for value in comparison_cfg.get("treated_columns", [])
+            if normalize_space(value)
+        ]
+    else:
+        control_samples = sample_ids(comparison_cfg.get("control_samples", []))
+        condition_samples = sample_ids(comparison_cfg.get("treated_samples", []))
+
+    pubmed_value = metadata_cfg.get(
+        "pubmed_id",
+        metadata_cfg.get("article_pubmed_id", ""),
+    )
     return {
         "id": config["dataset_id"],
+        "geo_accession": gse,
         "mirna_name": config["mirna_name"],
-        "mirna_sequence": metadata_cfg.get("mirna_sequence", ""),
-        "article_pubmed_id": metadata_cfg.get("article_pubmed_id", ""),
-        "organism": metadata_cfg.get("organism", ""),
-        "tested_cell_line": metadata_cfg.get("tested_cell_line", ""),
-        "treatment": metadata_cfg.get("treatment", ""),
-        "tissue": metadata_cfg.get("tissue", ""),
-        "method": metadata_cfg.get("method", "RNA-seq"),
         "experiment_type": config["experiment_type"],
-        "gse_url": gse_url(gse) if gse else "",
+        "tested_cell_line": metadata_cfg.get("tested_cell_line", ""),
+        "tissue": metadata_cfg.get("tissue", ""),
+        "organism": metadata_cfg.get("organism", ""),
+        "method": metadata_cfg.get("method", "RNA-seq"),
+        "pubmed_id": _normalize_pubmed_id(pubmed_value),
+        "control_samples": ",".join(control_samples),
+        "condition_samples": ",".join(condition_samples),
         "de_table_path": de_table_rel_path,
     }
 
@@ -370,7 +407,7 @@ def run_de_from_counts(
         output_path=de_results_path,
     )
     de_df = read_table_auto(de_results_path)
-    required = {"gene_id", "logFC", "FDR"}
+    required = {"gene_id", "logFC", "control_mean_normalized_count", "FDR"}
     if not required.issubset(de_df.columns):
         raise ValueError(
             f"DE output is missing required benchmark columns. Expected at least {sorted(required)}, "

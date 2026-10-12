@@ -1,33 +1,22 @@
+"""GEO/SRA acquisition for explicitly curated experiment sample groups.
+
+By default, experiment metadata are read from metadata/mirna_experiment_info.tsv.
+Users curate control_samples and condition_samples in that file before running
+this workflow. Sample groups are never inferred automatically by this script.
 """
-GEO Download Pipeline - Downloads FASTQ files from GEO/SRA and generates RNA-seq pipeline configs.
 
-Reads experiment metadata from a TSV file (e.g. metadata/mirna_experiment_info.tsv),
-downloads raw FASTQ files from GEO/SRA (GEO mode) or locates local files (local mode),
-and auto-generates YAML configuration files for the RNA-seq pipeline (funmirbench-experiments).
-
-Usage:
-    python geo_download.py --tsv metadata/mirna_experiment_info.tsv
-
-The TSV must contain the columns:
-    id, mirna_name, experiment_type, gse_url, control_samples, condition_samples
-
-Optional column:
-    raw_data_dir  -- if set, local mode is used instead of GEO download.
-                     control_samples/condition_samples are then interpreted as sample
-                     base-names (without extension) rather than GSM accession IDs.
-"""
 
 import argparse
 import csv
 import json
 import logging
+import os
 import shutil
 import subprocess
 import time
 import sys
 import urllib.request
 from collections import defaultdict
-from urllib.parse import parse_qs, urlparse
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
@@ -47,13 +36,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 REQUIRED_TSV_COLUMNS = [
     "id",
+    "geo_accession",
     "mirna_name",
     "experiment_type",
-    "gse_url",
     "control_samples",
     "condition_samples",
 ]
 
+DEFAULT_METADATA_TSV = REPO_ROOT / "metadata" / "mirna_experiment_info.tsv"
 FASTQ_OUTPUT_DIR = REPO_ROOT / "data/experiments/raw"
 CONFIG_OUTPUT_DIR = REPO_ROOT / "pipelines/experiments/configs"
 
@@ -89,27 +79,6 @@ def _validate_tsv_header(fieldnames, tsv_path):
     missing = [col for col in REQUIRED_TSV_COLUMNS if col not in fieldnames]
     if missing:
         raise ValueError(f"TSV missing required columns {missing}: {tsv_path}")
-
-
-def extract_gse_accession(gse_url):
-    """Extract a GSE accession from a GEO URL or accession-like string."""
-    gse_url = str(gse_url).strip()
-    if not gse_url:
-        return ""
-
-    parsed = urlparse(gse_url)
-    accession = parse_qs(parsed.query).get("acc", [""])[0].strip()
-    if accession:
-        return accession
-
-    tail = parsed.path.rstrip("/").split("/")[-1].strip()
-    if tail.upper().startswith("GSE"):
-        return tail
-
-    if gse_url.upper().startswith("GSE"):
-        return gse_url
-
-    return ""
 
 
 def parse_sample_list(value):
@@ -417,57 +386,50 @@ def download_srr(srr, output_dir, threads, layout="PAIRED"):
 # TSV parsing
 # ---------------------------------------------------------------------------
 
-def parse_experiment_metadata(tsv_path):
-    """
-    Parse the experiments TSV and return a list of experiment dicts.
-
-    Rows where control_samples or condition_samples are empty are skipped
-    with a warning (they have not been filled in yet).
-    """
+def parse_experiment_metadata(tsv_path, *, dataset_ids=None):
+    """Parse explicitly curated experiment/sample metadata."""
     df = pd.read_csv(tsv_path, sep="\t", dtype=str, keep_default_na=False)
     _validate_tsv_header(list(df.columns), tsv_path)
+
+    if dataset_ids:
+        requested = [str(value) for value in dataset_ids]
+        available = set(df["id"].astype(str))
+        missing = [dataset_id for dataset_id in requested if dataset_id not in available]
+        if missing:
+            raise ValueError(f"Unknown experiment id value(s): {missing}")
+        df = df[df["id"].isin(requested)]
 
     experiments = []
     for row_num, row in enumerate(df.to_dict(orient="records"), start=2):
         def get(col):
             return (row.get(col) or "").strip()
 
+        dataset_id = get("id")
         control_samples = parse_sample_list(row.get("control_samples", ""))
         condition_samples = parse_sample_list(row.get("condition_samples", ""))
 
-        # Skip rows not yet filled in — do this before any other validation
-        # so that partially-filled placeholder rows don't cause errors.
         if not control_samples or not condition_samples:
-            logger.warning(
-                "Row %d: skipping — control_samples or condition_samples is empty.",
-                row_num,
+            logger.info(
+                "%s: skipping because control_samples or condition_samples is empty.",
+                dataset_id or f"Row {row_num}",
             )
             continue
 
-        dataset_id = get("id")
         mirna = get("mirna_name")
         experiment_type = get("experiment_type")
-        gse_url_val = get("gse_url")
-        gse = extract_gse_accession(gse_url_val)
+        gse = get("geo_accession")
         raw_data_dir = get("raw_data_dir")
         count_matrix_path = get("count_matrix_path")
         gene_id_column = get("gene_id_column")
 
-        # Hard errors for fields required on processable rows
         if not dataset_id:
             raise ValueError(f"Row {row_num} missing id in {tsv_path}")
         if not mirna:
             raise ValueError(f"Row {row_num} missing mirna_name in {tsv_path}")
         if not experiment_type:
             raise ValueError(f"Row {row_num} missing experiment_type in {tsv_path}")
-        if not gse_url_val:
-            raise ValueError(f"Row {row_num} missing gse_url in {tsv_path}")
         if not gse:
-            raise ValueError(
-                f"Row {row_num} has invalid gse_url with no GEO accession: {gse_url_val}"
-            )
-
-        # count_matrix mode requires gene_id_column
+            raise ValueError(f"Row {row_num} missing geo_accession in {tsv_path}")
         if count_matrix_path and not gene_id_column:
             raise ValueError(
                 f"Row {row_num} ({dataset_id}): count_matrix_path is set but gene_id_column is missing."
@@ -483,12 +445,11 @@ def parse_experiment_metadata(tsv_path):
             "raw_data_dir": raw_data_dir,
             "count_matrix_path": count_matrix_path,
             "gene_id_column": gene_id_column,
-            # fields for the YAML metadata section
             "organism": get("organism"),
             "tested_cell_line": get("tested_cell_line"),
             "treatment": get("treatment"),
             "tissue": get("tissue"),
-            "article_pubmed_id": get("article_pubmed_id"),
+            "article_pubmed_id": get("pubmed_id") or get("article_pubmed_id"),
         })
 
     return experiments
@@ -823,33 +784,52 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "Download FASTQ files from GEO/SRA (or locate local files) "
-            "and generate RNA-seq pipeline YAML configs."
+            "using explicitly curated control/condition sample assignments."
         )
     )
     parser.add_argument(
-        "--tsv", required=True,
-        help="Path to experiments TSV (e.g. metadata/mirna_experiment_info.tsv)",
+        "--tsv",
+        default=str(DEFAULT_METADATA_TSV),
+        help=f"Experiment metadata TSV (default: {DEFAULT_METADATA_TSV})",
+    )
+    parser.add_argument(
+        "--dataset-id",
+        action="append",
+        default=[],
+        help="Process only this experiment id. Repeat to select multiple experiments.",
     )
     parser.add_argument(
         "--threads", "-t", type=int, default=4,
         help="Threads for fasterq-dump (default: 4)",
     )
     parser.add_argument(
-        "--entrez-email", required=True,
-        help="Email address for NCBI Entrez API (required by NCBI)",
+        "--entrez-email",
+        default=os.environ.get("NCBI_ENTREZ_EMAIL", ""),
+        help="Email for NCBI Entrez. Can also be set with NCBI_ENTREZ_EMAIL.",
     )
 
     args = parser.parse_args()
-    Entrez.email = args.entrez_email
+    if args.entrez_email:
+        Entrez.email = args.entrez_email
 
     total_steps = 4
     log_step(1, total_steps, f"loading experiments metadata from {args.tsv}")
     try:
-        experiments = parse_experiment_metadata(args.tsv)
+        experiments = parse_experiment_metadata(
+            args.tsv,
+            dataset_ids=args.dataset_id or None,
+        )
     except (ValueError, FileNotFoundError) as e:
         logger.error("Failed to load TSV: %s", e)
         return 1
     log_step(2, total_steps, f"parsed {len(experiments)} processable experiment(s)")
+
+    if not experiments:
+        logger.info(
+            "No processable experiments. Fill control_samples and condition_samples "
+            "for the experiment(s) you want to reproduce."
+        )
+        return 0
 
     FASTQ_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     log_step(3, total_steps, f"output directory ready: {FASTQ_OUTPUT_DIR}")
@@ -872,6 +852,10 @@ def main():
                 control_entries, treated_entries = process_local_experiment(exp)
                 generate_yaml_config(exp, control_entries, treated_entries, CONFIG_OUTPUT_DIR)
             else:
+                if not args.entrez_email:
+                    raise ValueError(
+                        "GEO mode requires --entrez-email or NCBI_ENTREZ_EMAIL."
+                    )
                 control_entries, treated_entries = download_experiment(
                     exp, FASTQ_OUTPUT_DIR, args.threads
                 )
@@ -892,17 +876,17 @@ def main():
             len(failed_experiments), total_experiments,
         )
         for label, reason in failed_experiments:
-            logger.error("  ✗ %s", label)
+            logger.error("  %s", label)
             logger.error("    Reason: %s", reason)
         logger.error(sep)
         return 1
-    else:
-        logger.info(
-            "ALL DONE — %d/%d experiment(s) completed successfully.",
-            total_experiments, total_experiments,
-        )
-        logger.info(sep)
-        return 0
+
+    logger.info(
+        "ALL DONE — %d/%d experiment(s) completed successfully.",
+        total_experiments, total_experiments,
+    )
+    logger.info(sep)
+    return 0
 
 
 if __name__ == "__main__":
