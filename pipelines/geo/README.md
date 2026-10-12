@@ -76,10 +76,12 @@ Edit `pipelines/geo/input_experiments.tsv`. For each experiment you want to proc
 fill in the relevant columns depending on the mode.
 
 > **All columns are mandatory.** If a value is not available for a given field
-> (e.g. `article_pubmed_id`), fill it with `NA` rather than leaving it empty.
+> (e.g. `pubmed_id`), fill it with `NA` rather than leaving it empty.
 
 | Column | Description |
 |---|---|
+| `geo_accession` | GEO series accession, for example `GSE129076` |
+| `pubmed_id` | Numeric PubMed identifier when available |
 | `control_samples` | Comma-separated list of control sample identifiers (SRR/GSM accessions, file base-names, or count matrix column names) |
 | `condition_samples` | Comma-separated list of condition sample identifiers (same format as above) |
 | `raw_data_dir` | *Reads mode only.* Path to a local directory with pre-existing FASTQ files. Leave empty to download from GEO. |
@@ -105,14 +107,14 @@ from NCBI and downloads immediately — no GSM resolution step needed.
 ```
 id:                  GSE129076_OE_miR_21_5p
 mirna_name:          hsa-miR-21-5p
-article_pubmed_id:   https://pubmed.ncbi.nlm.nih.gov/34685526
+pubmed_id:           34685526
 organism:            Homo sapiens
 tested_cell_line:    A549
 treatment:           Overexpression of miR-21-5p
 tissue:              Lung
 method:              RNA-seq
 experiment_type:     Overexpression
-gse_url:             https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129076
+geo_accession:       GSE129076
 raw_data_dir:        (empty)
 control_samples:     SRR8816234,SRR8816235,SRR8816236
 condition_samples:   SRR8816237,SRR8816238,SRR8816239
@@ -131,14 +133,14 @@ config and are combined before QC and trimming.
 ```
 id:                  GSE129076_OE_miR_21_5p
 mirna_name:          hsa-miR-21-5p
-article_pubmed_id:   https://pubmed.ncbi.nlm.nih.gov/34685526
+pubmed_id:           34685526
 organism:            Homo sapiens
 tested_cell_line:    A549
 treatment:           Overexpression of miR-21-5p
 tissue:              Lung
 method:              RNA-seq
 experiment_type:     Overexpression
-gse_url:             https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE129076
+geo_accession:       GSE129076
 raw_data_dir:        (empty)
 control_samples:     GSM6437108,GSM6437109,GSM6437110
 condition_samples:   GSM6437113,GSM6437114,GSM6437115
@@ -154,14 +156,14 @@ Set `raw_data_dir` to the directory containing your FASTQ files and provide
 ```
 id:                  GSE999999_KO_miR_155_5p
 mirna_name:          hsa-miR-155-5p
-article_pubmed_id:   NA
+pubmed_id:           NA
 organism:            Homo sapiens
 tested_cell_line:    HaCaT
 treatment:           Knockdown of miR-155-5p
 tissue:              Skin
 method:              RNA-seq
 experiment_type:     Knockdown
-gse_url:             https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE999999
+geo_accession:       GSE999999
 raw_data_dir:        /path/to/your/fastq/files
 control_samples:     ctrl_rep1,ctrl_rep2,ctrl_rep3
 condition_samples:   treated_rep1,treated_rep2,treated_rep3
@@ -183,14 +185,14 @@ the matrix as sample identifiers.
 ```
 id:                  GSE253003_OE_miR_323_3p
 mirna_name:          hsa-miR-323-3p
-article_pubmed_id:   https://pubmed.ncbi.nlm.nih.gov/12345678
+pubmed_id:           12345678
 organism:            Homo sapiens
 tested_cell_line:    HSVSMC
 treatment:           Overexpression of miR-323-3p
 tissue:              Vascular
 method:              RNA-seq
 experiment_type:     Overexpression
-gse_url:             https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE253003
+geo_accession:       GSE253003
 raw_data_dir:        (empty)
 control_samples:     HSVSMC_IP_miRCTRL_1,HSVSMC_IP_miRCTRL_2,HSVSMC_IP_miRCTRL_3
 condition_samples:   HSVSMC_IP_MIR323_1,HSVSMC_IP_MIR323_2,HSVSMC_IP_MIR323_3
