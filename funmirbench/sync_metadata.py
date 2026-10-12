@@ -28,6 +28,10 @@ def read_tsv(path: pathlib.Path) -> pd.DataFrame:
     return pd.read_csv(path, sep="\t", dtype=str).fillna("")
 
 
+def _is_blank(value) -> bool:
+    return pd.isna(value) or str(value).strip() == ""
+
+
 def read_candidate_metadata_with_source(path: pathlib.Path) -> pd.DataFrame:
     df = read_tsv(path)
     df["_source_path"] = str(path)
@@ -55,6 +59,8 @@ def collect_input_paths(inputs: list[pathlib.Path], repo: pathlib.Path) -> list[
 
 
 def _normalize_pubmed_id(value) -> str:
+    if pd.isna(value):
+        return ""
     text = str(value or "").strip()
     if not text or text.upper() == "NA" or text.rstrip("/").upper().endswith("/NA"):
         return ""
@@ -65,15 +71,19 @@ def _normalize_pubmed_id(value) -> str:
 def _prepare_canonical_columns(incoming: pd.DataFrame) -> pd.DataFrame:
     incoming = incoming.copy()
 
-    if "pubmed_id" not in incoming.columns and "article_pubmed_id" in incoming.columns:
-        incoming["pubmed_id"] = incoming["article_pubmed_id"].map(_normalize_pubmed_id)
-    elif "pubmed_id" in incoming.columns:
-        incoming["pubmed_id"] = incoming["pubmed_id"].map(_normalize_pubmed_id)
+    if "pubmed_id" not in incoming.columns:
+        incoming["pubmed_id"] = ""
+    if "article_pubmed_id" in incoming.columns:
+        missing_pubmed = incoming["pubmed_id"].map(_is_blank)
+        incoming.loc[missing_pubmed, "pubmed_id"] = incoming.loc[
+            missing_pubmed, "article_pubmed_id"
+        ]
+    incoming["pubmed_id"] = incoming["pubmed_id"].map(_normalize_pubmed_id)
 
     if "geo_accession" not in incoming.columns:
         incoming["geo_accession"] = ""
     if "gse_url" in incoming.columns:
-        missing_geo = incoming["geo_accession"].astype(str).str.strip().eq("")
+        missing_geo = incoming["geo_accession"].map(_is_blank)
         extracted = incoming.loc[missing_geo, "gse_url"].astype(str).str.extract(
             r"[?&]acc=(GSE\d+)",
             expand=False,
@@ -100,7 +110,7 @@ def merge_registry(existing: pd.DataFrame, incoming: pd.DataFrame) -> pd.DataFra
             continue
         for index, key in incoming[REGISTRY_KEY].items():
             value = incoming.at[index, column]
-            if (pd.isna(value) or str(value).strip() == "") and key in existing_by_key.index:
+            if _is_blank(value) and key in existing_by_key.index:
                 incoming.at[index, column] = existing_by_key.at[key, column]
 
     incoming_keys = incoming[REGISTRY_KEY].tolist()

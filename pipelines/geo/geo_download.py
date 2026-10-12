@@ -409,6 +409,11 @@ def parse_experiment_metadata(tsv_path, *, dataset_ids=None):
         condition_samples = parse_sample_list(row.get("condition_samples", ""))
 
         if not control_samples or not condition_samples:
+            if dataset_ids and dataset_id in requested:
+                raise ValueError(
+                    f"Requested experiment {dataset_id!r} has empty control_samples "
+                    "or condition_samples."
+                )
             logger.info(
                 "%s: skipping because control_samples or condition_samples is empty.",
                 dataset_id or f"Row {row_num}",
