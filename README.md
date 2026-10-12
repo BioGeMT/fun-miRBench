@@ -208,14 +208,14 @@ benchmark mechanics are fixed by the software:
 - multi-predictor PR, ROC, and GSEA comparisons are calculated on the common set of genes scored by
   all predictors being compared.
 
-If validation finds no ground-truth positives at the configured thresholds, no scored rows, or no
-evaluable predictor after filtering, the experiment is recorded as skipped and the run continues.
-Experiments that reach predictor joining retain their `joined.tsv` for diagnosis. Every skip reason
-is included in the run `README.md`, `REPORT.pdf`, and `summary.json`; a run in which every selected
-experiment is skipped still produces those three summary files.
-
 The generated run `README.md`, `REPORT.pdf`, and `summary.json` record the settings and
-evaluation details for that specific run.
+If validation finds that an experiment has no ground-truth positives at the configured thresholds,
+the benchmark records it as skipped and continues. The same happens when an experiment has no rows
+scored by the selected predictors, or no predictor remains evaluable after DE and ground-truth
+filtering. Experiments that reach predictor joining retain their `joined.tsv` for diagnosis. Every
+skip reason is reported in the run `README.md`, `REPORT.pdf`, and `summary.json`. A run in which every
+selected experiment is skipped still produces these three summary files; metric tables and
+evaluation plots are produced only for experiments that can be evaluated.
 
 ## Reference Audit
 
