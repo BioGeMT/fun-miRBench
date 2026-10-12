@@ -71,7 +71,7 @@ def parse_args(root: Path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Standardize miRAW site-level predictions generated for Ensembl release 112 "
-            "and miRBase release 22.1 to the FuNmiRBench schema using Ensembl release 115 "
+            "and miRBase release 22.1 to the fun-miRBench schema using Ensembl release 115 "
             "gene annotation and miRBase release 22.1 mature-miRNA accessions."
         )
     )

@@ -1,172 +1,143 @@
-# FuNmiRBench
+# fun-miRBench
 
-Benchmark functional miRNA target predictors against differential-expression tables.
+fun-miRBench is a benchmarking system for evaluating **functional miRNA target predictors**
+against differential-expression (DE) experiments following miRNA perturbation.
 
-## Install
+The repository contains the benchmark software, curated experiments, predictor registries and
+reproducibility pipelines.
 
-Requirements:
+## Published data
+
+The curated benchmark inputs are archived in **Zenodo record 21671476**:
+
+https://zenodo.org/records/21671476
+
+The published data include:
+
+- curated miRNA perturbation DE tables;
+- standardized outputs for the registered target predictors.
+
+Download the complete published input collection once with:
+
+```bash
+uv run funmirbench-download-data
+```
+
+The files are cached locally under:
+
+```text
+data/experiments/processed/21671476/
+data/predictions/<tool>/
+```
+
+## Reproduce a benchmark run
+
+### Requirements
 
 - Python 3.10+
 - `uv`
-- `conda` for the experiments pipeline environment
 
-Install `uv` on your machine first:
-
-```bash
-python -m pip install uv
-```
-
-Then clone the repo and install the Python package environment:
+Clone the repository and install the locked environment:
 
 ```bash
-git clone git@github.com:BioGeMT/FuNmiRBench.git
-cd FuNmiRBench
+git clone git@github.com:BioGeMT/fun-miRBench.git
+cd fun-miRBench
 uv sync
 ```
 
-If you want to use the experiments pipeline, create and activate the extra local environment after entering the repo:
+Download the published benchmark inputs:
 
 ```bash
-conda env create -f pipelines/experiments/environment.yml
-conda activate funmirbench-experiments
+uv run funmirbench-download-data
 ```
 
-That environment also includes `uv`, so `uv run ...` keeps working after activation.
-
-## Repo Layout
-
-Main directories:
-
-- `data/experiments/processed/`: root directory for processed experiment DE tables
-- `data/experiments/processed/21671476/`: local cache for curated benchmark DE tables from Zenodo record `21671476`; the repo currently ships the 3 default benchmark TSVs here
-- `data/experiments/raw/`: local raw GEO inputs such as count matrices and FASTQs
-- `data/common_resources/`: shared, downloaded miRBase and Ensembl annotation cache
-- `data/predictions/`: local generated predictor TSVs
-- `metadata/mirna_experiment_info.tsv`: experiment registry
-- `metadata/predictions_info.tsv`: predictor registry
-- `pipelines/experiments/`: experiment-ingestion backend files and example configs
-- `pipelines/standardized_predictors/`: predictor pipelines
-- `manuscript_assets/`: final manuscript figure exports and compact supporting tables
-- `results/`: benchmark outputs
-
-The benchmark reads file paths from the two metadata TSVs. `data/` holds the real files. `results/`
-is only for benchmark output.
-
-## Quick Start
-
-If you just want to run the benchmark, you do not need the experiments pipeline first. The repo
-already includes:
-
-- experiment metadata in `metadata/mirna_experiment_info.tsv`
-- predictor metadata in `metadata/predictions_info.tsv`
-
-Then run the default benchmark:
+Run the included benchmark configuration:
 
 ```bash
 uv run funmirbench --config benchmark.yaml
 ```
 
-Before benchmarking, `funmirbench` syncs the selected curated experiment DE tables from Zenodo
-into `data/experiments/processed/21671476/` as needed. The repo currently ships the 3 TSVs used by
-the default benchmark config, while other curated benchmark DE tables are treated as fetched local cache.
+`benchmark.yaml` selects experiments and predictors from the versioned metadata registries. The
+published data only need to be downloaded once; changing the config changes the subset evaluated.
 
-The default config already points at:
+The included configuration currently selects two curated experiment datasets and all five
+registered predictors. Edit the filters in `benchmark.yaml` to evaluate a different subset of the
+local published collection.
 
-- `metadata/mirna_experiment_info.tsv`
-- `metadata/predictions_info.tsv`
+## Benchmark inputs
 
-and selects a small set of curated experiment datasets plus the registered external predictors.
+### Experiment registry
 
-## Workflow
+Experiment metadata are versioned in:
 
-### 1. Add Experiment Data
-
-Experiment DE tables are produced by a dedicated ingestion pipeline that runs DESeq2 on a count
-matrix or on FASTQs (via FastQC + fastp + STAR + featureCounts), then syncs the result into
-`metadata/mirna_experiment_info.tsv`. Raw data can also be fetched directly from GEO and turned
-into a ready-to-review YAML config automatically. See the dedicated pipelines for the full
-workflow:
-
-- [GEO download pipeline](pipelines/geo/README.md) — fetch FASTQs/count matrices from GEO and
-  auto-generate a YAML config
-- [Experiment ingestion pipeline](pipelines/experiments/README.md) — run DESeq2 (count matrix or
-  reads mode) and sync results into the registry
-
-For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
-workflow is different: those metadata rows stay versioned in the repo, and the corresponding DE
-tables live under the local `data/experiments/processed/21671476/` cache. The repo currently ships
-the 3 default benchmark TSVs there, and other curated tables are fetched from Zenodo when needed.
-
-### 2. Add Predictor Data
-
-Predictor score files live under `data/predictions/` and are discovered through
-`metadata/predictions_info.tsv`.
-
-The repo includes standardization pipelines for the curated external predictors under
-`pipelines/standardized_predictors/`. Run the predictor-specific pipeline for each score file you
-want to generate, then register the resulting standardized TSV in `metadata/predictions_info.tsv`.
-
-### 3. Run The Benchmark
-
-The default benchmark config is `benchmark.yaml`. The primary benchmark universe is
-Ensembl protein-coding genes only; FuNmiRBench filters each DE table to that universe
-before joining predictor scores.
-
-Benchmark config summary:
-
-- `experiments_tsv`: experiment metadata table
-- `predictions_tsv`: predictor metadata table
-- `experiments`: which experiment rows to include
-- `predictors`: which predictor rows to include
-- `evaluation`: thresholds, ranking settings, and the protein-coding benchmark universe
-- `tags`: optional provenance labels recorded in the run `summary.json`
-- `out_dir`: results root directory; each benchmark run creates its own subfolder under this root
-
-Run it with:
-
-```bash
-uv run funmirbench --config benchmark.yaml
+```text
+metadata/mirna_experiment_info.tsv
 ```
 
-That command automatically syncs only the experiment DE tables selected by your benchmark config
-from Zenodo into the local `data/experiments/processed/21671476/` cache before joining predictions.
-On the first protein-coding run, it also downloads or reuses the Ensembl v115 GTF and caches the
-protein-coding gene set at `data/common_resources/ensembl/protein_coding_gene_ids.txt`.
+Each selected row has a stable `id` for filenames and machine-readable outputs, plus explicit
+human-facing identifiers such as `geo_accession`, `mirna_name`, `tested_cell_line`, and
+`experiment_type`. Reports and plots combine those fields into readable experiment labels while
+retaining the stable `id` for provenance.
 
-If you want to prefetch the full curated experiment cache yourself, you can also run:
+The registry uses the following identity fields:
 
-```bash
-uv run funmirbench-experiments-store
+| Column | Meaning |
+|---|---|
+| `id` | stable experiment identifier used in filenames, directories, configs, and machine-readable outputs |
+| `geo_accession` | GEO series accession, for example `GSE115646` |
+| `mirna_name` | mature miRNA name |
+| `experiment_type` | perturbation type, such as Overexpression, Knockout, or Knockdown |
+| `tested_cell_line` | experimental cell line or cell context when available |
+| `tissue` | tissue context when available |
+| `organism` | source organism |
+| `method` | expression profiling method |
+| `pubmed_id` | PubMed identifier when available |
+| `control_samples` | curated control sample identifiers used only by the optional GEO reproduction workflow |
+| `condition_samples` | curated perturbed-condition sample identifiers used only by the optional GEO reproduction workflow |
+| `de_table_path` | local benchmark-ready DE table path |
+
+The default reporting label is `GEO accession · miRNA · cell line · experiment type`. Missing
+optional fields are omitted from the label rather than shown as `NA`.
+
+Each row points to a benchmark-ready DE table. The canonical DE schema is:
+
+| Column | Meaning |
+|---|---|
+| `gene_id` | Ensembl gene identifier |
+| `logFC` | signed log fold change |
+| `FDR` | adjusted p-value / q-value used for thresholded evaluation |
+| `control_mean_normalized_count` | mean normalized control expression |
+| `PValue` | optional raw p-value |
+
+Common native DE column names are normalized when tables are read.
+
+### Predictor registry
+
+Predictor metadata are versioned in:
+
+```text
+metadata/predictions_info.tsv
 ```
 
-During evaluation, DE rows are first restricted to Ensembl protein-coding genes from Ensembl
-release 115. This keeps the evaluation universe aligned with mRNA target predictors and avoids
-penalizing tools for non-coding genes they are not designed to score. Each predictor is then
-scored only on miRNA-gene pairs that exist in that predictor's standardized file. Missing pairs
-are not filled with zero for metrics. Each run writes coverage information to
-`tables/per_experiment/coverage_per_experiment.tsv`, and the per-predictor Markdown/PDF reports
-also record total rows, scored rows, missing rows, and coverage. For per-dataset heatmaps and agreement plots,
-FuNmiRBench uses a dataset-local tie-aware rank over the scored rows. For cross-dataset
-rank-distribution plots, it keeps a separate global tie-aware rank derived from each predictor's
-full standardized file. Predictor-agreement top fractions use an exact top-k selection per
-predictor with a deterministic tie-break instead of a quantile threshold. Combined PR, ROC, and
-GSEA comparison plots are computed on the common set of genes scored by all compared predictors.
+Standardized predictor tables use the shared schema:
 
-If validation finds that an experiment has no ground-truth positives at the configured thresholds,
-the benchmark records it as skipped and continues. The same happens when an experiment has no rows
-scored by the selected predictors, or no predictor remains evaluable after DE and ground-truth
-filtering. Experiments that reach predictor joining retain their `joined.tsv` for diagnosis. Every
-skip reason is reported in the run `README.md`, `REPORT.pdf`, and `summary.json`. A run in which every
-selected experiment is skipped still produces these three summary files; metric tables and
-evaluation plots are produced only for experiments that can be evaluated.
+| Column | Meaning |
+|---|---|
+| `Ensembl_ID` | Ensembl gene identifier |
+| `Gene_Name` | gene symbol |
+| `miRNA_ID` | mature miRNA accession |
+| `miRNA_Name` | mature miRNA name |
+| `Score` | predictor-specific score |
 
-YAML paths can be:
+The registry also records `score_direction`, so the benchmark knows whether larger or smaller
+values represent stronger predictions.
 
-- absolute paths
-- relative to the YAML file
-- repo-root-relative paths such as `data/...` and `metadata/...`
+The published standardized tables use Ensembl release 115 (GRCh38) and miRBase 22.1 annotations.
 
-The default config shape is:
+## Benchmark configuration
+
+The benchmark is controlled by a single YAML file. The included `benchmark.yaml` is a runnable
+configuration for the published data:
 
 ```yaml
 experiments_tsv: metadata/mirna_experiment_info.tsv
@@ -179,6 +150,7 @@ predictors:
   tool_id: [targetscan, mirdb_mirtarget, microt_cnn, mirbind2, miraw]
 
 evaluation:
+  predictor_load_workers: 2
   fdr_threshold: 0.05
   effect_threshold: 1.0
   predictor_top_fraction: 0.10
@@ -187,75 +159,216 @@ evaluation:
   protein_coding_only: true
   protein_coding_gtf: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
   protein_coding_gene_cache: data/common_resources/ensembl/protein_coding_gene_ids.txt
+  figure_dpi: 600
 
 out_dir: results/
 ```
 
-Filter behavior:
+### Configuration reference
 
-- different keys are combined with AND
-- values inside one list are combined with OR
+| Key | Meaning |
+|---|---|
+| `experiments_tsv` | Experiment registry to use. Each selected row must point to a benchmark-ready DE table. |
+| `predictions_tsv` | Predictor registry to use. Each selected row defines a standardized predictor file and its score direction. |
+| `experiments` | Optional filters applied to the experiment registry. Omit this block to use all registered experiments. |
+| `predictors` | Optional filters applied to the predictor registry. Omit this block to use all registered predictors. |
+| `evaluation` | Evaluation and reporting settings described below. |
+| `out_dir` | Root directory for benchmark outputs. Each run creates a timestamped subdirectory such as `results/20260923_120807/`. |
 
-`benchmark.yaml` already includes other experiment and predictor columns as commented rows, so the
-normal workflow is just to edit or uncomment filters.
+Filters can target any column in the corresponding metadata table. Different filter keys are
+combined with **AND**; multiple values for one key are combined with **OR**. Paths may be absolute
+or relative to the YAML file.
 
-## Manuscript Assets
+### Evaluation settings
 
-Manuscript figure scripts live under `scripts/`; see `scripts/README.md` for
-the exact commands. The repo tracks final manuscript-facing assets rather than
-all generated intermediates. For Figure 2, this means tracking the combined
-figure exports and compact TSVs that support the manuscript values. Individual
-panel image exports, large raw support tables such as gene-level conservation,
-downloaded resources, diagnostic outputs, and benchmark run folders are local
-generated artifacts and remain gitignored.
+| Setting | Example | Meaning |
+|---|---:|---|
+| `predictor_load_workers` | `2` | Number of workers used to load standardized predictor tables in parallel. This affects loading speed, not benchmark results. |
+| `fdr_threshold` | `0.05` | FDR cutoff used when defining ground-truth positive genes. A positive must satisfy `FDR < threshold`. Set to `null` to define positives from effect size only. |
+| `effect_threshold` | `1.0` | Minimum perturbation-aware effect used for ground-truth positives. The effect is `-logFC` for overexpression experiments and `+logFC` for knockout/knockdown experiments. |
+| `predictor_top_fraction` | `0.10` | Fraction of each predictor's scored genes treated as its top predictions in agreement analyses. Selection uses an exact top-k with deterministic tie breaking. |
+| `write_top_prediction_cdfs` | `true` | Whether to write the optional top-prediction effect CDF diagnostic plots. |
+| `report_min_common_coverage` | `0.10` | Minimum fraction of experiment rows a predictor must score to be included in report-level common-set comparison plots. |
+| `protein_coding_only` | `true` | Restrict the evaluation universe to Ensembl protein-coding genes. |
+| `protein_coding_gtf` | Ensembl v115 GTF | GTF used to derive the protein-coding gene set. If the configured file is absent, the default Ensembl resource is downloaded. |
+| `protein_coding_gene_cache` | `.../protein_coding_gene_ids.txt` | Local cache of protein-coding Ensembl gene IDs derived from the GTF. |
+| `figure_dpi` | `600` | Resolution used for raster benchmark figures. |
+
+## Evaluation behavior
+
+The configuration above defines the evaluation choices that a user may change. The remaining
+benchmark mechanics are fixed by the software:
+
+- predictor scores are joined to each DE table by miRNA-gene pair, and missing predictions remain
+  missing rather than being replaced with zero;
+- coverage is reported separately from predictive performance, so a predictor is not penalized by
+  silently treating unscored pairs as negative predictions;
+- predictor score direction is normalized internally so that stronger predictions are interpreted
+  consistently across tools;
+- multi-predictor PR, ROC, and GSEA comparisons are calculated on the common set of genes scored by
+  all predictors being compared.
+
+If validation finds no ground-truth positives at the configured thresholds, no scored rows, or no
+evaluable predictor after filtering, the experiment is recorded as skipped and the run continues.
+Experiments that reach predictor joining retain their `joined.tsv` for diagnosis. Every skip reason
+is included in the run `README.md`, `REPORT.pdf`, and `summary.json`; a run in which every selected
+experiment is skipped still produces those three summary files.
+
+The generated run `README.md`, `REPORT.pdf`, and `summary.json` record the settings and
+evaluation details for that specific run.
+
+## Reference Audit
+
+Use the reference audit when inspecting whether current positive/background labels are
+compositionally tied to expression, uncertainty, or repeated gene response patterns. It writes
+diagnostic tables only; it does not change benchmark labels or predictor rankings.
+
+```bash
+uv run funmirbench-reference-audit --config benchmark.yaml --sync
+```
+
+Primary outputs are written under `results/reference_bias_audit/tables/`:
+
+- `per_experiment_summary.tsv`: selected rows, assessable rows, current positives, and available diagnostics
+- `expression_bins.tsv`: current positive rate and logFC summaries by baseline-expression bin
+- `zero_count_categories.tsv`: zero-baseline/treated summaries when expression columns are available
+- `gene_response_propensity.tsv`: repeated gene response tendency across selected experiments
+- `missing_diagnostics.tsv`: missing DE tables or diagnostic columns that block deeper audit steps
+
+New DESeq2 outputs generated through `pipelines/experiments/run_deseq2_counts.R` include
+`baseMean`, `lfcSE`, `stat`, raw control/treated means, and normalized control/treated means so
+future audit runs can separate expression composition from effect uncertainty more directly.
 
 ## Outputs
 
-After a benchmark run, `results/` contains one new timestamped run folder. For example:
+Each run creates a timestamped directory:
 
-- `results/20260510_143022/`
-
-Detailed dataset, miRNA, predictor, perturbation, cell-line, evaluation-threshold, and
-protein-coding-universe metadata is recorded inside the run folder.
-
-Inside each run folder you get:
-
-- `README.md`: human-readable run guide and quick-start map for the output folder
-- `REPORT.pdf`: main run-level PDF report with explanations and selected combined plots
-- `datasets/<dataset_id>/joined.tsv`: joined DE and predictor scores, retained for evaluated datasets
-  and skipped datasets that reached predictor joining
-- `datasets/<dataset_id>/plots/predictors/<tool_id>/`: per-tool plots for evaluated datasets
-- `datasets/<dataset_id>/plots/comparisons/`: multi-predictor comparison plots for evaluated datasets
-- `datasets/<dataset_id>/plots/heatmaps/`: heatmaps for evaluated datasets
-- `datasets/<dataset_id>/reports/`: per-dataset Markdown/PDF reports and correlation TSVs for
-  evaluated datasets
-- `tables/per_experiment/`: per-experiment metric tables when at least one dataset is evaluated
-- `tables/combined/`: cross-dataset predictor summaries when evaluation metrics are available
-- `plots/combined/metrics/`, `plots/combined/ranks/`, `plots/combined/combinations/`:
-  cross-dataset comparison plots grouped by theme when evaluation metrics are available
-- `summary.json`: machine-readable run summary, including configured tags and skipped-dataset reasons
-
-When 2 or more predictors are selected, each evaluated dataset gets:
-
-- one score-vs-expected-effect scatter per predictor
-- one combined PR curve on common scored pairs
-- one combined ROC curve on common scored pairs
-- one algorithms-vs-genes heatmap
-- common-prediction overlap summaries for comparable predictor sets
-
-## Commands
-
-```bash
-uv run funmirbench --config benchmark.yaml
-uv run funmirbench-experiments-store
-uv run funmirbench-validate-experiments --experiments-tsv metadata/mirna_experiment_info.tsv
-uv run funmirbench-experiments-download-examples
-uv run funmirbench-experiments --config config.yaml
-uv run funmirbench-sync-metadata
+```text
+results/YYYYMMDD_HHMMSS/
 ```
 
-## Tests
+A run contains:
+
+```text
+results/YYYYMMDD_HHMMSS/
+├── benchmark_config.yaml
+├── README.md
+├── REPORT.pdf
+├── summary.json
+├── datasets/
+│   └── <dataset_id>/
+│       ├── joined.tsv
+│       ├── plots/
+│       └── reports/
+├── tables/
+│   ├── per_experiment/
+│   └── combined/
+└── plots/
+    └── combined/
+```
+
+The config snapshot, joined tables, metric tables, coverage summaries, reports, and figures make
+each benchmark run self-describing and auditable. Metric tables and evaluation plots are written
+only for experiments that can be evaluated.
+
+## Using your own data
+
+The Zenodo dataset is optional.
+
+To benchmark custom experiments or predictors, create metadata tables with the same contracts and
+point a YAML configuration to them:
+
+```yaml
+experiments_tsv: my_experiments.tsv
+predictions_tsv: my_predictions.tsv
+```
+
+Then run:
 
 ```bash
-uv run python -m unittest discover -s tests
+uv run funmirbench --config my_benchmark.yaml
+```
+
+In this workflow, `funmirbench-download-data` is not required. The benchmark reads the files
+referenced by your metadata and does not contact Zenodo for experiment or predictor inputs.
+
+## Reproducing the published inputs
+
+The published files can be used directly for benchmarking, but the repository also retains the
+processing pipelines used to construct standardized inputs.
+
+### Experiment processing
+
+`pipelines/experiments/` converts a count matrix or FASTQ reads into a canonical DE table. Reads
+mode runs FastQC, fastp, STAR, featureCounts, and DESeq2; count-matrix mode runs DESeq2 directly.
+
+For GEO/SRA acquisition and config generation, see:
+
+- [GEO download pipeline](pipelines/geo/README.md)
+- [Experiment ingestion pipeline](pipelines/experiments/README.md)
+
+These workflows require the additional Conda environment documented in the experiment pipeline.
+
+### Predictor standardization
+
+`pipelines/standardized_predictors/` contains the reproducibility pipelines for:
+
+- TargetScan v8
+- miRDB
+- microT-CNN
+- miRBind2-3UTR
+- miRAW
+
+These pipelines regenerate the common five-column predictor tables from the respective upstream
+sources. They are not required when using the published standardized files from Zenodo.
+
+See [standardized predictor pipelines](pipelines/standardized_predictors/README.md).
+
+## Manuscript assets
+
+Scripts used to generate manuscript-supporting figures and compact tables are under `scripts/`.
+Final manuscript-facing assets are stored under `manuscript_assets/`.
+
+See [manuscript figure scripts](scripts/README.md) for the exact regeneration commands.
+
+## Repository structure
+
+```text
+funmirbench/                     benchmark package
+metadata/                        versioned experiment and predictor registries
+data/                            local downloaded/generated data cache
+pipelines/geo/                   GEO/SRA acquisition and config generation
+pipelines/experiments/           DE processing workflow
+pipelines/standardized_predictors/
+                                 predictor standardization workflows
+scripts/                         manuscript-supporting analyses
+manuscript_assets/               retained manuscript-facing outputs
+results/                         local benchmark runs
+benchmark.yaml                   included benchmark configuration
+```
+
+Large downloaded data, intermediate pipeline files, and benchmark run directories are intentionally
+not versioned in Git.
+
+## Command reference
+
+```bash
+# Download the complete published benchmark input collection once
+uv run funmirbench-download-data
+
+# Run a benchmark configuration
+uv run funmirbench --config benchmark.yaml
+
+# Validate registered experiment tables
+uv run funmirbench-validate-experiments \
+  --experiments-tsv metadata/mirna_experiment_info.tsv
+
+# Download example inputs for the experiment-processing workflow
+uv run funmirbench-experiments-download-examples
+
+# Run the experiment-processing workflow
+uv run funmirbench-experiments --config <experiment-config.yaml>
+
+# Synchronize generated experiment metadata into the registry
+uv run funmirbench-sync-metadata
 ```

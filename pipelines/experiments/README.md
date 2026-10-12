@@ -1,10 +1,15 @@
 # Experiment Ingestion Pipeline
 
-This pipeline turns raw experiment data (a pre-existing count matrix or FASTQs) into a
-benchmark-ready differential-expression (DE) table under `data/experiments/processed/`, using
-DESeq2 (`funmirbench/experiments_pipeline.py`). It is typically the second stage of the full
-experiment workflow, after the [GEO download pipeline](../geo/README.md) has produced a YAML
-config — though a config can also be written by hand.
+This directory documents the **experiment reproduction and extension workflow** for fun-miRBench.
+It is not required to reproduce the published benchmark: the curated DE tables used in the
+publication can be downloaded directly with `uv run funmirbench-download-data`.
+
+Use this pipeline when you want to regenerate a DE table from source data or add a new experiment
+to the benchmark. It converts either a pre-existing count matrix or FASTQs into a benchmark-ready
+differential-expression (DE) table under `data/experiments/processed/` using DESeq2
+(`funmirbench/experiments_pipeline.py`). It is typically run after the
+[GEO download pipeline](../geo/README.md) has produced a YAML config, although configs can also be
+written by hand.
 
 ---
 
@@ -48,7 +53,7 @@ Supported inputs:
 Tracked example configs:
 
 - `pipelines/experiments/configs/gse253003.count_matrix.example.yaml`
-- `pipelines/experiments/configs/gse93717.reads.example.yaml`
+- `pipelines/experiments/configs/gse129146.reads.example.yaml`
 
 Reads configs can either:
 
@@ -89,7 +94,7 @@ uv run funmirbench-experiments-download-examples
 That downloader fetches:
 
 - the real `GSE253003` count matrix
-- the real `GSE93717` FASTQ files
+- the real `GSE129146` FASTQ files
 - the shared Homo sapiens Ensembl v115 genome FASTA and GTF used by the reads example
 
 Run the real count-matrix example:
@@ -101,14 +106,14 @@ uv run funmirbench-experiments --config pipelines/experiments/configs/gse253003.
 Run the reads example the same way:
 
 ```bash
-uv run funmirbench-experiments --config pipelines/experiments/configs/gse93717.reads.example.yaml
+uv run funmirbench-experiments --config pipelines/experiments/configs/gse129146.reads.example.yaml
 ```
 
 So the practical reads flow is:
 
 1. activate `funmirbench-experiments`
 2. run `uv run funmirbench-experiments-download-examples`
-3. run `uv run funmirbench-experiments --config pipelines/experiments/configs/gse93717.reads.example.yaml`
+3. run `uv run funmirbench-experiments --config pipelines/experiments/configs/gse129146.reads.example.yaml`
 
 The shipped reads example now points at the downloaded Ensembl v115 reference source files under
 `data/experiments/raw/refs/ensembl_v115/`, so it builds the derived STAR index automatically.
@@ -119,8 +124,7 @@ Each run writes:
 - `pipelines/experiments/runs/<timestamp>_<dataset_id>/candidate_metadata.tsv`
 - `pipelines/experiments/runs/<timestamp>_<dataset_id>/run_manifest.json`
 
-The reads example uses a reproduced dataset id, `GSE93717_OE_miR_941_deseq2`, so syncing it creates
-a separate variant instead of overwriting the curated `GSE93717_OE_miR_941` registry row.
+The reads example uses `GSE129146` source data and writes its own reproduced dataset variant, so syncing it does not overwrite any curated published experiment row.
 
 ### Output DE table schema
 
