@@ -135,14 +135,12 @@ def _verify_cache_manifest(
 ) -> None:
     manifest_path = _cache_manifest_path(dest)
     if not manifest_path.is_file():
-        logger.warning(
-            "Existing cached experiment %s cannot be checksum-verified against "
-            "compressed Zenodo artifact %s without sidecar manifest %s.",
-            dest,
-            remote_filename,
-            manifest_path,
+        raise ValueError(
+            f"Existing cached experiment {dest} cannot be checksum-verified "
+            f"against compressed Zenodo artifact {remote_filename} without "
+            f"sidecar manifest {manifest_path}. Rerun with --force to refresh "
+            "this cache."
         )
-        return
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     expected = {
@@ -298,15 +296,14 @@ def sync_zenodo_experiments(
             continue
         seen.add(key)
 
-        dest = resolve_cached_experiment_path(rel_path, repo=repo)
-        if dest.exists() and not force:
-            logger.info("Using cached experiment: %s", rel_path.name)
-            saved.append(dest)
-            continue
-
         if registry_cache is None:
             registry_cache = fetch_zenodo_file_registry(token=token, timeout=timeout)
-        logger.info("Downloading experiment: %s", rel_path.name)
+
+        dest = resolve_cached_experiment_path(rel_path, repo=repo)
+        if dest.exists() and not force:
+            logger.info("Validating cached experiment: %s", rel_path.name)
+        else:
+            logger.info("Downloading experiment: %s", rel_path.name)
         saved.append(
             ensure_zenodo_experiment_cached(
                 rel_path,
