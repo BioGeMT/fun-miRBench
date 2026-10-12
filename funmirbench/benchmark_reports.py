@@ -1,4 +1,4 @@
-"""README and PDF reporting helpers for FuNmiRBench benchmark runs."""
+"""README and PDF reporting helpers for fun-miRBench benchmark runs."""
 
 from __future__ import annotations
 
@@ -257,8 +257,10 @@ def write_run_readme(
     effect_threshold,
     predictor_top_fraction,
     protein_coding_filter=None,
+    skipped_datasets=None,
 ):
     summary_df = _load_cross_dataset_summary(combined_outputs)
+    skipped_datasets = list(skipped_datasets or [])
     display_tool_ids = _publication_tool_ids(tool_ids) or list(tool_ids)
     relative_metric_tables = {
         key: _relative_display_path(path, base_dir=out_dir)
@@ -272,12 +274,13 @@ def write_run_readme(
         for section, values in combined_outputs.items()
     }
     lines = [
-        "# FuNmiRBench Run README",
+        "# fun-miRBench Run README",
         "",
         "## Summary",
         f"- Config: `{config_path}`",
         f"- Run directory: `{out_dir}`",
-        f"- Datasets: `{len(dataset_outputs)}`",
+        f"- Datasets evaluated: `{len(dataset_outputs)}`",
+        f"- Datasets skipped: `{len(skipped_datasets)}`",
         f"- Predictors: `{', '.join(display_tool_ids)}`",
         "",
         "## Evaluation Settings",
@@ -291,6 +294,31 @@ def write_run_readme(
         "- Cross-dataset rank-distribution plots: global tie-aware dense ranking over each predictor's full standardized file",
         "- Combined PR/ROC/GSEA comparison plots: computed on the common set of genes scored by all compared predictors",
     ]
+    if skipped_datasets:
+        lines.extend(
+            [
+                "",
+                "## Skipped Datasets",
+                "These experiments were selected by the config but could not be evaluated with the selected predictors.",
+                "",
+                "| Dataset | miRNA | Reason | Joined table |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for item in skipped_datasets:
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        f"`{item['dataset_id']}`",
+                        f"`{item['mirna']}`",
+                        item["reason"],
+                        f"`{_relative_display_path(item['joined_tsv'], base_dir=out_dir)}`",
+                    ]
+                )
+                + " |"
+            )
+
     if protein_coding_filter and protein_coding_filter.get("enabled"):
         lines.extend(
             [
@@ -358,8 +386,8 @@ def write_run_readme(
             "- `summary.json`: machine-readable run summary",
             "",
             "## Datasets",
-            "| Dataset | miRNA | Perturbation | Cell line | Joined table |",
-            "| --- | --- | --- | --- | --- |",
+            "| Experiment | Experiment ID | Joined table |",
+            "| --- | --- | --- |",
         ]
     )
     for item in dataset_outputs:
@@ -367,25 +395,26 @@ def write_run_readme(
             "| "
             + " | ".join(
                 [
+                    item.get("display_label") or f"`{item['dataset_id']}`",
                     f"`{item['dataset_id']}`",
-                    f"`{item['mirna']}`",
-                    f"`{item['perturbation']}`",
-                    f"`{item['cell_line']}`",
                     f"`{_relative_display_path(item['joined_tsv'], base_dir=out_dir)}`",
                 ]
             )
             + " |"
         )
-    lines.extend(
-        [
-            "",
-            "## Key Files",
-            "- `REPORT.pdf`: polished run-level summary with the main cross-dataset table and selected plots",
-            "- `tables/combined/cross_dataset_predictor_summary.tsv`: exact numeric cross-dataset summary used in the report",
-            "",
-            "### Per-Experiment Tables",
-        ]
-    )
+    lines.extend(["", "## Key Files"])
+    lines.append("- `REPORT.pdf`: run-level summary and evaluation notes")
+    if dataset_outputs:
+        lines.append(
+            "- `tables/combined/cross_dataset_predictor_summary.tsv`: "
+            "exact numeric cross-dataset summary used in the report"
+        )
+    else:
+        lines.append(
+            "- No cross-dataset metric tables were generated because no selected "
+            "dataset had evaluable predictor rows."
+        )
+    lines.extend(["", "### Per-Experiment Tables"])
     metric_descriptions = {
         "coverage": "fraction of genes with predictor scores",
         "positive_coverage": "fraction of GT-positive genes that were scored",
@@ -528,7 +557,7 @@ def write_run_pdf_report(
         fig, ax = new_page()
         add_header(
             ax,
-            "FuNmiRBench Run Report",
+            "fun-miRBench Run Report",
             f"{len(dataset_outputs)} datasets | {len(tool_ids)} predictors | generated from {config_path.name}",
         )
         summary_boxes = [
@@ -844,7 +873,6 @@ def finalize_run_bundle(
     *,
     out_root,
     config_path,
-    tags,
     dataset_outputs,
     tool_ids,
     metric_rows,
@@ -899,7 +927,6 @@ def finalize_run_bundle(
         "out_root": str(out_root),
         "out_dir": str(out_dir),
         "run_dir_name": out_dir.name,
-        "tags": tags or [],
         "dataset_ids": [item["dataset_id"] for item in dataset_outputs],
         "tool_ids": tool_ids,
         "readme": str(readme_path),

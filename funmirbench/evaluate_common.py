@@ -62,6 +62,7 @@ CURVE_COLORS = [
 TOP_PREDICTION_CDF_N = 100
 TOOL_LABELS = {}
 TOOL_COLORS = {}
+DATASET_LABELS = {}
 
 
 def _is_publication_tool(tool_id):
@@ -170,6 +171,15 @@ def _set_tool_labels(tool_labels=None):
     }
 
 
+def _set_dataset_label(dataset_id, label=None):
+    global DATASET_LABELS
+    dataset_id = str(dataset_id)
+    if label:
+        DATASET_LABELS[dataset_id] = str(label).strip()
+    else:
+        DATASET_LABELS.pop(dataset_id, None)
+
+
 def _set_tool_colors(tool_ids=None):
     global TOOL_COLORS
     TOOL_COLORS = {
@@ -194,13 +204,14 @@ def _positive_count_caption(scored_positives, positives_total):
 
 
 def _dataset_heading(dataset_id, *, suffix=None):
+    label = DATASET_LABELS.get(str(dataset_id), str(dataset_id))
     if suffix:
-        return f"{dataset_id} | {suffix}"
-    return str(dataset_id)
+        return f"{label} | {suffix}"
+    return label
 
 
 def _dataset_caption(dataset_id):
-    return str(dataset_id).replace("_", " ")
+    return DATASET_LABELS.get(str(dataset_id), str(dataset_id).replace("_", " "))
 
 
 def _wrap_axis_label(text, *, width=14):
@@ -224,7 +235,26 @@ def _nice_symmetric_limit(values, *, floor=1.0):
 
 
 def _add_figure_heading(fig, *, title, subtitle, x=0.08, title_y=0.975, subtitle_y=0.93):
-    del fig, title, subtitle, x, title_y, subtitle_y
+    fig.text(
+        x,
+        title_y,
+        str(title),
+        fontsize=PLOT_TITLE_SIZE,
+        fontweight="bold",
+        color="#17324D",
+        va="top",
+        ha="left",
+    )
+    if subtitle:
+        fig.text(
+            x,
+            subtitle_y,
+            str(subtitle),
+            fontsize=PLOT_SUBTITLE_SIZE,
+            color="#5B6577",
+            va="top",
+            ha="left",
+        )
 
 
 def _add_horizontal_colorbar(fig, *, mappable, anchor_ax, label, ticks=None, height=0.014, pad=0.05):
