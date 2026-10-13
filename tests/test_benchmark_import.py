@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,6 +7,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from funmirbench.benchmark import run_benchmark
+from funmirbench.evaluate import evaluate_joined_dataframe
 
 
 class BenchmarkImportTests(unittest.TestCase):
@@ -90,7 +92,6 @@ class BenchmarkImportTests(unittest.TestCase):
                     "funmirbench.benchmark.build_joined",
                     return_value=(joined, {"tool": str(root / "predictor.tsv")}),
                 ),
-                patch("funmirbench.benchmark._finalize_run_bundle") as finalize,
             ):
                 out_dir = run_benchmark(config_path)
 
@@ -100,7 +101,39 @@ class BenchmarkImportTests(unittest.TestCase):
             self.assertEqual(build_kwargs["tool_ids"], ["tool"])
             self.assertEqual(build_kwargs["eval_cfg"], {"protein_coding_only": False})
             self.assertEqual(build_kwargs["tags"], ["smoke"])
-            self.assertEqual(finalize.call_args.kwargs["skipped_datasets"][0]["dataset_id"], "dataset")
+
+            summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["tags"], ["smoke"])
+            self.assertEqual(summary["dataset_ids"], [])
+            self.assertEqual(summary["skipped_datasets"][0]["dataset_id"], "dataset")
+            self.assertTrue((out_dir / "README.md").is_file())
+            self.assertTrue((out_dir / "REPORT.pdf").is_file())
+
+    def test_dataset_is_skipped_when_no_predictor_rows_are_evaluable(self):
+        joined = pd.DataFrame({
+            "gene_id": ["ENSG000001", "ENSG000002"],
+            "logFC": [-2.0, 0.0],
+            "FDR": [0.01, 0.5],
+            "score_left": [0.9, float("nan")],
+            "score_right": [float("nan"), 0.8],
+        })
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            result = evaluate_joined_dataframe(
+                joined,
+                plots_dir=root / "plots",
+                reports_dir=root / "reports",
+                fdr_threshold=0.05,
+                effect_threshold=1.0,
+                predictor_top_fraction=0.1,
+                dataset_id="dataset",
+                perturbation="Overexpression",
+            )
+
+        self.assertEqual(result["metric_rows"], [])
+        self.assertEqual(len(result["skipped_tool_rows"]), 2)
+        self.assertIn("No selected predictor", result["dataset_skip_reason"])
 
 
 if __name__ == "__main__":
