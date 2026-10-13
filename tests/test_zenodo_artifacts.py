@@ -1,16 +1,19 @@
 import gzip
 import json
+import os
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+import requests
+
 from funmirbench.experiment_store import (
     ensure_zenodo_experiment_cached,
     sync_zenodo_experiments,
 )
-from funmirbench.predictor_store import sync_zenodo_predictors
+from funmirbench.predictor_store import _download_archive, sync_zenodo_predictors
 from funmirbench.zenodo_store import compute_md5
 
 
@@ -26,7 +29,38 @@ class FakeResponse:
             yield self.payload[index:index + chunk_size]
 
 
+class FailingResponse(FakeResponse):
+    def iter_content(self, chunk_size):
+        yield b"partial archive"
+        raise requests.ConnectionError("download interrupted")
+
+
 class ZenodoArtifactTests(unittest.TestCase):
+    def test_experiment_sync_leaves_pipeline_file_untouched(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = Path(temporary_directory)
+            destination = repo / "data/experiments/processed/example.tsv"
+            destination.parent.mkdir(parents=True)
+            destination.write_bytes(b"pipeline output\n")
+            registry = {
+                "example.tsv": {
+                    "checksum": "md5:00000000000000000000000000000000",
+                    "url": "https://example.test/example.tsv",
+                }
+            }
+
+            with patch("funmirbench.experiment_store.requests.get") as request:
+                paths = sync_zenodo_experiments(
+                    ["data/experiments/processed/example.tsv"],
+                    repo=repo,
+                    registry=registry,
+                    force=True,
+                )
+
+            self.assertEqual(paths, [])
+            self.assertEqual(destination.read_bytes(), b"pipeline output\n")
+            request.assert_not_called()
+
     def test_experiment_sync_validates_existing_cache(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             repo = Path(temporary_directory)
@@ -149,6 +183,77 @@ class ZenodoArtifactTests(unittest.TestCase):
             destination = repo / "data/predictions/tool/tool_standardized.tsv"
             self.assertEqual(paths, [destination])
             self.assertEqual(destination.read_bytes(), payload)
+
+    def test_predictor_sync_skips_user_member_and_supports_expanded_paths(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = Path(temporary_directory)
+            user_dir = repo / "user-predictors"
+            user_dir.mkdir()
+            user_destination = user_dir / "custom.tsv"
+            user_destination.write_bytes(b"user predictor\n")
+            published_destination = repo.parent / f"{repo.name}-external" / "published.tsv"
+            archive_path = repo / "predictions.zip"
+            payload = b"published predictor\n"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.writestr("published/published.tsv", payload)
+            predictions = {
+                "custom": {
+                    "predictor_output_path": "$FUNMIRBENCH_USER_PREDICTORS/custom.tsv",
+                },
+                "published": {
+                    "predictor_output_path": str(published_destination),
+                },
+            }
+            registry = {
+                "fun-miRBench_standardized_predictions.zip": {
+                    "filename": "fun-miRBench_standardized_predictions.zip",
+                    "checksum": "",
+                    "url": "https://example.test/predictions.zip",
+                }
+            }
+
+            try:
+                with patch.dict(
+                    os.environ,
+                    {"FUNMIRBENCH_USER_PREDICTORS": str(user_dir)},
+                ), patch(
+                    "funmirbench.predictor_store._download_archive",
+                    return_value=archive_path,
+                ):
+                    sync_zenodo_predictors(
+                        predictions,
+                        repo=repo,
+                        registry=registry,
+                        force=True,
+                    )
+
+                self.assertEqual(user_destination.read_bytes(), b"user predictor\n")
+                self.assertEqual(published_destination.read_bytes(), payload)
+                self.assertFalse((repo / "$FUNMIRBENCH_USER_PREDICTORS").exists())
+            finally:
+                published_destination.unlink(missing_ok=True)
+                published_destination.parent.rmdir()
+
+    def test_failed_predictor_download_removes_temporary_archive(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            meta = {
+                "filename": "predictions.zip",
+                "size": 100,
+                "checksum": "",
+                "url": "https://example.test/predictions.zip",
+            }
+
+            with patch(
+                "funmirbench.predictor_store.requests.get",
+                return_value=FailingResponse(b""),
+            ), self.assertRaisesRegex(requests.ConnectionError, "interrupted"):
+                _download_archive(meta, directory=directory, timeout=10)
+
+            self.assertEqual(
+                list(directory.glob(".funmirbench_predictors.*.zip")),
+                [],
+            )
 
 
 if __name__ == "__main__":
