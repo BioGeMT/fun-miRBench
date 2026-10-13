@@ -126,21 +126,59 @@ def _plot_panel_title(fig, *, title, subtitle, title_y, subtitle_y, x=0.04):
     )
 
 
-def _draw_basic_table(ax, rows, *, columns, col_widths, bbox, font_size=REPORT_TABLE_SIZE, wrap_scale=96):
-    def _wrap_cell(value, width_hint):
-        text = str(value)
-        max_chars = max(16, int(width_hint * wrap_scale))
-        return "\n".join(
-            textwrap.wrap(
-                text,
-                width=max_chars,
-                break_long_words=True,
-                break_on_hyphens=False,
-            )
+def _wrap_table_cell(value, width_hint, *, wrap_scale):
+    max_chars = max(16, int(width_hint * wrap_scale))
+    return "\n".join(
+        textwrap.wrap(
+            str(value),
+            width=max_chars,
+            break_long_words=True,
+            break_on_hyphens=False,
         )
+    )
 
-    wrapped_rows = [[_wrap_cell(value, width) for value, width in zip(row, col_widths)] for row in rows]
-    wrapped_columns = [_wrap_cell(value, width) for value, width in zip(columns, col_widths)]
+
+def _table_row_weight(row, *, col_widths, wrap_scale):
+    wrapped = [
+        _wrap_table_cell(value, width, wrap_scale=wrap_scale)
+        for value, width in zip(row, col_widths)
+    ]
+    return max(1.0, max(value.count("\n") + 1 for value in wrapped) * 0.82)
+
+
+def _paginate_table_rows(rows, *, col_widths, wrap_scale=96, max_weight=18.0):
+    pages = []
+    current_page = []
+    current_weight = 0.0
+    for row in rows:
+        row_weight = _table_row_weight(
+            row,
+            col_widths=col_widths,
+            wrap_scale=wrap_scale,
+        )
+        if current_page and current_weight + row_weight > max_weight:
+            pages.append(current_page)
+            current_page = []
+            current_weight = 0.0
+        current_page.append(row)
+        current_weight += row_weight
+    if current_page:
+        pages.append(current_page)
+    return pages
+
+
+def _draw_basic_table(ax, rows, *, columns, col_widths, bbox, font_size=REPORT_TABLE_SIZE, wrap_scale=96):
+    wrapped_rows = [
+        [
+            _wrap_table_cell(value, width, wrap_scale=wrap_scale)
+            for value, width in zip(row, col_widths)
+        ]
+        for row in rows
+    ]
+    wrapped_columns = [
+        _wrap_table_cell(value, width, wrap_scale=wrap_scale)
+        for value, width in zip(columns, col_widths)
+    ]
     table = ax.table(
         cellText=wrapped_rows,
         colLabels=wrapped_columns,
@@ -453,6 +491,69 @@ def _dataset_report_rows(dataset_outputs):
     ]
 
 
+def _draw_inventory_table_pages(
+    pdf,
+    rows,
+    *,
+    section_title,
+    columns,
+    col_widths,
+):
+    pages = _paginate_table_rows(rows, col_widths=col_widths)
+    for page_number, page_rows in enumerate(pages, start=1):
+        fig, ax = _new_page()
+        page_label = f"{section_title} ({len(rows)})"
+        if len(pages) > 1:
+            page_label += f" - page {page_number} of {len(pages)}"
+        _header(ax, "Dataset Inventory", page_label)
+        _draw_basic_table(
+            ax,
+            page_rows,
+            columns=columns,
+            col_widths=col_widths,
+            bbox=[0.06, 0.06, 0.88, 0.80],
+            font_size=REPORT_TABLE_SIZE,
+        )
+        _save_page(pdf, fig)
+
+
+def _draw_dataset_inventory_pages(pdf, dataset_outputs, skipped_datasets):
+    evaluated_rows = [
+        [row["Experiment"], row["Experiment ID"]]
+        for row in _dataset_report_rows(dataset_outputs)
+    ]
+    if evaluated_rows:
+        _draw_inventory_table_pages(
+            pdf,
+            evaluated_rows,
+            section_title="Evaluated experiments",
+            columns=["Experiment", "Experiment ID"],
+            col_widths=[0.62, 0.38],
+        )
+
+    skipped_rows = [
+        [
+            item.get("display_label") or item["dataset_id"],
+            item["dataset_id"],
+            item["reason"],
+        ]
+        for item in skipped_datasets
+    ]
+    if skipped_rows:
+        _draw_inventory_table_pages(
+            pdf,
+            skipped_rows,
+            section_title="Skipped experiments",
+            columns=["Experiment", "Experiment ID", "Reason"],
+            col_widths=[0.36, 0.27, 0.37],
+        )
+
+    if not evaluated_rows and not skipped_rows:
+        fig, ax = _new_page()
+        _header(ax, "Dataset Inventory", "No experiments were evaluated or skipped.")
+        _save_page(pdf, fig)
+
+
 def write_publication_run_pdf_report(
     out_dir,
     *,
@@ -574,46 +675,10 @@ def write_publication_run_pdf_report(
             _text_block(ax, "No summary table", ["Cross-dataset summary table is unavailable for this run."], x=0.06, y=0.83, width=0.88)
         _save_page(pdf, fig)
 
+        _draw_dataset_inventory_pages(pdf, dataset_outputs, skipped_datasets)
+
         fig, ax = _new_page()
-        _header(ax, "Dataset Inventory", "Evaluated and skipped experiments for this benchmark run.")
-        if dataset_outputs:
-            dataset_df = pd.DataFrame(_dataset_report_rows(dataset_outputs))
-            _draw_basic_table(
-                ax,
-                dataset_df.values.tolist(),
-                columns=dataset_df.columns.tolist(),
-                col_widths=[0.62, 0.38],
-                bbox=[0.06, 0.61, 0.88, 0.20],
-                font_size=REPORT_TABLE_SIZE,
-            )
-        else:
-            _text_block(
-                ax,
-                "Evaluated datasets",
-                ["No datasets were evaluated."],
-                x=0.06,
-                y=0.80,
-                width=0.88,
-            )
-
-        if skipped_datasets:
-            skipped_rows = [
-                [
-                    item.get("display_label") or item["dataset_id"],
-                    item["dataset_id"],
-                    item["reason"],
-                ]
-                for item in skipped_datasets
-            ]
-            _draw_basic_table(
-                ax,
-                skipped_rows,
-                columns=["Skipped experiment", "Experiment ID", "Reason"],
-                col_widths=[0.36, 0.27, 0.37],
-                bbox=[0.06, 0.31, 0.88, 0.22],
-                font_size=REPORT_TABLE_SIZE,
-            )
-
+        _header(ax, "Report Contents", "Figure families included in this benchmark report.")
         _bullet_block(
             ax,
             "Included figure families",
@@ -625,7 +690,7 @@ def write_publication_run_pdf_report(
                 "Dataset reports include heatmaps, CDFs, and predictor diagnostics.",
             ],
             x=0.06,
-            y=0.24,
+            y=0.84,
             width=0.88,
         )
         _save_page(pdf, fig)
