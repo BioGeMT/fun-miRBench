@@ -317,12 +317,13 @@ def run_benchmark(config_path):
     protein_coding_gene_ids = None
     protein_coding_filter = {
         "enabled": protein_coding_only,
+        "applied": False,
         "ensembl_release": ENSEMBL_RELEASE,
         "gtf_path": str(eval_cfg.get("protein_coding_gtf") or DEFAULT_GTF_REL_PATH),
         "gene_cache": str(eval_cfg.get("protein_coding_gene_cache") or DEFAULT_CACHE_REL_PATH),
         "gene_count": None,
     }
-    if protein_coding_only:
+    if protein_coding_only and experiments:
         logger.info("Protein-coding-only evaluation filter is enabled.")
         protein_coding_gene_ids = load_protein_coding_gene_ids(
             root=root,
@@ -330,7 +331,12 @@ def run_benchmark(config_path):
             cache_path=eval_cfg.get("protein_coding_gene_cache"),
         )
         protein_coding_filter["gene_count"] = len(protein_coding_gene_ids)
+        protein_coding_filter["applied"] = True
         logger.info("Protein-coding gene set contains %d genes.", len(protein_coding_gene_ids))
+    elif protein_coding_only:
+        logger.info(
+            "No validation-ready experiments; skipping the protein-coding gene-set load."
+        )
 
     evaluate_module.FIGURE_DPI = int(eval_cfg.get("figure_dpi", eval_cfg.get("publication_figure_dpi", 450)))
     out_root = (root / config.get("out_dir", "results")).resolve()

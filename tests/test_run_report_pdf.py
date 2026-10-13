@@ -1,6 +1,6 @@
 import unittest
 
-from funmirbench.run_report_pdf import _paginate_table_rows
+from funmirbench.run_report_pdf import INVENTORY_WRAP_SCALE, _paginate_table_rows
 
 
 class RunReportPdfTests(unittest.TestCase):
@@ -17,6 +17,7 @@ class RunReportPdfTests(unittest.TestCase):
         pages = _paginate_table_rows(
             rows,
             col_widths=[0.36, 0.27, 0.37],
+            wrap_scale=INVENTORY_WRAP_SCALE,
         )
 
         self.assertGreater(len(pages), 1)

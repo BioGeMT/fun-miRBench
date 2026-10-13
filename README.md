@@ -222,8 +222,8 @@ Inside each run folder you get:
 
 - `README.md`: human-readable run guide and quick-start map for the output folder
 - `REPORT.pdf`: main run-level PDF report with explanations and selected combined plots
-- `datasets/<dataset_id>/joined.tsv`: joined DE and predictor scores, retained for evaluated and
-  skipped datasets
+- `datasets/<dataset_id>/joined.tsv`: joined DE and predictor scores, retained for evaluated datasets
+  and skipped datasets that reached predictor joining
 - `datasets/<dataset_id>/plots/predictors/<tool_id>/`: per-tool plots for evaluated datasets
 - `datasets/<dataset_id>/plots/comparisons/`: multi-predictor comparison plots for evaluated datasets
 - `datasets/<dataset_id>/plots/heatmaps/`: heatmaps for evaluated datasets
