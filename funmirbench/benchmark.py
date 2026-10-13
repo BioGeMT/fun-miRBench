@@ -301,7 +301,12 @@ def run_benchmark(config_path):
     evaluate_module.FIGURE_DPI = int(eval_cfg.get("figure_dpi", eval_cfg.get("publication_figure_dpi", 450)))
     out_root = (root / config.get("out_dir", "results")).resolve()
     out_root.mkdir(parents=True, exist_ok=True)
-    run_dir_name = build_run_dir_name()
+    run_dir_name = build_run_dir_name(
+        experiments=experiments,
+        tool_ids=list(predictions),
+        eval_cfg=eval_cfg,
+        tags=config.get("tags"),
+    )
     out_dir = out_root / run_dir_name
     if out_dir.exists():
         raise FileExistsError(
