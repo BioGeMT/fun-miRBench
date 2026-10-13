@@ -13,6 +13,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+from funmirbench.benchmark_config import resolve_predictor_output_path
 from funmirbench.zenodo_store import (
     ZENODO_RECORD,
     compute_md5,
@@ -23,13 +24,6 @@ from funmirbench.zenodo_store import (
 
 def repo_root() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[1]
-
-
-def _resolve_local_path(value: str | pathlib.Path, *, repo: pathlib.Path) -> pathlib.Path:
-    path = pathlib.Path(value)
-    if path.is_absolute():
-        return path
-    return repo / path
 
 
 def _select_predictor_archive(registry: dict[str, dict]) -> dict:
@@ -77,51 +71,55 @@ def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> p
     response = requests.get(str(meta["url"]), stream=True, timeout=timeout)
     response.raise_for_status()
 
-    downloaded = 0
-    next_progress = 10
-    chunk_size = 4 * 1024 * 1024
-    with tempfile.NamedTemporaryFile(
-        mode="wb",
-        dir=directory,
-        prefix=".funmirbench_predictors.",
-        suffix=".zip",
-        delete=False,
-    ) as handle:
-        archive_path = pathlib.Path(handle.name)
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            if not chunk:
-                continue
-            handle.write(chunk)
-            downloaded += len(chunk)
-            if expected_size:
-                progress = int(downloaded * 100 / expected_size)
-                if progress >= next_progress:
-                    logger.info(
-                        "Predictor archive download: %d%% (%s / %s)",
-                        min(progress, 100),
-                        _format_bytes(downloaded),
-                        _format_bytes(expected_size),
-                    )
-                    while next_progress <= progress:
-                        next_progress += 10
+    archive_path = None
+    try:
+        downloaded = 0
+        next_progress = 10
+        chunk_size = 4 * 1024 * 1024
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=directory,
+            prefix=".funmirbench_predictors.",
+            suffix=".zip",
+            delete=False,
+        ) as handle:
+            archive_path = pathlib.Path(handle.name)
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if not chunk:
+                    continue
+                handle.write(chunk)
+                downloaded += len(chunk)
+                if expected_size:
+                    progress = int(downloaded * 100 / expected_size)
+                    if progress >= next_progress:
+                        logger.info(
+                            "Predictor archive download: %d%% (%s / %s)",
+                            min(progress, 100),
+                            _format_bytes(downloaded),
+                            _format_bytes(expected_size),
+                        )
+                        while next_progress <= progress:
+                            next_progress += 10
 
-    logger.info("Predictor archive download complete: %s", _format_bytes(downloaded))
+        logger.info("Predictor archive download complete: %s", _format_bytes(downloaded))
 
-    checksum_value = str(meta.get("checksum", "") or "")
-    if checksum_value:
-        algorithm, expected_digest = parse_checksum(checksum_value)
-        if algorithm != "md5":
+        checksum_value = str(meta.get("checksum", "") or "")
+        if checksum_value:
+            algorithm, expected_digest = parse_checksum(checksum_value)
+            if algorithm != "md5":
+                raise ValueError(f"Unsupported checksum algorithm: {algorithm}")
+            logger.info("Verifying predictor archive checksum...")
+            actual_digest = compute_md5(archive_path)
+            if actual_digest != expected_digest:
+                raise ValueError(
+                    "Checksum mismatch for standardized predictor archive: "
+                    f"expected {expected_digest}, got {actual_digest}."
+                )
+        return archive_path
+    except BaseException:
+        if archive_path is not None:
             archive_path.unlink(missing_ok=True)
-            raise ValueError(f"Unsupported checksum algorithm: {algorithm}")
-        logger.info("Verifying predictor archive checksum...")
-        actual_digest = compute_md5(archive_path)
-        if actual_digest != expected_digest:
-            archive_path.unlink(missing_ok=True)
-            raise ValueError(
-                "Checksum mismatch for standardized predictor archive: "
-                f"expected {expected_digest}, got {actual_digest}."
-            )
-    return archive_path
+        raise
 
 
 def _find_archive_member(
@@ -188,7 +186,7 @@ def sync_zenodo_predictors(
         if not configured_path:
             raise ValueError(f"Predictor {tool_id!r} has no predictor_output_path.")
         destinations.append(
-            (tool_id, _resolve_local_path(configured_path, repo=repo))
+            (tool_id, resolve_predictor_output_path(configured_path, repo))
         )
 
     missing = [
@@ -212,8 +210,16 @@ def sync_zenodo_predictors(
     try:
         with zipfile.ZipFile(archive_path, "r") as archive:
             for tool_id, destination in missing:
-                member = _find_archive_member(archive, destination.name)
-                logger.info("Extracting predictor %s -> %s", tool_id, destination.relative_to(repo))
+                try:
+                    member = _find_archive_member(archive, destination.name)
+                except KeyError:
+                    logger.info(
+                        "Skipping predictor %s because %s is not in the published archive.",
+                        tool_id,
+                        destination.name,
+                    )
+                    continue
+                logger.info("Extracting predictor %s -> %s", tool_id, destination)
                 _extract_member(archive, member, destination)
                 if not destination.is_file():
                     raise FileNotFoundError(

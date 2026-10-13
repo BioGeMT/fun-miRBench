@@ -289,6 +289,7 @@ def sync_zenodo_experiments(
 
     saved = []
     seen = set()
+    published_root = experiments_processed_dir(repo=repo).resolve()
     for de_table_path in de_table_paths:
         rel_path = pathlib.Path(de_table_path)
         key = str(rel_path)
@@ -296,14 +297,18 @@ def sync_zenodo_experiments(
             continue
         seen.add(key)
 
+        dest = resolve_cached_experiment_path(rel_path, repo=repo).resolve()
+        if not dest.is_relative_to(published_root):
+            logger.info("Skipping non-Zenodo experiment path: %s", dest)
+            continue
+
         if registry_cache is None:
             registry_cache = fetch_zenodo_file_registry(token=token, timeout=timeout)
 
-        dest = resolve_cached_experiment_path(rel_path, repo=repo)
         if dest.exists() and not force:
-            logger.info("Validating cached experiment: %s", rel_path.name)
+            logger.info("Validating cached experiment: %s", dest)
         else:
-            logger.info("Downloading experiment: %s", rel_path.name)
+            logger.info("Downloading experiment: %s", dest)
         saved.append(
             ensure_zenodo_experiment_cached(
                 rel_path,
