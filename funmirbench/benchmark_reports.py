@@ -299,13 +299,19 @@ def write_run_readme(
             [
                 "",
                 "## Skipped Datasets",
-                "These experiments were selected by the config but could not be evaluated with the selected predictors.",
+                "These experiments were selected by the config but could not be evaluated.",
                 "",
                 "| Dataset | miRNA | Reason | Joined table |",
                 "| --- | --- | --- | --- |",
             ]
         )
         for item in skipped_datasets:
+            joined_tsv = item.get("joined_tsv")
+            joined_display = (
+                f"`{_relative_display_path(joined_tsv, base_dir=out_dir)}`"
+                if joined_tsv
+                else "Not created (skipped during validation)"
+            )
             lines.append(
                 "| "
                 + " | ".join(
@@ -313,7 +319,7 @@ def write_run_readme(
                         f"`{item['dataset_id']}`",
                         f"`{item['mirna']}`",
                         item["reason"],
-                        f"`{_relative_display_path(item['joined_tsv'], base_dir=out_dir)}`",
+                        joined_display,
                     ]
                 )
                 + " |"

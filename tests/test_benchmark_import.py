@@ -144,6 +144,57 @@ class BenchmarkImportTests(unittest.TestCase):
         self.assertEqual(len(result["skipped_tool_rows"]), 2)
         self.assertIn("No selected predictor", result["dataset_skip_reason"])
 
+    def test_validation_exclusions_are_reported_when_every_dataset_is_skipped(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            (root / "predictor.tsv").write_text("unused\n", encoding="utf-8")
+            (root / "predictions.tsv").write_text(
+                "tool_id\tofficial_name\tscore_direction\tpredictor_output_path\n"
+                "tool\tTool\thigher_is_stronger\tpredictor.tsv\n",
+                encoding="utf-8",
+            )
+            (root / "de.tsv").write_text(
+                "gene_id\tlogFC\tcontrol_mean_normalized_count\tFDR\n"
+                "ENSG000001\t0.0\t10.0\t0.5\n"
+                "ENSG000002\t0.2\t20.0\t0.5\n",
+                encoding="utf-8",
+            )
+            (root / "experiments.tsv").write_text(
+                "id\tgeo_accession\tmirna_name\torganism\texperiment_type\t"
+                "tested_cell_line\ttissue\tde_table_path\n"
+                "dataset\tGSE123456\thsa-miR-1\tHomo sapiens\tOverexpression\t"
+                "A549\tLung\tde.tsv\n",
+                encoding="utf-8",
+            )
+            config_path = root / "benchmark.yaml"
+            config_path.write_text(
+                "experiments_tsv: experiments.tsv\n"
+                "predictions_tsv: predictions.tsv\n"
+                "evaluation:\n"
+                "  protein_coding_only: false\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("funmirbench.benchmark.build_run_dir_name", return_value="validation-skip"),
+                patch(
+                    "funmirbench.benchmark.load_predictor_score_cache",
+                    side_effect=AssertionError("predictors should not be loaded"),
+                ),
+            ):
+                out_dir = run_benchmark(config_path)
+
+            summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["dataset_ids"], [])
+            self.assertEqual(len(summary["skipped_datasets"]), 1)
+            skipped = summary["skipped_datasets"][0]
+            self.assertEqual(skipped["dataset_id"], "dataset")
+            self.assertIn("no positive genes", skipped["reason"])
+            self.assertNotIn("joined_tsv", skipped)
+            run_readme = (out_dir / "README.md").read_text(encoding="utf-8")
+            self.assertIn("Not created (skipped during validation)", run_readme)
+            self.assertTrue((out_dir / "REPORT.pdf").is_file())
+
     def test_publication_figure_heading_remains_disabled(self):
         fig = plt.figure()
         try:

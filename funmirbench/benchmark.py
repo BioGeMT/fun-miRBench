@@ -102,6 +102,26 @@ def clear_dataset_outputs(dataset_id, plots_dir, reports_dir):
             stale_report.unlink()
 
 
+def _skipped_dataset_record(meta, *, reason, joined_tsv=None):
+    record = {
+        "dataset_id": meta.id,
+        "mirna": meta.miRNA,
+        "cell_line": meta.cell_line,
+        "perturbation": meta.perturbation,
+        "geo_accession": meta.geo_accession,
+        "display_label": format_experiment_label(
+            geo_accession=meta.geo_accession,
+            mirna=meta.miRNA,
+            cell_line=meta.cell_line,
+            perturbation=meta.perturbation,
+        ),
+        "reason": reason,
+    }
+    if joined_tsv is not None:
+        record["joined_tsv"] = str(joined_tsv)
+    return record
+
+
 def _finalize_run_bundle(
     out_dir,
     *,
@@ -268,19 +288,31 @@ def run_benchmark(config_path):
         raise ValueError(message)
 
     logger.info("Loading experiments...")
-    experiments = load_experiments(
+    selected_experiments = load_experiments(
         experiments_tsv,
         root,
         experiment_filters,
     )
-    if validation_summary.excluded_dataset_ids:
-        experiments = [
-            experiment
-            for experiment in experiments
-            if experiment.id not in validation_summary.excluded_dataset_ids
-        ]
-    if not experiments:
+    if not selected_experiments:
         raise ValueError("Experiment selection resolved to no datasets.")
+
+    notices_by_dataset = {}
+    for notice in validation_summary.notices:
+        notices_by_dataset.setdefault(notice.dataset_id, []).append(notice.message)
+    skipped_datasets = [
+        _skipped_dataset_record(
+            experiment,
+            reason="; ".join(notices_by_dataset.get(experiment.id, []))
+            or "Excluded during experiment validation.",
+        )
+        for experiment in selected_experiments
+        if experiment.id in validation_summary.excluded_dataset_ids
+    ]
+    experiments = [
+        experiment
+        for experiment in selected_experiments
+        if experiment.id not in validation_summary.excluded_dataset_ids
+    ]
 
     protein_coding_gene_ids = None
     protein_coding_filter = {
@@ -330,17 +362,20 @@ def run_benchmark(config_path):
     dataset_outputs = []
     joined_frames = []
     common_prediction_summaries = []
-    skipped_datasets = []
     logger.info(f"Experiments: {len(experiments)}")
     logger.info(f"Predictors:  {tool_ids}")
-    logger.info("Loading predictor score files once for this run with %d worker(s)...", predictor_load_workers)
-    predictor_cache = load_predictor_score_cache(
-        tool_ids,
-        predictions,
-        root,
-        max_workers=predictor_load_workers,
-        logger=logger.info,
-    )
+    predictor_cache = {}
+    if experiments:
+        logger.info("Loading predictor score files once for this run with %d worker(s)...", predictor_load_workers)
+        predictor_cache = load_predictor_score_cache(
+            tool_ids,
+            predictions,
+            root,
+            max_workers=predictor_load_workers,
+            logger=logger.info,
+        )
+    else:
+        logger.info("No validation-ready experiments; skipping predictor score loading.")
 
     for meta in experiments:
         experiment_label = format_experiment_label(
@@ -381,16 +416,11 @@ def run_benchmark(config_path):
             )
             logger.info("  Skipping %s: %s", meta.id, reason)
             skipped_datasets.append(
-                {
-                    "dataset_id": meta.id,
-                    "mirna": meta.miRNA,
-                    "cell_line": meta.cell_line,
-                    "perturbation": meta.perturbation,
-                    "geo_accession": meta.geo_accession,
-                    "display_label": experiment_label,
-                    "reason": reason,
-                    "joined_tsv": str(joined_path),
-                }
+                _skipped_dataset_record(
+                    meta,
+                    reason=reason,
+                    joined_tsv=joined_path,
+                )
             )
             continue
 
@@ -419,16 +449,11 @@ def run_benchmark(config_path):
             reason = evaluation["dataset_skip_reason"]
             logger.info("  Skipping %s: %s", meta.id, reason)
             skipped_datasets.append(
-                {
-                    "dataset_id": meta.id,
-                    "mirna": meta.miRNA,
-                    "cell_line": meta.cell_line,
-                    "perturbation": meta.perturbation,
-                    "geo_accession": meta.geo_accession,
-                    "display_label": experiment_label,
-                    "reason": reason,
-                    "joined_tsv": str(joined_path),
-                }
+                _skipped_dataset_record(
+                    meta,
+                    reason=reason,
+                    joined_tsv=joined_path,
+                )
             )
             continue
 
