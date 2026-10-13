@@ -325,7 +325,16 @@ def write_run_readme(
                 + " |"
             )
 
-    if protein_coding_filter and protein_coding_filter.get("enabled"):
+    if (
+        protein_coding_filter
+        and protein_coding_filter.get("enabled")
+        and not protein_coding_filter.get("applied", True)
+    ):
+        lines.append(
+            "- Protein-coding filter: configured but not applied "
+            "(no validation-ready experiments)"
+        )
+    elif protein_coding_filter and protein_coding_filter.get("enabled"):
         lines.extend(
             [
                 (

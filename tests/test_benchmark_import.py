@@ -169,9 +169,7 @@ class BenchmarkImportTests(unittest.TestCase):
             config_path = root / "benchmark.yaml"
             config_path.write_text(
                 "experiments_tsv: experiments.tsv\n"
-                "predictions_tsv: predictions.tsv\n"
-                "evaluation:\n"
-                "  protein_coding_only: false\n",
+                "predictions_tsv: predictions.tsv\n",
                 encoding="utf-8",
             )
 
@@ -181,11 +179,17 @@ class BenchmarkImportTests(unittest.TestCase):
                     "funmirbench.benchmark.load_predictor_score_cache",
                     side_effect=AssertionError("predictors should not be loaded"),
                 ),
+                patch(
+                    "funmirbench.benchmark.load_protein_coding_gene_ids",
+                    side_effect=AssertionError("protein-coding genes should not be loaded"),
+                ),
             ):
                 out_dir = run_benchmark(config_path)
 
             summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary["dataset_ids"], [])
+            self.assertTrue(summary["protein_coding_filter"]["enabled"])
+            self.assertFalse(summary["protein_coding_filter"]["applied"])
             self.assertEqual(len(summary["skipped_datasets"]), 1)
             skipped = summary["skipped_datasets"][0]
             self.assertEqual(skipped["dataset_id"], "dataset")
@@ -193,6 +197,7 @@ class BenchmarkImportTests(unittest.TestCase):
             self.assertNotIn("joined_tsv", skipped)
             run_readme = (out_dir / "README.md").read_text(encoding="utf-8")
             self.assertIn("Not created (skipped during validation)", run_readme)
+            self.assertIn("configured but not applied", run_readme)
             self.assertTrue((out_dir / "REPORT.pdf").is_file())
 
     def test_publication_figure_heading_remains_disabled(self):

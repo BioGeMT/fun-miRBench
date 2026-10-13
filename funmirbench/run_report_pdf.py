@@ -29,6 +29,7 @@ REPORT_BODY_SIZE = 11.2
 REPORT_TABLE_SIZE = 10.2
 REPORT_PLOT_TITLE_SIZE = 13.4
 REPORT_PLOT_SUBTITLE_SIZE = 10.4
+INVENTORY_WRAP_SCALE = 75
 
 
 def _new_page():
@@ -499,7 +500,11 @@ def _draw_inventory_table_pages(
     columns,
     col_widths,
 ):
-    pages = _paginate_table_rows(rows, col_widths=col_widths)
+    pages = _paginate_table_rows(
+        rows,
+        col_widths=col_widths,
+        wrap_scale=INVENTORY_WRAP_SCALE,
+    )
     for page_number, page_rows in enumerate(pages, start=1):
         fig, ax = _new_page()
         page_label = f"{section_title} ({len(rows)})"
@@ -513,6 +518,7 @@ def _draw_inventory_table_pages(
             col_widths=col_widths,
             bbox=[0.06, 0.06, 0.88, 0.80],
             font_size=REPORT_TABLE_SIZE,
+            wrap_scale=INVENTORY_WRAP_SCALE,
         )
         _save_page(pdf, fig)
 
