@@ -4,10 +4,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from matplotlib import pyplot as plt
 import pandas as pd
 
 from funmirbench.benchmark import run_benchmark
 from funmirbench.evaluate import evaluate_joined_dataframe
+from funmirbench.evaluate_common import _add_figure_heading
 
 
 class BenchmarkImportTests(unittest.TestCase):
@@ -134,6 +136,14 @@ class BenchmarkImportTests(unittest.TestCase):
         self.assertEqual(result["metric_rows"], [])
         self.assertEqual(len(result["skipped_tool_rows"]), 2)
         self.assertIn("No selected predictor", result["dataset_skip_reason"])
+
+    def test_publication_figure_heading_remains_disabled(self):
+        fig = plt.figure()
+        try:
+            _add_figure_heading(fig, title="Title", subtitle="Subtitle")
+            self.assertEqual(fig.texts, [])
+        finally:
+            plt.close(fig)
 
 
 if __name__ == "__main__":
