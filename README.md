@@ -119,7 +119,7 @@ Benchmark config summary:
 - `experiments`: which experiment rows to include
 - `predictors`: which predictor rows to include
 - `evaluation`: thresholds, ranking settings, and the protein-coding benchmark universe
-- `tags`: optional labels included in the per-run output folder name
+- `tags`: optional provenance labels recorded in the run `summary.json`
 - `out_dir`: results root directory; each benchmark run creates its own subfolder under this root
 
 Run it with:
@@ -151,6 +151,13 @@ rank-distribution plots, it keeps a separate global tie-aware rank derived from 
 full standardized file. Predictor-agreement top fractions use an exact top-k selection per
 predictor with a deterministic tie-break instead of a quantile threshold. Combined PR, ROC, and
 GSEA comparison plots are computed on the common set of genes scored by all compared predictors.
+
+If an experiment has no rows scored by the selected predictors, or no predictor remains evaluable
+after DE and ground-truth filtering, the benchmark records that experiment as skipped and continues
+with the remaining experiments. Its `joined.tsv` is retained for diagnosis, and the reason is
+reported in the run `README.md`, `REPORT.pdf`, and `summary.json`. A run in which every selected
+experiment is skipped still produces these three summary files; metric tables and evaluation plots
+are produced only for experiments that can be evaluated.
 
 YAML paths can be:
 
@@ -203,9 +210,9 @@ generated artifacts and remain gitignored.
 
 ## Outputs
 
-After a benchmark run, `results/` contains one new run folder named with the run date. For example:
+After a benchmark run, `results/` contains one new timestamped run folder. For example:
 
-- `results/20260510/`
+- `results/20260510_143022/`
 
 Detailed dataset, miRNA, predictor, perturbation, cell-line, evaluation-threshold, and
 protein-coding-universe metadata is recorded inside the run folder.
@@ -214,17 +221,20 @@ Inside each run folder you get:
 
 - `README.md`: human-readable run guide and quick-start map for the output folder
 - `REPORT.pdf`: main run-level PDF report with explanations and selected combined plots
-- `datasets/<dataset_id>/joined.tsv`: joined DE + predictor score table for that dataset
-- `datasets/<dataset_id>/plots/predictors/<tool_id>/`: per-tool plots for that dataset
-- `datasets/<dataset_id>/plots/comparisons/`: multi-predictor comparison plots for that dataset
-- `datasets/<dataset_id>/plots/heatmaps/`: dataset-level heatmaps
-- `datasets/<dataset_id>/reports/`: per-dataset Markdown/PDF reports and correlation TSVs
-- `tables/per_experiment/`: per-experiment metric tables
-- `tables/combined/`: cross-dataset predictor summary table
-- `plots/combined/metrics/`, `plots/combined/ranks/`, `plots/combined/combinations/`: cross-dataset comparison plots grouped by theme
-- `summary.json`: run summary
+- `datasets/<dataset_id>/joined.tsv`: joined DE and predictor scores, retained for evaluated and
+  skipped datasets
+- `datasets/<dataset_id>/plots/predictors/<tool_id>/`: per-tool plots for evaluated datasets
+- `datasets/<dataset_id>/plots/comparisons/`: multi-predictor comparison plots for evaluated datasets
+- `datasets/<dataset_id>/plots/heatmaps/`: heatmaps for evaluated datasets
+- `datasets/<dataset_id>/reports/`: per-dataset Markdown/PDF reports and correlation TSVs for
+  evaluated datasets
+- `tables/per_experiment/`: per-experiment metric tables when at least one dataset is evaluated
+- `tables/combined/`: cross-dataset predictor summaries when evaluation metrics are available
+- `plots/combined/metrics/`, `plots/combined/ranks/`, `plots/combined/combinations/`:
+  cross-dataset comparison plots grouped by theme when evaluation metrics are available
+- `summary.json`: machine-readable run summary, including configured tags and skipped-dataset reasons
 
-When 2 or more predictors are selected, each dataset gets:
+When 2 or more predictors are selected, each evaluated dataset gets:
 
 - one score-vs-expected-effect scatter per predictor
 - one combined PR curve on common scored pairs
