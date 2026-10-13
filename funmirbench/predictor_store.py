@@ -21,6 +21,14 @@ from funmirbench.zenodo_store import (
     parse_checksum,
 )
 
+PUBLISHED_PREDICTOR_FILENAMES = {
+    "targetscan": "targetscan_standardized.tsv",
+    "mirdb_mirtarget": "mirdb_mirtarget_standardized.tsv",
+    "microt_cnn": "microt_cnn_standardized.tsv",
+    "mirbind2": "mirbind2_standardized.tsv",
+    "miraw": "miraw_standardized.tsv",
+}
+
 
 def repo_root() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[1]
@@ -182,12 +190,23 @@ def sync_zenodo_predictors(
     repo = (repo or repo_root()).resolve()
     destinations = []
     for tool_id, meta in predictions.items():
+        tool_id = str(tool_id)
+        published_filename = PUBLISHED_PREDICTOR_FILENAMES.get(tool_id)
+        if published_filename is None:
+            logger.info("Skipping non-published predictor: %s", tool_id)
+            continue
         configured_path = meta.get("predictor_output_path")
         if not configured_path:
             raise ValueError(f"Predictor {tool_id!r} has no predictor_output_path.")
-        destinations.append(
-            (tool_id, resolve_predictor_output_path(configured_path, repo))
-        )
+        destination = resolve_predictor_output_path(configured_path, repo)
+        if destination.name != published_filename:
+            logger.info(
+                "Skipping predictor %s because %s is not its published archive filename.",
+                tool_id,
+                destination.name,
+            )
+            continue
+        destinations.append((tool_id, destination))
 
     missing = [
         (tool_id, path)

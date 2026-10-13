@@ -161,12 +161,12 @@ class ZenodoArtifactTests(unittest.TestCase):
             payload = b"Ensembl_ID\tGene_Name\tmiRNA_ID\tmiRNA_Name\tScore\nENSG1\tGENE1\tMIMAT1\thsa-miR-1\t0.5\n"
             with zipfile.ZipFile(archive_path, "w") as archive:
                 archive.writestr(
-                    "published/predictors/tool/tool_standardized.tsv.gz",
+                    "published/predictors/targetscan/targetscan_standardized.tsv.gz",
                     gzip.compress(payload),
                 )
             predictions = {
-                "tool": {
-                    "predictor_output_path": "data/predictions/tool/tool_standardized.tsv",
+                "targetscan": {
+                    "predictor_output_path": "data/predictions/targetscan/targetscan_standardized.tsv",
                 }
             }
             registry = {
@@ -180,9 +180,39 @@ class ZenodoArtifactTests(unittest.TestCase):
             with patch("funmirbench.predictor_store._download_archive", return_value=archive_path):
                 paths = sync_zenodo_predictors(predictions, repo=repo, registry=registry)
 
-            destination = repo / "data/predictions/tool/tool_standardized.tsv"
+            destination = repo / "data/predictions/targetscan/targetscan_standardized.tsv"
             self.assertEqual(paths, [destination])
             self.assertEqual(destination.read_bytes(), payload)
+
+    def test_missing_user_predictor_does_not_download_archive(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = Path(temporary_directory)
+            published_destination = (
+                repo / "data/predictions/targetscan/targetscan_standardized.tsv"
+            )
+            published_destination.parent.mkdir(parents=True)
+            published_destination.write_bytes(b"published predictor\n")
+            predictions = {
+                "targetscan": {
+                    "predictor_output_path": (
+                        "data/predictions/targetscan/targetscan_standardized.tsv"
+                    ),
+                },
+                "custom": {
+                    "predictor_output_path": "data/predictions/custom/missing.tsv",
+                },
+            }
+
+            with patch(
+                "funmirbench.predictor_store.fetch_zenodo_file_registry"
+            ) as fetch_registry, patch(
+                "funmirbench.predictor_store._download_archive"
+            ) as download_archive:
+                paths = sync_zenodo_predictors(predictions, repo=repo)
+
+            self.assertEqual(paths, [published_destination])
+            fetch_registry.assert_not_called()
+            download_archive.assert_not_called()
 
     def test_predictor_sync_skips_user_member_and_supports_expanded_paths(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -191,16 +221,20 @@ class ZenodoArtifactTests(unittest.TestCase):
             user_dir.mkdir()
             user_destination = user_dir / "custom.tsv"
             user_destination.write_bytes(b"user predictor\n")
-            published_destination = repo.parent / f"{repo.name}-external" / "published.tsv"
+            published_destination = (
+                repo.parent
+                / f"{repo.name}-external"
+                / "targetscan_standardized.tsv"
+            )
             archive_path = repo / "predictions.zip"
             payload = b"published predictor\n"
             with zipfile.ZipFile(archive_path, "w") as archive:
-                archive.writestr("published/published.tsv", payload)
+                archive.writestr("published/targetscan_standardized.tsv", payload)
             predictions = {
                 "custom": {
                     "predictor_output_path": "$FUNMIRBENCH_USER_PREDICTORS/custom.tsv",
                 },
-                "published": {
+                "targetscan": {
                     "predictor_output_path": str(published_destination),
                 },
             }
