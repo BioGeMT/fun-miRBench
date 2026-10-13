@@ -45,7 +45,7 @@ class BenchmarkImportTests(unittest.TestCase):
             ):
                 run_benchmark(config_path)
 
-    def test_run_directory_builder_receives_benchmark_context(self):
+    def test_run_directory_builder_context_and_collision_suffix(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             (root / "predictor.tsv").write_text("Score\n1\n", encoding="utf-8")
@@ -80,6 +80,12 @@ class BenchmarkImportTests(unittest.TestCase):
                 "FDR": [0.01, 0.5],
                 "score_tool": [float("nan"), float("nan")],
             })
+            first_run = root / "results" / "run-id"
+            second_run = root / "results" / "run-id__r2"
+            first_run.mkdir(parents=True)
+            second_run.mkdir()
+            marker = first_run / "existing.txt"
+            marker.write_text("keep", encoding="utf-8")
 
             with (
                 patch(
@@ -97,7 +103,8 @@ class BenchmarkImportTests(unittest.TestCase):
             ):
                 out_dir = run_benchmark(config_path)
 
-            self.assertEqual(out_dir, root / "results" / "run-id")
+            self.assertEqual(out_dir, root / "results" / "run-id__r3")
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
             build_kwargs = build_name.call_args.kwargs
             self.assertEqual([item.id for item in build_kwargs["experiments"]], ["dataset"])
             self.assertEqual(build_kwargs["tool_ids"], ["tool"])

@@ -310,11 +310,10 @@ def run_benchmark(config_path):
         tags=config.get("tags"),
     )
     out_dir = out_root / run_dir_name
-    if out_dir.exists():
-        raise FileExistsError(
-            f"Run output directory already exists: {out_dir}. "
-            "Start the benchmark again to create a new timestamped run directory."
-        )
+    suffix = 2
+    while out_dir.exists():
+        out_dir = out_root / f"{run_dir_name}__r{suffix}"
+        suffix += 1
     logger.info(f"Results root: {out_root}")
     logger.info(f"Run output dir: {out_dir}")
     main_layout = _init_run_layout(out_dir)
