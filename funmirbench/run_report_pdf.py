@@ -637,9 +637,12 @@ def write_publication_run_pdf_report(
             else [
                 ["REPORT.pdf", "Run summary and skipped-dataset notes"],
                 ["summary.json", "Machine-readable run summary, including skipped datasets"],
-                ["datasets/<dataset_id>/joined.tsv", "Joined tables retained for skipped datasets"],
             ]
         )
+        if not dataset_outputs and any(item.get("joined_tsv") for item in skipped_datasets):
+            primary_files.append(
+                ["datasets/<dataset_id>/joined.tsv", "Joined tables retained after predictor joining"]
+            )
         _draw_basic_table(
             ax,
             primary_files,

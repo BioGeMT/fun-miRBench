@@ -152,12 +152,13 @@ full standardized file. Predictor-agreement top fractions use an exact top-k sel
 predictor with a deterministic tie-break instead of a quantile threshold. Combined PR, ROC, and
 GSEA comparison plots are computed on the common set of genes scored by all compared predictors.
 
-If an experiment has no rows scored by the selected predictors, or no predictor remains evaluable
-after DE and ground-truth filtering, the benchmark records that experiment as skipped and continues
-with the remaining experiments. Its `joined.tsv` is retained for diagnosis, and the reason is
-reported in the run `README.md`, `REPORT.pdf`, and `summary.json`. A run in which every selected
-experiment is skipped still produces these three summary files; metric tables and evaluation plots
-are produced only for experiments that can be evaluated.
+If validation finds that an experiment has no ground-truth positives at the configured thresholds,
+the benchmark records it as skipped and continues. The same happens when an experiment has no rows
+scored by the selected predictors, or no predictor remains evaluable after DE and ground-truth
+filtering. Experiments that reach predictor joining retain their `joined.tsv` for diagnosis. Every
+skip reason is reported in the run `README.md`, `REPORT.pdf`, and `summary.json`. A run in which every
+selected experiment is skipped still produces these three summary files; metric tables and
+evaluation plots are produced only for experiments that can be evaluated.
 
 YAML paths can be:
 
