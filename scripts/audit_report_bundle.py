@@ -1,4 +1,4 @@
-"""Audit generated FuNmiRBench report bundles for common review issues.
+"""Audit generated fun-miRBench report bundles for common review issues.
 
 This script is intentionally read-only: it inspects a generated run directory and
 reports missing artifacts or reporting inconsistencies that are easy to miss in a
