@@ -12,7 +12,7 @@ From reads to the final per-gene tables for the 30 FuNmiRBench test comparisons.
 
    GSE210778 includes the unpaired reads of two samples. DESeq2 writes `complete_analysis.rds` with the fitted object.
 4. **Gene list.** `build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/v2/benchmark_genes.tsv.gz`.
-5. **Final tables.** `build_final_data.py --fits fits.tsv --genes metadata/v2/benchmark_genes.tsv.gz --out <dir>` runs `label_states.R` on every fit. Here, `fits.tsv` lists `experiment_id`, `perturbation` (OE or KO) and `fit_rds`.
+5. **Final tables.** `build_final_data.py --fits fits.tsv --genes metadata/v2/benchmark_genes.tsv.gz --out <dir>` runs `label_states.R` on every fit and copies `metadata/v2/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id`, `perturbation` (OE or KO) and `fit_rds`.
 
 ## Final table (one per comparison, 19,226 rows)
 

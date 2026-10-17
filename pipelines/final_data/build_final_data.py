@@ -7,6 +7,8 @@ it for every comparison and writes a summary table and a manifest with SHA-256 h
 Input --fits is a TSV with columns: experiment_id, perturbation (OE or KO), fit_rds (complete_analysis.rds written
 by pipelines/experiments/run_deseq2_counts.R).
 
+The comparison metadata (metadata/v2/comparisons.tsv: groups, flags, KO evidence) is copied into the output.
+
 Usage:
   uv run python pipelines/final_data/build_final_data.py --fits fits.tsv \
       --genes metadata/v2/benchmark_genes.tsv.gz --out <final_dir> [--rscript Rscript] [--workers 8]
@@ -15,6 +17,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -62,6 +65,8 @@ def main() -> None:
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--rscript", default="Rscript")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--comparisons", type=pathlib.Path, default=pathlib.Path("metadata/v2/comparisons.tsv"),
+                    help="copied into the output so the evaluation reads one folder")
     args = ap.parse_args()
     fits = pd.read_csv(args.fits, sep="\t")
     if fits.experiment_id.duplicated().any() or not fits.perturbation.isin(["OE", "KO"]).all():
@@ -76,6 +81,10 @@ def main() -> None:
                              fits.itertuples(index=False)))
     summary = pd.DataFrame(rows)
     summary.to_csv(args.out / "experiments.tsv", sep="\t", index=False)
+    comps = pd.read_csv(args.comparisons, sep="\t")
+    if set(comps.experiment_id) != set(summary.experiment_id):
+        raise ValueError("--comparisons must list exactly the fitted comparisons")
+    shutil.copyfile(args.comparisons, args.out / "comparisons.tsv")
     manifest = {
         "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gene_list": str(args.genes), "gene_list_sha256": sha256(args.genes),
@@ -85,6 +94,7 @@ def main() -> None:
                    "unresolved": "everything else, including genes with no usable estimate"},
         "margins": {"d05": 0.5, "d10": 1.0},
         "experiments": len(summary),
+        "comparisons_sha256": sha256(args.out / "comparisons.tsv"),
         "tables": {r["experiment_id"]: r["table_sha256"] for r in rows},
     }
     (args.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
