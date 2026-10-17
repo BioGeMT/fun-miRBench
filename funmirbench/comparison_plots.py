@@ -32,6 +32,9 @@ def _eligible_tools(metric_rows, *, min_coverage: float) -> list[str]:
         tool_id = str(row.get("tool_id", ""))
         if not tool_id or not _is_publication_tool(tool_id):
             continue
+        if row.get("class_metrics_na_reason"):
+            # Continuous-only rows (no positives or negatives) cannot enter PR/ROC plots.
+            continue
         try:
             coverage = float(row.get("coverage"))
         except (TypeError, ValueError):

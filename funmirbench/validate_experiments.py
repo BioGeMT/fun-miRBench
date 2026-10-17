@@ -10,7 +10,13 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from funmirbench.de_table import find_gene_id_column, read_de_table
+from funmirbench.de_table import (
+    DEFAULT_FDR_NA_POLICY,
+    FDR_NA_POLICIES,
+    find_gene_id_column,
+    read_de_table,
+    resolve_fdr_na_policy,
+)
 from funmirbench.logger import parse_log_level, setup_logging
 
 
@@ -25,6 +31,19 @@ REQUIRED_REGISTRY_COLUMNS = (
 )
 REQUIRED_DE_COLUMNS = ("gene_id", "logFC", "control_mean_normalized_count", "FDR")
 VALID_PERTURBATIONS = {"Overexpression", "Knockout", "Knockdown"}
+PERTURBATION_ALIASES = {
+    "OVEREXPRESSION": "Overexpression",
+    "OE": "Overexpression",
+    "KNOCKOUT": "Knockout",
+    "KO": "Knockout",
+    "KNOCKDOWN": "Knockdown",
+    "KD": "Knockdown",
+}
+# Datasets with no GT positives under the configured rule: "exclude" (legacy) skips
+# them during validation; "continuous_only" keeps them so continuous metrics such as
+# Spearman are still computed while class metrics are reported as NA.
+ZERO_POSITIVE_POLICIES = ("exclude", "continuous_only")
+DEFAULT_ZERO_POSITIVE_POLICY = "exclude"
 MAX_LOGGED_ISSUES = 20
 _ENSEMBL_GENE_ID = re.compile(r"^ENS[A-Z]*G\d+(?:\.\d+)?$", re.IGNORECASE)
 _GEO_ACCESSION = re.compile(r"^GSE\d+$", re.IGNORECASE)
@@ -95,8 +114,22 @@ def _filter_registry(df: pd.DataFrame, filters: dict | None) -> pd.DataFrame:
     return df
 
 
-def _normalize_de_table(path: pathlib.Path) -> pd.DataFrame:
-    de = read_de_table(path)
+def resolve_zero_positive_policy(value=None) -> str:
+    policy = DEFAULT_ZERO_POSITIVE_POLICY if value is None else str(value).strip().lower()
+    if policy not in ZERO_POSITIVE_POLICIES:
+        raise ValueError(
+            f"Unsupported zero_positive_policy {value!r}; "
+            f"expected one of {list(ZERO_POSITIVE_POLICIES)}."
+        )
+    return policy
+
+
+def _normalize_de_table(
+    path: pathlib.Path,
+    *,
+    fdr_na_policy: str = DEFAULT_FDR_NA_POLICY,
+) -> pd.DataFrame:
+    de = read_de_table(path, fdr_na_policy=fdr_na_policy)
     gene_src = find_gene_id_column(de)
     if gene_src == "__index__":
         de = de.copy()
@@ -126,12 +159,7 @@ def _expected_effect(logfc: pd.Series, perturbation: str) -> pd.Series:
 
 def _normalize_perturbation(value: str) -> str:
     text = _text(value)
-    canonical = {
-        "OVEREXPRESSION": "Overexpression",
-        "KNOCKOUT": "Knockout",
-        "KNOCKDOWN": "Knockdown",
-    }.get(text.upper())
-    return canonical or text
+    return PERTURBATION_ALIASES.get(text.upper()) or text
 
 
 def _gt_rule_caption(fdr_threshold, effect_threshold: float) -> str:
@@ -147,10 +175,11 @@ def _validate_de_table(
     path: pathlib.Path,
     fdr_threshold: float | None,
     effect_threshold: float,
+    fdr_na_policy: str = DEFAULT_FDR_NA_POLICY,
 ) -> list[ValidationIssue]:
     issues = []
     try:
-        de = _normalize_de_table(path)
+        de = _normalize_de_table(path, fdr_na_policy=fdr_na_policy)
     except Exception as exc:
         return [
             ValidationIssue(
@@ -363,7 +392,11 @@ def validate_experiments(
     filters: dict | None = None,
     fdr_threshold: float | None = 0.05,
     effect_threshold: float = 1.0,
+    fdr_na_policy: str = DEFAULT_FDR_NA_POLICY,
+    zero_positive_policy: str = DEFAULT_ZERO_POSITIVE_POLICY,
 ) -> ValidationSummary:
+    fdr_na_policy = resolve_fdr_na_policy(fdr_na_policy)
+    zero_positive_policy = resolve_zero_positive_policy(zero_positive_policy)
     experiments_tsv = pathlib.Path(experiments_tsv).expanduser().resolve()
     root = pathlib.Path(root).expanduser().resolve() if root is not None else None
     df = pd.read_csv(experiments_tsv, sep="\t", dtype=str).fillna("")
@@ -414,6 +447,7 @@ def validate_experiments(
                 path=path,
                 fdr_threshold=fdr_threshold,
                 effect_threshold=effect_threshold,
+                fdr_na_policy=fdr_na_policy,
             )
             nonfatal_notices = [
                 issue
@@ -428,7 +462,7 @@ def validate_experiments(
             ]
             issues.extend(blocking_issues)
             notices.extend(nonfatal_notices)
-            if nonfatal_notices:
+            if nonfatal_notices and zero_positive_policy == "exclude":
                 notice_dataset_ids.add(dataset_id)
             if blocking_issues:
                 invalid_dataset_ids.add(dataset_id)
@@ -518,6 +552,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fdr-threshold", type=float, default=0.05)
     parser.add_argument("--effect-threshold", type=float, default=1.0)
     parser.add_argument(
+        "--fdr-na-policy",
+        choices=list(FDR_NA_POLICIES),
+        default=DEFAULT_FDR_NA_POLICY,
+    )
+    parser.add_argument(
+        "--zero-positive-policy",
+        choices=list(ZERO_POSITIVE_POLICIES),
+        default=DEFAULT_ZERO_POSITIVE_POLICY,
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -531,6 +575,8 @@ def main(argv: list[str] | None = None) -> int:
         root=args.root,
         fdr_threshold=args.fdr_threshold,
         effect_threshold=args.effect_threshold,
+        fdr_na_policy=args.fdr_na_policy,
+        zero_positive_policy=args.zero_positive_policy,
     )
     log_validation_summary(summary)
     return 0 if summary.ok else 1

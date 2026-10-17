@@ -20,6 +20,7 @@ from sklearn.metrics import auc, average_precision_score, precision_recall_curve
 from funmirbench.evaluate import (
     NEUTRAL_COLOR,
     FDR_AUXILIARY_COLUMNS,
+    REFERENCE_TOOL_IDS,
     PLOT_AXIS_LABEL_SIZE,
     PLOT_LEGEND_SIZE,
     SCORE_PREFIX,
@@ -35,7 +36,7 @@ from funmirbench.evaluate import (
 )
 
 
-EXCLUDED_COMBINATION_TOOL_IDS = set()
+EXCLUDED_COMBINATION_TOOL_IDS = set(REFERENCE_TOOL_IDS)
 DEFAULT_MIN_DATASET_COVERAGE = 0.01
 DEFAULT_MAX_COMBINATION_SIZE = None
 DEFAULT_PREDICTOR_TOP_FRACTION = 0.10

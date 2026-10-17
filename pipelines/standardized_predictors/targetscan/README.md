@@ -53,6 +53,23 @@ The pipeline:
 14. Raises an error instead of silently choosing between duplicate scores if any such pairs survive.
 15. Writes the standardized output table only when the filtered rows are already unique at the final gene-miRNA level.
 
+### Family Members (Opt-In)
+
+`Summary_Counts.all_predictions.txt` has one row per transcript and miRNA family (keyed by
+`Seed+m8`), scored for one `Representative miRNA` that can differ between transcripts of the same
+family. By default only that representative miRNA receives the row, so other family members are
+missing for those genes.
+
+With `--expand-family-members`, the pipeline reads the family members from
+`miR_Family_Info.txt` (`Seed+m8` to `MiRBase ID`, human rows) and projects each family score onto
+every annotated member miRNA. This is an opt-in family-score projection, not exact individual-miRNA
+scoring: every member receives the representative miRNA's family-level score, which is not
+recomputed for the member's own sequence. Two provenance columns are added:
+`TargetScan_miRNA_Family` (the `Seed+m8` family key) and `TargetScan_Representative_miRNA`. Unless output paths are given explicitly, the
+expanded run writes `data/predictions/targetscan/targetscan_family_expanded_standardized.tsv` and
+`targetscan_family_expanded_pipeline.log`, so the default standardized file is not overwritten.
+Register the expanded file as a separate predictor row to benchmark it.
+
 ## Output Schema
 
 The output TSV contains:
@@ -64,6 +81,8 @@ The output TSV contains:
 - `Score`
 
 `Score` is the raw numeric form of TargetScan `Cumulative weighted context++ score`.
+With `--expand-family-members`, the output also has `TargetScan_miRNA_Family` and
+`TargetScan_Representative_miRNA`.
 No score-based duplicate collapse is applied in the final output step. If duplicate gene-miRNA pairs survive filtering, the pipeline fails and reports them.
 
 ## Output Location
@@ -82,6 +101,12 @@ From the repository root:
 
 ```bash
 uv run pipelines/standardized_predictors/targetscan/pipeline.py
+```
+
+To project family scores onto every member miRNA (opt-in; not individual-miRNA scoring):
+
+```bash
+uv run pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members
 ```
 
 ## CLI Arguments

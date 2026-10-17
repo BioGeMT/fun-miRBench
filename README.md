@@ -153,7 +153,8 @@ predictor with a deterministic tie-break instead of a quantile threshold. Combin
 GSEA comparison plots are computed on the common set of genes scored by all compared predictors.
 
 If validation finds that an experiment has no ground-truth positives at the configured thresholds,
-the benchmark records it as skipped and continues. The same happens when an experiment has no rows
+the benchmark records it as skipped and continues (unless `zero_positive_policy: continuous_only`
+is set; see Evaluation Options below). The same happens when an experiment has no rows
 scored by the selected predictors, or no predictor remains evaluable after DE and ground-truth
 filtering. Experiments that reach predictor joining retain their `joined.tsv` for diagnosis. Every
 skip reason is reported in the run `README.md`, `REPORT.pdf`, and `summary.json`. A run in which every
@@ -190,6 +191,60 @@ evaluation:
 
 out_dir: results/
 ```
+
+### Evaluation Options
+
+The defaults of these optional `evaluation` keys retain the legacy GT label rule and dataset
+selection. Other changes are active regardless of these keys:
+
+- Rank repair: genes without a score keep a missing dataset-local rank. Previously, if a predictor had a
+  single distinct score in a dataset, every gene, including unscored ones, received rank 1.0. This can
+  change combination, heatmap, and rank-plot outputs for such predictors.
+- Added outputs: DE covariate columns in `joined.tsv`, continuous metrics for every evaluated
+  predictor, reference-baseline tables, and the matched cross-dataset summary.
+
+The evaluator still uses the legacy binary rule (`FDR < fdr_threshold` and oriented effect
+`> effect_threshold`; everything else usable is a negative). Confidence-aware labels, for example
+the `label3` columns in the v2 candidate DE tables, are not used yet; integrating them is future
+work.
+
+Options:
+
+- `fdr_na_policy` (`negative` | `exclude`, default `negative`): genes with a missing FDR but a
+  reported PValue (for example DESeq2 independent filtering). `negative` treats them as FDR 1.0,
+  so they can become GT negatives; `exclude` leaves them out of both GT classes. Excluded genes are
+  counted per predictor as `rows_excluded_fdr_na` / `rows_excluded_fdr_na_scored`.
+- `zero_positive_policy` (`exclude` | `continuous_only`, default `exclude`): experiments without GT
+  positives. `exclude` skips them during validation. `continuous_only` evaluates them with
+  Spearman/Pearson only; AUROC/APS/PR-AUC are NA and `class_metrics_na_reason` says why. The same
+  applies to a predictor whose scored genes contain no positives (or no negatives): by default it
+  is listed as skipped, with `continuous_only` it gets a metric row with NA class metrics.
+  Spearman of score vs expected effect is always written, for every predictor with scored genes in
+  every experiment that reaches evaluation (including predictors without positives), to
+  `tables/per_experiment/continuous_metrics_per_experiment.tsv`.
+- `reference_baselines` (default `true`) and `reference_seed` (default `0`): reference scorers
+  computed inside the evaluator from each DE table: `reference_random` (seeded, reproducible,
+  independent of row order) and `reference_expression_high` / `reference_expression_low`
+  (`control_mean_normalized_count`, descending and ascending). They use the predictors' GT labels
+  and are reported on two kinds of gene population. `population=all_usable_genes` rows use every
+  usable gene and are descriptive only: sparse predictors are scored on fewer genes.
+  `population=matched_to_<tool_id>` rows (one set per predictor with a metric row in that dataset)
+  use exactly the genes that predictor scored, so predictor-vs-reference differences are read on
+  identical genes and datasets. If a reference score (e.g. control expression) is missing on any of
+  those genes, the row is reported as unavailable: NaN metrics, `matched_genes`,
+  `reference_missing_genes`, and `reference_unavailable_reason` such as
+  `reference_missing_on_1_of_3_predictor_genes`; it is never scored on fewer genes. References are
+  also scored on the common population of the matched cross-dataset summary, with the same rule.
+  They never enter predictor metric tables, the per-predictor cross-dataset summary, or plots.
+
+DE covariates present in the DE table (`baseMean`, `lfcSE`, `stat`,
+`control_mean_normalized_count`, `treated_mean_normalized_count`, edgeR `logCPM`/`F`, the
+normalized/raw group means, and any `*status` column) are carried into `joined.tsv` for
+stratified diagnostics. They are never treated as predictor scores; only `score_<tool_id>`
+columns from predictor files are scored.
+
+Registry `experiment_type` values are case-insensitive and accept the abbreviations `OE`, `KO`,
+and `KD` for `Overexpression`, `Knockout`, and `Knockdown`.
 
 Filter behavior:
 
@@ -229,8 +284,23 @@ Inside each run folder you get:
 - `datasets/<dataset_id>/plots/heatmaps/`: heatmaps for evaluated datasets
 - `datasets/<dataset_id>/reports/`: per-dataset Markdown/PDF reports and correlation TSVs for
   evaluated datasets
-- `tables/per_experiment/`: per-experiment metric tables when at least one dataset is evaluated
-- `tables/combined/`: cross-dataset predictor summaries when evaluation metrics are available
+- `tables/per_experiment/`: per-experiment metric tables when at least one dataset is evaluated,
+  plus `continuous_metrics_per_experiment.tsv` and `reference_baselines_per_experiment.tsv`
+- `tables/combined/`: cross-dataset predictor summaries when evaluation metrics are available.
+  `cross_dataset_predictor_summary.tsv` averages each predictor over its own scored genes and
+  evaluated datasets. `cross_dataset_predictor_summary_matched.tsv` (per dataset:
+  `matched_metrics_per_experiment.tsv`) scores the included predictors, and the reference baselines,
+  on one population: genes scored by all included predictors, in datasets evaluated for all of them.
+  Each metric is averaged over the datasets where every included predictor has a defined value
+  (`<metric>_comparisons`); undefined values such as Spearman of constant scores stay missing and
+  are never set to 0. `matched_tool_roster.tsv` lists the configured predictors, the included ones,
+  and each excluded predictor with its reason (for example no metric rows in any evaluated dataset).
+  A very sparse predictor shrinks the matched population. `cross_dataset_reference_summary.tsv`
+  (`summary_type=descriptive_unpaired`) averages each reference over its own datasets per population
+  and is descriptive only. For tool-vs-reference comparisons use
+  `cross_dataset_tool_vs_reference_paired.tsv` (`summary_type=paired_common_cohort`): for each
+  predictor and matched reference, each metric is averaged over the datasets where both have a finite
+  value (`comparisons`), with `mean_difference_reference_minus_tool`.
 - `plots/combined/metrics/`, `plots/combined/ranks/`, `plots/combined/combinations/`:
   cross-dataset comparison plots grouped by theme when evaluation metrics are available
 - `summary.json`: machine-readable run summary, including configured tags and skipped-dataset reasons

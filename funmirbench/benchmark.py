@@ -27,8 +27,14 @@ from funmirbench.common_predictions import (
     write_common_prediction_summary,
 )
 from funmirbench.comparison_plots import write_common_comparison_plots
-from funmirbench.cross_dataset import write_cross_dataset_summaries, write_metric_tables
+from funmirbench.cross_dataset import (
+    write_continuous_metric_table,
+    write_cross_dataset_summaries,
+    write_metric_tables,
+    write_reference_baseline_tables,
+)
 from funmirbench.dataset_reports import write_predictor_reports
+from funmirbench.de_table import resolve_fdr_na_policy
 from funmirbench.evaluate import (
     REPORT_PAGE_SIZE,
     evaluate_joined_dataframe,
@@ -47,6 +53,7 @@ from funmirbench.run_report import write_run_pdf_report
 from funmirbench.validate_experiments import (
     format_validation_failure,
     log_validation_summary,
+    resolve_zero_positive_policy,
     validate_experiments,
 )
 
@@ -89,6 +96,13 @@ def _positive_int(value, *, name):
     parsed = int(value)
     if parsed < 1:
         raise ValueError(f"{name} must be >= 1, got {value!r}")
+    return parsed
+
+
+def _non_negative_int(value, *, name):
+    parsed = int(value)
+    if parsed < 0:
+        raise ValueError(f"{name} must be >= 0, got {value!r}")
     return parsed
 
 
@@ -140,8 +154,12 @@ def _finalize_run_bundle(
     predictor_top_fraction,
     protein_coding_filter,
     skipped_datasets,
+    continuous_metric_rows=None,
+    reference_metric_rows=None,
+    evaluation_options=None,
 ):
     layout = _init_run_layout(out_dir)
+    evaluation_options = evaluation_options or {}
     if metric_rows:
         metric_tables = write_metric_tables(
             metric_rows,
@@ -157,6 +175,9 @@ def _finalize_run_bundle(
             effect_threshold=effect_threshold,
             predictor_top_fraction=predictor_top_fraction,
             tool_labels=tool_labels,
+            tool_ids=tool_ids,
+            reference_baselines=evaluation_options.get("reference_baselines", False),
+            reference_seed=evaluation_options.get("reference_seed", 0),
             logger=logger.info,
         )
         common_summary_path = write_combined_common_prediction_summary(
@@ -179,6 +200,27 @@ def _finalize_run_bundle(
     else:
         metric_tables = {}
         combined_outputs = {"tables": {}, "plots": {}}
+    if continuous_metric_rows:
+        metric_tables["continuous_metrics"] = write_continuous_metric_table(
+            continuous_metric_rows,
+            layout["per_experiment_tables_dir"],
+            logger=logger.info,
+        )
+    if reference_metric_rows:
+        reference_tables = write_reference_baseline_tables(
+            reference_metric_rows,
+            layout["per_experiment_tables_dir"],
+            layout["combined_tables_dir"],
+            metric_rows=metric_rows,
+            logger=logger.info,
+        )
+        metric_tables["reference_baselines"] = reference_tables["per_experiment"]
+        combined_outputs.setdefault("tables", {}).update(
+            {
+                "cross_dataset_reference_summary": reference_tables["summary"],
+                "cross_dataset_tool_vs_reference_paired": reference_tables["paired_summary"],
+            }
+        )
     readme_path = write_run_readme(
         out_dir,
         config_path=config_path,
@@ -191,6 +233,7 @@ def _finalize_run_bundle(
         predictor_top_fraction=predictor_top_fraction,
         protein_coding_filter=protein_coding_filter,
         skipped_datasets=skipped_datasets,
+        evaluation_options=evaluation_options,
     )
     report_path = write_run_pdf_report(
         out_dir,
@@ -218,6 +261,7 @@ def _finalize_run_bundle(
         "metric_tables": metric_tables,
         "cross_dataset_outputs": combined_outputs,
         "protein_coding_filter": protein_coding_filter,
+        "evaluation_options": evaluation_options,
         "datasets": dataset_outputs,
         "skipped_datasets": skipped_datasets,
     }
@@ -257,6 +301,19 @@ def run_benchmark(config_path):
         eval_cfg.get("predictor_load_workers", 1),
         name="evaluation.predictor_load_workers",
     )
+    fdr_na_policy = resolve_fdr_na_policy(eval_cfg.get("fdr_na_policy"))
+    zero_positive_policy = resolve_zero_positive_policy(eval_cfg.get("zero_positive_policy"))
+    reference_baselines = _optional_bool(eval_cfg.get("reference_baselines"), True)
+    reference_seed = _non_negative_int(
+        eval_cfg.get("reference_seed", 0),
+        name="evaluation.reference_seed",
+    )
+    evaluation_options = {
+        "fdr_na_policy": fdr_na_policy,
+        "zero_positive_policy": zero_positive_policy,
+        "reference_baselines": reference_baselines,
+        "reference_seed": reference_seed,
+    }
 
     logger.info("Loading predictors...")
     predictions = load_predictions(
@@ -275,6 +332,8 @@ def run_benchmark(config_path):
         filters=experiment_filters,
         fdr_threshold=fdr_threshold,
         effect_threshold=effect_threshold,
+        fdr_na_policy=fdr_na_policy,
+        zero_positive_policy=zero_positive_policy,
     )
     log_validation_summary(validation_summary)
     if not validation_summary.ok:
@@ -368,6 +427,8 @@ def run_benchmark(config_path):
     dataset_outputs = []
     joined_frames = []
     common_prediction_summaries = []
+    continuous_metric_rows = []
+    reference_metric_rows = []
     logger.info(f"Experiments: {len(experiments)}")
     logger.info(f"Predictors:  {tool_ids}")
     predictor_cache = {}
@@ -404,6 +465,7 @@ def run_benchmark(config_path):
             root,
             protein_coding_gene_ids=protein_coding_gene_ids,
             predictor_cache=predictor_cache,
+            fdr_na_policy=fdr_na_policy,
             logger=logger.info,
         )
         joined_path = dataset_dir / "joined.tsv"
@@ -449,8 +511,13 @@ def run_benchmark(config_path):
             dataset_label=experiment_label,
             tool_labels=tool_labels,
             write_top_prediction_cdfs=write_top_prediction_cdfs,
+            fdr_na_policy=fdr_na_policy,
+            zero_positive_policy=zero_positive_policy,
+            reference_baselines=reference_baselines,
+            reference_seed=reference_seed,
             logger=logger.info,
         )
+        continuous_metric_rows.extend(evaluation.get("continuous_metric_rows", []))
         if evaluation.get("dataset_skip_reason"):
             reason = evaluation["dataset_skip_reason"]
             logger.info("  Skipping %s: %s", meta.id, reason)
@@ -502,6 +569,7 @@ def run_benchmark(config_path):
         )
         joined_frames.append(joined.copy())
         metric_rows.extend(evaluation["metric_rows"])
+        reference_metric_rows.extend(evaluation.get("reference_metric_rows", []))
         dataset_outputs.append(
             {
                 "dataset_id": meta.id,
@@ -552,6 +620,9 @@ def run_benchmark(config_path):
         predictor_top_fraction=predictor_top_fraction,
         protein_coding_filter=protein_coding_filter,
         skipped_datasets=skipped_datasets,
+        continuous_metric_rows=continuous_metric_rows,
+        reference_metric_rows=reference_metric_rows,
+        evaluation_options=evaluation_options,
     )
     return out_dir
 

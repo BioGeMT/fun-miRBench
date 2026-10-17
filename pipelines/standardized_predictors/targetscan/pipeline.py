@@ -29,14 +29,16 @@ from utils import (  # noqa: E402
     step5_qc_targetscan_vs_ensembl_transcripts,
     step6_download_mirbase_mature,
     step_build_human_mirna_annotations,
+    step_build_human_mirna_family_members,
     step_write_standardized_predictions,
 )
 
 
 logger = logging.getLogger("pipeline")
+FAMILY_EXPANDED_STEM = "targetscan_family_expanded"
 
 
-def parse_args(root: Path) -> argparse.Namespace:
+def parse_args(root: Path, argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Standardize TargetScan predictions for FuNmiRBench.")
     add_standard_pipeline_args(
         parser,
@@ -44,7 +46,25 @@ def parse_args(root: Path) -> argparse.Namespace:
         root=root,
         include_resources_dir=True,
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--expand-family-members",
+        action="store_true",
+        help=(
+            "Opt-in family-score projection: write each family score for every member miRNA "
+            "of the family instead of only the TargetScan representative miRNA. Members get "
+            "the family-level score, not an individual-miRNA score. Adds provenance columns "
+            f"and, unless output paths are given, writes {FAMILY_EXPANDED_STEM}_standardized.tsv "
+            "so the default standardized file is not overwritten."
+        ),
+    )
+    args = parser.parse_args(argv)
+    if args.expand_family_members:
+        output_dir = Path(parser.get_default("standardized_output_file")).parent
+        if args.standardized_output_file == parser.get_default("standardized_output_file"):
+            args.standardized_output_file = output_dir / f"{FAMILY_EXPANDED_STEM}_standardized.tsv"
+        if args.log_file == parser.get_default("log_file"):
+            args.log_file = output_dir / f"{FAMILY_EXPANDED_STEM}_pipeline.log"
+    return args
 
 
 def main() -> None:
@@ -104,6 +124,13 @@ def main() -> None:
         species_id="9606",
     )
 
+    family_members = None
+    if args.expand_family_members:
+        family_members = step_build_human_mirna_family_members(
+            files["miR_Family_Info.txt"],
+            species_id="9606",
+        )
+
     log_step(logger, 8, total_steps, "Write standardized TargetScan predictions")
     step_write_standardized_predictions(
         files["Summary_Counts.all_predictions.txt"],
@@ -112,6 +139,7 @@ def main() -> None:
         mirna_annotations=mirna_annotations,
         output_path=args.standardized_output_file,
         species_id="9606",
+        family_members=family_members,
     )
 
     compute_final_statistics(args.standardized_output_file)

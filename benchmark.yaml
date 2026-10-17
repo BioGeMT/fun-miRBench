@@ -35,5 +35,22 @@ evaluation:
   protein_coding_gtf: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
   protein_coding_gene_cache: data/common_resources/ensembl/protein_coding_gene_ids.txt
   figure_dpi: 600
+  # Ground-truth policies. The defaults keep the legacy binary GT rule and dataset selection.
+  # fdr_na_policy: genes with a missing FDR but a reported PValue (e.g. DESeq2
+  #   independent filtering). negative = treat as FDR 1.0, so they can be GT negatives;
+  #   exclude = leave them out of both GT classes (counted as rows_excluded_fdr_na).
+  fdr_na_policy: negative
+  # zero_positive_policy: experiments with no GT positives. exclude = skip them during
+  #   validation; continuous_only = evaluate them with Spearman/Pearson only (AUROC/APS/
+  #   PR-AUC are NA with a class_metrics_na_reason). Spearman is always written to
+  #   tables/per_experiment/continuous_metrics_per_experiment.tsv, also for predictors
+  #   whose scored genes contain no positives.
+  zero_positive_policy: exclude
+  # Reference baselines scored from each DE table: seeded random and control expression
+  # (control_mean_normalized_count, both directions), on all usable genes and on each
+  # predictor's scored genes (matched_to_<tool_id>). They are written to separate
+  # reference tables and the matched summary, never to predictor tables or plots.
+  reference_baselines: true
+  reference_seed: 0
 
 out_dir: results/

@@ -7,10 +7,10 @@ import pathlib
 
 import pandas as pd
 
-from funmirbench.evaluate import SCORE_PREFIX
+from funmirbench.evaluate import REFERENCE_TOOL_IDS, SCORE_PREFIX
 
 
-EXCLUDED_COMMON_SUMMARY_TOOL_IDS = set()
+EXCLUDED_COMMON_SUMMARY_TOOL_IDS = set(REFERENCE_TOOL_IDS)
 
 
 def _score_col(tool_id: str) -> str:

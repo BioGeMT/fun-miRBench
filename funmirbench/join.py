@@ -12,7 +12,12 @@ import pandas as pd
 
 from funmirbench import DatasetMeta
 from funmirbench.benchmark_config import clean_optional_string, resolve_predictor_output_path
-from funmirbench.de_table import find_gene_id_column, read_de_table
+from funmirbench.de_table import (
+    DEFAULT_FDR_NA_POLICY,
+    de_covariate_columns,
+    find_gene_id_column,
+    read_de_table,
+)
 from funmirbench.gene_ids import strip_ensembl_version
 
 
@@ -37,17 +42,6 @@ def _emit_log(logger, message: str) -> None:
 
 def _elapsed(start: float) -> float:
     return time.perf_counter() - start
-
-
-def _compute_global_rank_percentile(series: pd.Series) -> pd.Series:
-    values = series.astype(float)
-    ranks = values.rank(method="dense", ascending=True)
-    max_rank = ranks.max(skipna=True)
-    if pd.isna(max_rank):
-        return pd.Series(float("nan"), index=series.index)
-    if float(max_rank) <= 1.0:
-        return pd.Series(1.0, index=series.index, dtype=float)
-    return (ranks - 1.0) / (float(max_rank) - 1.0)
 
 
 def _global_rank_percentile_map(scores: pd.Series) -> dict[float, float]:
@@ -76,10 +70,11 @@ def load_experiment_table(
     meta: DatasetMeta,
     *,
     protein_coding_gene_ids: Collection[str] | None = None,
+    fdr_na_policy: str = DEFAULT_FDR_NA_POLICY,
     logger=None,
 ) -> pd.DataFrame:
     start = time.perf_counter()
-    de = read_de_table(meta.full_path)
+    de = read_de_table(meta.full_path, fdr_na_policy=fdr_na_policy)
     gene_src = find_gene_id_column(de)
     if gene_src == "__index__":
         de = de.copy()
@@ -100,6 +95,7 @@ def load_experiment_table(
     ):
         if optional in de.columns:
             keep.append(optional)
+    keep.extend(column for column in de_covariate_columns(de.columns) if column not in keep)
     out = de[keep].copy()
     if protein_coding_gene_ids is not None:
         before = len(out)
@@ -384,12 +380,14 @@ def build_joined(
     *,
     protein_coding_gene_ids: Collection[str] | None = None,
     predictor_cache: dict[str, LoadedPredictor] | None = None,
+    fdr_na_policy: str = DEFAULT_FDR_NA_POLICY,
     logger=None,
 ):
     total_start = time.perf_counter()
     joined = load_experiment_table(
         meta,
         protein_coding_gene_ids=protein_coding_gene_ids,
+        fdr_na_policy=fdr_na_policy,
         logger=logger,
     )
     paths = {}

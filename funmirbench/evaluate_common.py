@@ -4,6 +4,7 @@ import math
 import os
 import pathlib
 import textwrap
+import zlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,7 +20,13 @@ from sklearn.metrics import (
     roc_curve,
 )
 
-from funmirbench.de_table import FDR_PLOT_FLOOR, add_fdr_derived_columns
+from funmirbench.de_table import (
+    FDR_DERIVED_COLUMNS,
+    FDR_PLOT_FLOOR,
+    add_fdr_derived_columns,
+    de_covariate_columns,
+)
+from funmirbench.validate_experiments import PERTURBATION_ALIASES
 
 SCORE_PREFIX = "score_"
 GLOBAL_RANK_PREFIX = "global_rank_"
@@ -63,10 +70,28 @@ TOP_PREDICTION_CDF_N = 100
 TOOL_LABELS = {}
 TOOL_COLORS = {}
 DATASET_LABELS = {}
+# Reference baselines are scored inside the evaluator from the joined DE table. They are
+# reported in separate reference tables and never count as publication predictors.
+EXPRESSION_REFERENCE_COLUMN = "control_mean_normalized_count"
+REFERENCE_TOOL_DESCRIPTIONS = {
+    "reference_random": "Seeded random score per gene (chance reference).",
+    "reference_expression_high": (
+        f"{EXPRESSION_REFERENCE_COLUMN}; higher control expression ranks first."
+    ),
+    "reference_expression_low": (
+        f"-{EXPRESSION_REFERENCE_COLUMN}; lower control expression ranks first."
+    ),
+}
+REFERENCE_TOOL_IDS = frozenset(REFERENCE_TOOL_DESCRIPTIONS)
+CLASS_METRIC_NAMES = ("aps", "pr_auc", "auroc", "gsea_es")
+
+
+def _is_reference_tool(tool_id):
+    return str(tool_id) in REFERENCE_TOOL_IDS
 
 
 def _is_publication_tool(tool_id):
-    return True
+    return not _is_reference_tool(tool_id)
 
 
 def _publication_tool_ids(tool_ids):
@@ -130,13 +155,38 @@ def _usable_gt_row_mask(df, *, fdr_threshold):
     return mask
 
 
+def _ensure_fdr_derived_columns(df):
+    """Add plot/benchmark FDR columns, keeping any the frame already carries.
+
+    Joined tables carry ``benchmark_FDR`` from the DE loader, where the configured
+    ``fdr_na_policy`` was applied, so it must not be re-derived with the default policy.
+    """
+    out = add_fdr_derived_columns(df)
+    for column in FDR_DERIVED_COLUMNS:
+        if column in df.columns:
+            out[column] = pd.to_numeric(df[column], errors="coerce")
+    return out
+
+
 def _filter_usable_gt_rows(df, *, fdr_threshold):
     out = df.copy()
     out["logFC"] = pd.to_numeric(out["logFC"], errors="coerce")
     if "FDR" in out.columns:
         out["FDR"] = pd.to_numeric(out["FDR"], errors="coerce")
-        out = add_fdr_derived_columns(out)
+        out = _ensure_fdr_derived_columns(out)
     return out.loc[_usable_gt_row_mask(out, fdr_threshold=fdr_threshold)].copy()
+
+
+def _fdr_na_excluded_mask(df, *, fdr_threshold):
+    """Rows left out of both GT classes only because FDR is NA while PValue is reported."""
+    if fdr_threshold is None or not {"FDR", "PValue", "benchmark_FDR"}.issubset(df.columns):
+        return pd.Series(False, index=df.index)
+    return (
+        pd.to_numeric(df["logFC"], errors="coerce").notna()
+        & pd.to_numeric(df["FDR"], errors="coerce").isna()
+        & pd.to_numeric(df["PValue"], errors="coerce").notna()
+        & pd.to_numeric(df["benchmark_FDR"], errors="coerce").isna()
+    )
 
 
 def _selection_caption(fdr_threshold):
@@ -295,12 +345,7 @@ def _normalize_perturbation(value):
     text = str(value or "").strip()
     if text.upper() in {"", "NAN", "NONE", "<NA>"}:
         return ""
-    canonical = {
-        "OVEREXPRESSION": "Overexpression",
-        "KNOCKOUT": "Knockout",
-        "KNOCKDOWN": "Knockdown",
-    }.get(text.upper())
-    return canonical or text
+    return PERTURBATION_ALIASES.get(text.upper()) or text
 
 
 def _resolve_perturbation_series(df, *, perturbation=None):
@@ -334,7 +379,7 @@ def _annotate_ground_truth(df, *, perturbation=None):
     out = df.copy()
     out["logFC"] = pd.to_numeric(out["logFC"], errors="coerce")
     if "FDR" in out.columns:
-        out = add_fdr_derived_columns(out)
+        out = _ensure_fdr_derived_columns(out)
         out["FDR"] = pd.to_numeric(out["FDR"], errors="coerce")
         out["neglog10_FDR"] = _safe_neglog10(out["plot_FDR"])
     else:
@@ -349,14 +394,45 @@ def _annotate_ground_truth(df, *, perturbation=None):
 
 
 def _rank_scale_scores(series):
+    """Dense-rank scores onto [0, 1]; rows without a score stay NaN."""
     values = series.astype(float)
     ranks = values.rank(method="dense", ascending=True)
     max_rank = ranks.max(skipna=True)
     if pd.isna(max_rank):
         return pd.Series(float("nan"), index=series.index)
     if float(max_rank) <= 1.0:
-        return pd.Series(1.0, index=series.index, dtype=float)
+        return pd.Series(1.0, index=series.index, dtype=float).where(values.notna())
     return (ranks - 1.0) / (float(max_rank) - 1.0)
+
+
+def _continuous_metrics(df, *, score_col):
+    """Return (pearson, spearman) of scores vs the perturbation-oriented expected effect."""
+    if len(df) < 2:
+        return float("nan"), float("nan")
+    scores = df[score_col].astype(float)
+    pearson = float(scores.corr(df["expected_effect"], method="pearson"))
+    spearman = float(scores.corr(df["expected_effect"], method="spearman"))
+    return pearson, spearman
+
+
+def _reference_scores(joined, *, dataset_id, seed=0):
+    """Return reference-baseline score columns computed from the joined DE table.
+
+    The random reference draws one seeded uniform score per gene in gene-ID order, so it
+    is reproducible and independent of row order. Expression references score genes by
+    control expression in either direction and are omitted when that column is absent.
+    """
+    out = pd.DataFrame(index=joined.index)
+    gene_ids = joined["gene_id"].astype(str)
+    ordered_gene_ids = sorted(gene_ids.unique())
+    rng = np.random.default_rng([int(seed), zlib.crc32(str(dataset_id).encode("utf-8"))])
+    random_by_gene = dict(zip(ordered_gene_ids, rng.random(len(ordered_gene_ids))))
+    out[f"{SCORE_PREFIX}reference_random"] = gene_ids.map(random_by_gene).astype(float)
+    if EXPRESSION_REFERENCE_COLUMN in joined.columns:
+        expression = pd.to_numeric(joined[EXPRESSION_REFERENCE_COLUMN], errors="coerce").astype(float)
+        out[f"{SCORE_PREFIX}reference_expression_high"] = expression
+        out[f"{SCORE_PREFIX}reference_expression_low"] = -expression
+    return out
 
 
 def _tool_id_from_score_col(score_col):
@@ -417,17 +493,31 @@ def _top_fraction_mask(series, fraction, *, tie_breaker=None):
 
 def _prepare_scored_frame(
     joined, *, score_col, fdr_threshold, effect_threshold, perturbation=None,
+    require_both_classes=True,
 ):
+    """Return usable scored rows with GT labels plus coverage information.
+
+    With ``require_both_classes=False``, a scored set without positives or negatives is
+    returned with ``class_metrics_na_reason`` set instead of raising, so continuous
+    metrics can still be computed.
+    """
     required_cols = {"gene_id", "logFC", "FDR", score_col}
     missing = [col for col in required_cols if col not in joined.columns]
     if missing:
         raise ValueError(f"Joined table missing required columns: {missing}")
 
     keep_cols = ["gene_id", "logFC", "FDR", score_col]
-    for optional in ("dataset_id", "mirna", "perturbation", *FDR_AUXILIARY_COLUMNS):
-        if optional in joined.columns:
+    for optional in (
+        "dataset_id",
+        "mirna",
+        "perturbation",
+        *FDR_AUXILIARY_COLUMNS,
+        *de_covariate_columns(joined.columns),
+    ):
+        if optional in joined.columns and optional not in keep_cols:
             keep_cols.append(optional)
 
+    fdr_na_excluded = _fdr_na_excluded_mask(joined, fdr_threshold=fdr_threshold)
     keep = _filter_usable_gt_rows(joined[keep_cols], fdr_threshold=fdr_threshold)
     if keep.empty:
         raise ValueError(f"No usable rows remain for {score_col}.")
@@ -451,10 +541,13 @@ def _prepare_scored_frame(
     keep[score_col] = keep[score_col].astype(float)
     positives = int(keep["is_positive"].sum())
     negatives = int(len(keep) - positives)
+    class_metrics_na_reason = ""
     if positives == 0:
-        raise ValueError(f"No positives remain for {score_col}.")
-    if negatives == 0:
-        raise ValueError(f"No negatives remain for {score_col}.")
+        class_metrics_na_reason = f"No positives remain for {score_col}."
+    elif negatives == 0:
+        class_metrics_na_reason = f"No negatives remain for {score_col}."
+    if class_metrics_na_reason and require_both_classes:
+        raise ValueError(class_metrics_na_reason)
     positive_coverage = float(positives / positives_total) if positives_total else float("nan")
     coverage_info = {
         "rows_total": total_rows,
@@ -464,6 +557,9 @@ def _prepare_scored_frame(
         "positives_total": positives_total,
         "positives_scored": positives,
         "positive_coverage": positive_coverage,
+        "rows_excluded_fdr_na": int(fdr_na_excluded.sum()),
+        "rows_excluded_fdr_na_scored": int((fdr_na_excluded & joined[score_col].notna()).sum()),
+        "class_metrics_na_reason": class_metrics_na_reason,
     }
     return keep, coverage_info
 

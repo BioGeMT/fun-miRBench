@@ -10,6 +10,7 @@ import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
 from funmirbench.evaluate import (
+    REFERENCE_TOOL_DESCRIPTIONS,
     REPORT_PAGE_SIZE,
     describe_gt_rule,
     _publication_tool_ids,
@@ -83,6 +84,39 @@ def _load_cross_dataset_summary(combined_outputs):
         ["aps_mean", "auroc_mean", "positive_coverage_mean", "coverage_mean"],
         ascending=[False, False, False, False],
     ).reset_index(drop=True)
+
+
+def _matched_roster_lines(combined_outputs):
+    roster_path = combined_outputs.get("tables", {}).get("matched_tool_roster")
+    if not roster_path or not pathlib.Path(roster_path).is_file():
+        return []
+    roster = pd.read_csv(roster_path, sep="\t", keep_default_na=False)
+    predictors = roster[roster["tool_type"] == "predictor"]
+
+    def _tool_list(frame):
+        return ", ".join(f"`{tool_id}`" for tool_id in frame["tool_id"]) or "none"
+
+    def _is_true(values):
+        return values.astype(str).str.lower() == "true"
+
+    lines = [
+        f"- Configured predictors: {_tool_list(predictors[_is_true(predictors['configured'])])}",
+        f"- Included in the matched population: {_tool_list(predictors[_is_true(predictors['included'])])}",
+    ]
+    excluded = predictors[~_is_true(predictors["included"])]
+    if excluded.empty:
+        lines.append("- Excluded predictors: none")
+    else:
+        lines.append(
+            "- Excluded predictors: "
+            + "; ".join(
+                f"`{row.tool_id}` ({row.exclusion_reason})" for row in excluded.itertuples(index=False)
+            )
+        )
+    references = roster[roster["tool_type"] == "reference"]
+    if not references.empty:
+        lines.append(f"- Reference rows on the matched population: {_tool_list(references)}")
+    return lines
 
 
 def _cross_dataset_markdown_table(summary_df):
@@ -258,8 +292,10 @@ def write_run_readme(
     predictor_top_fraction,
     protein_coding_filter=None,
     skipped_datasets=None,
+    evaluation_options=None,
 ):
     summary_df = _load_cross_dataset_summary(combined_outputs)
+    evaluation_options = evaluation_options or {}
     skipped_datasets = list(skipped_datasets or [])
     display_tool_ids = _publication_tool_ids(tool_ids) or list(tool_ids)
     relative_metric_tables = {
@@ -294,6 +330,17 @@ def write_run_readme(
         "- Cross-dataset rank-distribution plots: global tie-aware dense ranking over each predictor's full standardized file",
         "- Combined PR/ROC/GSEA comparison plots: computed on the common set of genes scored by all compared predictors",
     ]
+    if evaluation_options:
+        lines.extend(
+            [
+                f"- Missing-FDR rows with a PValue (`fdr_na_policy`): `{evaluation_options.get('fdr_na_policy')}`",
+                f"- Datasets/predictors without GT positives (`zero_positive_policy`): `{evaluation_options.get('zero_positive_policy')}`",
+                (
+                    f"- Reference baselines: `{'on' if evaluation_options.get('reference_baselines') else 'off'}`"
+                    f" (seed `{evaluation_options.get('reference_seed')}`)"
+                ),
+            ]
+        )
     if skipped_datasets:
         lines.extend(
             [
@@ -366,6 +413,61 @@ def write_run_readme(
         lines.extend([f"- {line}" for line in _coverage_analysis_lines(summary_df)])
     else:
         lines.append("Cross-dataset summary table is unavailable for this run.")
+    matched_summary = relative_combined_outputs.get("tables", {}).get(
+        "cross_dataset_predictor_summary_matched"
+    )
+    if matched_summary:
+        lines.extend(
+            [
+                "",
+                "### Matched Summary",
+                (
+                    "The table above averages each predictor over its own scored genes and evaluated datasets. "
+                    f"`{matched_summary}` is the matched summary: the included predictors are scored on the "
+                    "same genes (scored by all of them) in the same datasets (evaluated for all of them). Each "
+                    "metric is averaged over the datasets where every included predictor has a defined value, "
+                    "reported as `<metric>_comparisons`; undefined values (for example Spearman of constant "
+                    "scores) stay missing and are never set to 0."
+                ),
+                "",
+            ]
+        )
+        lines.extend(_matched_roster_lines(combined_outputs))
+    reference_summary = relative_combined_outputs.get("tables", {}).get("cross_dataset_reference_summary")
+    if reference_summary:
+        lines.extend(
+            [
+                "",
+                "## Reference Baselines",
+                (
+                    "Reference rows are scored inside the evaluator from each DE table with the same GT labels "
+                    "as the predictors. They are not publication predictors and never enter the per-predictor "
+                    "summary or plots above. Each reference is reported on two kinds of gene population: "
+                    "`all_usable_genes` (every usable gene in the dataset; descriptive only, because sparse "
+                    "predictors are scored on fewer genes) and `matched_to_<tool_id>` (exactly the genes that "
+                    "predictor scored in the same dataset, for like-for-like comparison). A matched reference "
+                    "with a missing score on any of that predictor's genes is reported as unavailable "
+                    "(`reference_unavailable_reason`, NaN metrics), never on fewer genes. The matched summary "
+                    "also scores them on the common matched population. "
+                    f"Per-dataset rows: `{relative_metric_tables.get('reference_baselines', 'NA')}`."
+                ),
+                "",
+                (
+                    f"`{reference_summary}` (`summary_type=descriptive_unpaired`) averages each reference over "
+                    "its own datasets and is descriptive only; do not subtract it from the predictor summary. "
+                    "For tool-vs-reference comparisons use "
+                    f"`{relative_combined_outputs.get('tables', {}).get('cross_dataset_tool_vs_reference_paired', 'NA')}` "
+                    "(`summary_type=paired_common_cohort`): for each predictor and matched reference, every metric "
+                    "is averaged over the datasets where both have a finite value (`comparisons`), with "
+                    "`mean_difference_reference_minus_tool`."
+                ),
+                "",
+            ]
+        )
+        lines.extend(
+            f"- `{tool_id}`: {description}"
+            for tool_id, description in REFERENCE_TOOL_DESCRIPTIONS.items()
+        )
     combination_table = _combination_summary_report_df(
         combined_outputs.get("tables", {}).get("predictor_combination_summary")
     )
@@ -437,6 +539,11 @@ def write_run_readme(
         "pr_auc": "precision-recall AUC per dataset",
         "spearman": "score vs expected-effect Spearman correlation per dataset",
         "auroc": "AUROC per dataset",
+        "continuous_metrics": (
+            "long table of Spearman/Pearson per dataset and predictor, including predictors "
+            "whose class metrics are NA (no positives or negatives among scored genes)"
+        ),
+        "reference_baselines": "reference-baseline metrics per dataset (not publication predictors)",
     }
     for key, path in relative_metric_tables.items():
         lines.append(f"- `{path}`: {metric_descriptions.get(key, key)}")

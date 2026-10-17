@@ -12,6 +12,28 @@ FDR_DERIVED_COLUMNS = (
     "plot_FDR",
     "benchmark_FDR",
 )
+# How a missing FDR with a reported PValue (e.g. DESeq2 independent filtering) enters
+# the ground truth: "negative" (legacy) treats it as FDR=1.0, so the gene can become a
+# negative; "exclude" leaves benchmark_FDR missing so the gene is in neither class.
+FDR_NA_POLICIES = ("negative", "exclude")
+DEFAULT_FDR_NA_POLICY = "negative"
+# Optional DE covariates carried from the DE table into joined tables for stratified
+# metrics and diagnostics. They are never predictor scores.
+DE_COVARIATE_COLUMNS = (
+    "baseMean",
+    "logCPM",
+    "lfcSE",
+    "stat",
+    "F",
+    "control_mean_normalized_count",
+    "treated_mean_normalized_count",
+    "normalized_control_mean",
+    "normalized_treated_mean",
+    "raw_control_mean",
+    "raw_treated_mean",
+)
+DE_STATUS_COLUMN_SUFFIX = "status"
+_NON_COVARIATE_PREFIXES = ("score_", "global_rank_", "local_rank_")
 DE_COLUMN_ALIASES = {
     "log2foldchange": "logFC",
     "log2_fold_change": "logFC",
@@ -80,8 +102,34 @@ def extract_gene_ids(df):
     return df[col].dropna().astype(str).tolist()
 
 
-def add_fdr_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
+def de_covariate_columns(columns) -> list[str]:
+    """Return the DE covariate and status columns present in ``columns``."""
+    covariates = []
+    for column in columns:
+        name = str(column)
+        if name.startswith(_NON_COVARIATE_PREFIXES):
+            continue
+        if name in DE_COVARIATE_COLUMNS or _column_key(name).endswith(DE_STATUS_COLUMN_SUFFIX):
+            covariates.append(name)
+    return covariates
+
+
+def resolve_fdr_na_policy(value=None) -> str:
+    policy = DEFAULT_FDR_NA_POLICY if value is None else str(value).strip().lower()
+    if policy not in FDR_NA_POLICIES:
+        raise ValueError(
+            f"Unsupported fdr_na_policy {value!r}; expected one of {list(FDR_NA_POLICIES)}."
+        )
+    return policy
+
+
+def add_fdr_derived_columns(
+    df: pd.DataFrame,
+    *,
+    fdr_na_policy: str = DEFAULT_FDR_NA_POLICY,
+) -> pd.DataFrame:
     """Add benchmark-safe FDR columns without changing original FDR/PValue."""
+    fdr_na_policy = resolve_fdr_na_policy(fdr_na_policy)
     out = df.copy()
     if "FDR" not in out.columns:
         return out
@@ -97,14 +145,15 @@ def add_fdr_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     fdr_for_plot.loc[fdr.eq(0.0)] = FDR_PLOT_FLOOR
 
     fdr_for_eval = fdr.copy()
-    fdr_for_eval.loc[fdr.isna() & pvalue.notna()] = 1.0
+    if fdr_na_policy == "negative":
+        fdr_for_eval.loc[fdr.isna() & pvalue.notna()] = 1.0
 
     out["plot_FDR"] = fdr_for_plot
     out["benchmark_FDR"] = fdr_for_eval
     return out
 
 
-def read_de_table(path: Path) -> pd.DataFrame:
+def read_de_table(path: Path, *, fdr_na_policy: str = DEFAULT_FDR_NA_POLICY) -> pd.DataFrame:
     """Read a DE table TSV, normalizing malformed gene ID headers."""
     df = pd.read_csv(path, sep="\t")
     cols = [str(c).strip() for c in df.columns]
@@ -119,4 +168,4 @@ def read_de_table(path: Path) -> pd.DataFrame:
     ):
         df = df.reset_index().rename(columns={"index": "gene_id"})
     df = normalize_de_columns(df)
-    return add_fdr_derived_columns(df)
+    return add_fdr_derived_columns(df, fdr_na_policy=fdr_na_policy)
