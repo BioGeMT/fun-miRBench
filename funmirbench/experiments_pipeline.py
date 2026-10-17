@@ -324,6 +324,7 @@ def run_deseq2_from_counts(
     control_cols: list[str],
     treated_cols: list[str],
     output_path: pathlib.Path,
+    sample_covariates_path: pathlib.Path | None = None,
 ) -> tuple[list[str], pathlib.Path, pathlib.Path]:
     require_local_binary("Rscript")
     logger.info("Running DESeq2 from count matrix...")
@@ -342,6 +343,8 @@ def run_deseq2_from_counts(
         "--output",
         str(output_path),
     ]
+    if sample_covariates_path is not None:
+        command.extend(["--sample-covariates", str(sample_covariates_path)])
     stdout_path = run_dir / "deseq2.stdout.txt"
     stderr_path = run_dir / "deseq2.stderr.txt"
     run_logged_command(
@@ -384,6 +387,18 @@ def run_de_from_counts(
     pd.DataFrame(mapping_rows).to_csv(run_dir / "sample_column_mapping.tsv", sep="\t", index=False)
 
     de_results_path = run_dir / "de_results.tsv"
+    batch_by_sample = config.get("comparison", {}).get("batch_by_sample")
+    sample_covariates_path = None
+    if batch_by_sample is not None:
+        columns = control_cols + treated_cols
+        if set(batch_by_sample) != set(columns) or any(
+            not normalize_space(batch_by_sample[column]) for column in columns
+        ):
+            raise ValueError("comparison.batch_by_sample must provide a nonempty batch for every biological sample.")
+        sample_covariates_path = run_dir / "sample_covariates.tsv"
+        pd.DataFrame({"sample_id": columns, "batch": [batch_by_sample[column] for column in columns]}).to_csv(
+            sample_covariates_path, sep="\t", index=False
+        )
     deseq2_command, stdout_path, stderr_path = run_deseq2_from_counts(
         repo=repo,
         run_dir=run_dir,
@@ -392,6 +407,7 @@ def run_de_from_counts(
         control_cols=control_cols,
         treated_cols=treated_cols,
         output_path=de_results_path,
+        sample_covariates_path=sample_covariates_path,
     )
     de_df = read_table_auto(de_results_path)
     required = {"gene_id", "logFC", "control_mean_normalized_count", "FDR"}
@@ -423,6 +439,11 @@ def run_de_from_counts(
         "deseq2_command": deseq2_command,
         "deseq2_stdout": str(stdout_path),
         "deseq2_stderr": str(stderr_path),
+        "deseq2_design": "~ batch + condition" if sample_covariates_path else "~ condition",
+        "native_de_results": str(run_dir / "native_de_results.tsv"),
+        "normalized_counts": str(run_dir / "normalized_counts.tsv"),
+        "expression_summary": str(run_dir / "expression_summary.tsv"),
+        "sample_size_factors": str(run_dir / "sample_size_factors.tsv"),
         "de_gene_count": int(de_df.shape[0]),
         "output_de_table": str(out_path),
     }
@@ -505,7 +526,7 @@ def normalize_sample_entry(sample: dict, *, group_name: str, root: pathlib.Path,
         )
 
     count_matrix_column = normalize_space(sample.get("count_matrix_column", "")) or sample_id
-    return {
+    result = {
         "sample_id": sample_id,
         "group": group_name,
         "reads_1": reads_1,
@@ -515,6 +536,52 @@ def normalize_sample_entry(sample: dict, *, group_name: str, root: pathlib.Path,
         "title": sample_id,
         "group_label": group_name,
     }
+    unpaired = sample.get("unpaired_reads")
+    if unpaired:
+        if not reads_2:
+            raise ValueError(f"Sample {sample_id!r}: unpaired_reads is only supported alongside paired reads.")
+        result["unpaired_reads"] = normalize_read_paths(
+            unpaired, field_name="unpaired_reads", sample_id=sample_id, root=root, repo=repo
+        )
+        if set(result["unpaired_reads"]) & set(reads_1 + reads_2):
+            raise ValueError(f"Sample {sample_id!r}: the same FASTQ cannot be paired and unpaired input.")
+    return result
+
+
+def expand_read_components(samples: list[dict]) -> list[dict]:
+    components = []
+    for sample in samples:
+        main = dict(sample)
+        unpaired = main.pop("unpaired_reads", [])
+        main["biological_sample_id"] = sample["sample_id"]
+        components.append(main)
+        if unpaired:
+            orphan = dict(main)
+            orphan.update(sample_id=sample["sample_id"] + "__unpaired", reads_1=unpaired, reads_2=[])
+            components.append(orphan)
+    ids = [component["sample_id"] for component in components]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Read component identifiers collide with biological sample identifiers.")
+    return components
+
+
+def aggregate_read_component_counts(
+    counts_path: pathlib.Path, components: list[dict], biological_samples: list[dict]
+) -> None:
+    matrix = pd.read_csv(counts_path, sep="\t")
+    expected = [component["sample_id"] for component in components]
+    if list(matrix.columns) != ["gene_id", *expected]:
+        raise ValueError("Read component count matrix has unexpected columns or order.")
+    aggregated = matrix[["gene_id"]].copy()
+    for sample in biological_samples:
+        selected = [component["sample_id"] for component in components
+                    if component["biological_sample_id"] == sample["sample_id"]]
+        if not selected:
+            raise ValueError(f"No read components for biological sample {sample['sample_id']!r}.")
+        aggregated[sample["sample_id"]] = matrix[selected].sum(axis=1)
+    component_path = counts_path.with_name("counts_matrix_components.tsv")
+    counts_path.replace(component_path)
+    aggregated.to_csv(counts_path, sep="\t", index=False)
 
 
 def open_reads_file(path: str):
@@ -591,6 +658,10 @@ def load_reads_samples(config: dict, *, config_path: pathlib.Path, repo: pathlib
     sample_ids = [sample["sample_id"] for sample in control_samples + treated_samples]
     if len(set(sample_ids)) != len(sample_ids):
         raise ValueError(f"Reads config contains duplicate sample_id values: {sample_ids}")
+    input_paths = [path for sample in control_samples + treated_samples
+                   for key in ("reads_1", "reads_2", "unpaired_reads") for path in sample.get(key, [])]
+    if len(input_paths) != len(set(input_paths)):
+        raise ValueError("Reads config reuses a FASTQ within the same biological comparison.")
     return control_samples, treated_samples
 
 
@@ -1095,6 +1166,10 @@ def run_reads_mode(
     source_cfg = config.get("source", {})
     logger.info("Loading reads config...")
     control_samples, treated_samples = load_reads_samples(config, config_path=config_path, repo=repo)
+    biological_control_samples = control_samples
+    biological_treated_samples = treated_samples
+    control_samples = expand_read_components(control_samples)
+    treated_samples = expand_read_components(treated_samples)
     control_samples = [
         materialize_sample_reads(sample, run_dir=run_dir) for sample in control_samples
     ]
@@ -1232,6 +1307,15 @@ def run_reads_mode(
     if library_layout == "mixed":
         combine_count_matrices(count_matrix_parts, sample_order, counts_matrix_path)
 
+    read_components = control_samples + treated_samples
+    has_unpaired_components = any(
+        component["sample_id"] != component["biological_sample_id"] for component in read_components
+    )
+    if has_unpaired_components:
+        aggregate_read_component_counts(
+            counts_matrix_path, read_components, biological_control_samples + biological_treated_samples
+        )
+
     featurecounts_manifest = {"featurecounts_runs": featurecounts_runs}
     if len(featurecounts_runs) == 1:
         only_run = next(iter(featurecounts_runs.values()))
@@ -1244,8 +1328,8 @@ def run_reads_mode(
             }
         )
     counts_df = read_table_auto(counts_matrix_path)
-    control_cols = [sample["sample_id"] for sample in control_samples]
-    treated_cols = [sample["sample_id"] for sample in treated_samples]
+    control_cols = [sample["sample_id"] for sample in biological_control_samples]
+    treated_cols = [sample["sample_id"] for sample in biological_treated_samples]
     trimmed_reads = {
         sample["sample_id"]: {"reads_1": sample["reads_1"], "reads_2": sample["reads_2"]}
         for sample in control_samples + treated_samples
@@ -1260,12 +1344,16 @@ def run_reads_mode(
         source_mode="reads",
         control_cols=control_cols,
         treated_cols=treated_cols,
-        control_samples=control_samples,
-        treated_samples=treated_samples,
+        control_samples=biological_control_samples,
+        treated_samples=biological_treated_samples,
         gene_id_column_override="gene_id",
         extra_manifest={
             "reads_sample_sheet": str(sample_sheet),
             "library_layout": library_layout,
+            "read_component_to_biological_sample": {
+                component["sample_id"]: component["biological_sample_id"] for component in read_components
+            },
+            "component_count_matrix": str(run_dir / "counts_matrix_components.tsv") if has_unpaired_components else None,
             "pipeline_stages": ["fastqc_raw", "fastp", "fastqc_trimmed", "star", "featurecounts", "deseq2"],
             "raw_fastqc_outputs": raw_fastqc_outputs,
             "raw_fastqc_commands": raw_fastqc_commands,
