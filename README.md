@@ -254,6 +254,35 @@ Filter behavior:
 `benchmark.yaml` already includes other experiment and predictor columns as commented rows, so the
 normal workflow is just to edit or uncomment filters.
 
+## v2 Evaluation (three-state labels)
+
+`funmirbench-v2-evaluate` scores tools on the v2 final tables made by the `v2-processing` branch (`pipelines/final_data/`). It produces TSVs only, no plots.
+
+```bash
+uv run funmirbench-download-data                       # published standardized predictors
+uv run python pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members
+uv run funmirbench-v2-evaluate --final-dir <final-v2> --utr-fasta <MANE Select 3'UTR FASTA> --out results/v2/
+```
+
+- **Labels:** `state_d05` / `state_d10`: responsive, no response above margin, or unresolved. Unresolved genes are never negatives.
+- **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
+- **Scores per comparison:**
+  - Spearman between the score and the oriented log2FC (raw is the headline, shrunken the check), overall and within tenths of control expression;
+  - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
+- **Reference rows:**
+  - `random`;
+  - `expression_high` / `expression_low` (control expression);
+  - `seed_site`: 3 × 8mer + 2 × 7mer-m8 + 7mer-A1 + 0.5 × 6mer in the MANE 3′UTR;
+  - `seed_plus_expression`: seed score with expression breaking ties.
+- **Decoy check:** for each tool, the same Spearman for its predictions of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/v2/benchmark_mirnas.tsv`). `decoy_z` is the cognate miRNA against its decoys.
+- **Summaries:**
+  - OE and KO separately, on all comparisons and on unflagged ones;
+  - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
+  - `paired_vs_reference.tsv` compares each ranking with `seed_plus_expression` on the same comparisons.
+- **Predictors:** `metadata/v2/predictions.tsv` lists the five published tools plus `targetscan_family_expanded`, which gives every family member the family score.
+
+Outputs: `per_comparison.tsv`, `decoy.tsv`, `summary.tsv`, `paired_vs_reference.tsv`, `run_info.json`.
+
 ## Manuscript Assets
 
 Manuscript figure scripts live under `scripts/`; see `scripts/README.md` for

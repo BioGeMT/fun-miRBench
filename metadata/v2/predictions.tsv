@@ -1,0 +1,7 @@
+tool_id	official_name	score_direction	predictor_output_path
+targetscan	TargetScan v8	lower_is_stronger	data/predictions/targetscan/targetscan_standardized.tsv
+mirdb_mirtarget	miRDB	higher_is_stronger	data/predictions/mirdb_mirtarget/mirdb_mirtarget_standardized.tsv
+microt_cnn	microT-CNN	higher_is_stronger	data/predictions/microt_cnn/microt_cnn_standardized.tsv
+mirbind2	miRBind2-3UTR	lower_is_stronger	data/predictions/mirbind2/mirbind2_standardized.tsv
+miraw	miRAW	higher_is_stronger	data/predictions/miraw/miraw_standardized.tsv
+targetscan_family_expanded	TargetScan v8 (family members)	lower_is_stronger	data/predictions/targetscan/targetscan_family_expanded_standardized.tsv
