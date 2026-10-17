@@ -1,0 +1,96 @@
+"""Build the final v2 benchmark tables from saved DESeq2 analyses.
+
+For each comparison, label_states.R writes one row per gene of the benchmark gene list: statistics, shrunken
+log2FC, the threshold tests (FDR over the listed genes) and the three states at d = 0.5 and 1.0. This driver runs
+it for every comparison and writes a summary table and a manifest with SHA-256 hashes.
+
+Input --fits is a TSV with columns: experiment_id, perturbation (OE or KO), fit_rds (complete_analysis.rds written
+by pipelines/experiments/run_deseq2_counts.R).
+
+Usage:
+  uv run python pipelines/final_data/build_final_data.py --fits fits.tsv \
+      --genes metadata/v2/benchmark_genes.tsv.gz --out <final_dir> [--rscript Rscript] [--workers 8]
+"""
+import argparse
+import hashlib
+import json
+import pathlib
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+import pandas as pd
+
+HERE = pathlib.Path(__file__).resolve().parent
+MARGINS = ("d05", "d10")
+STATES = ("responsive", "no_response_above_margin", "unresolved")
+
+
+def sha256(path: pathlib.Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def run_one(row, *, genes: pathlib.Path, out: pathlib.Path, rscript: str) -> dict:
+    prefix = out / "genes" / row.experiment_id
+    log = out / "logs" / f"{row.experiment_id}.log"
+    with open(log, "w") as fh:
+        subprocess.run([rscript, str(HERE / "label_states.R"), str(row.fit_rds), str(genes), row.perturbation,
+                        str(prefix)], stdout=fh, stderr=subprocess.STDOUT, check=True)
+    for suffix in ("_events.tsv", "_metadata.txt"):
+        pathlib.Path(f"{prefix}{suffix}").replace(out / "logs" / f"{row.experiment_id}{suffix}")
+    table = pathlib.Path(f"{prefix}.tsv.gz")
+    t = pd.read_csv(table, sep="\t", usecols=["eligible", "analysis_status", *[f"state_{m}" for m in MARGINS]])
+    rec = {"experiment_id": row.experiment_id, "perturbation": row.perturbation, "n_genes": len(t),
+           "n_fitted": int((t.analysis_status != "not_fitted_all_zero").sum()), "n_eligible": int(t.eligible.sum())}
+    for m in MARGINS:
+        counts = t[f"state_{m}"].value_counts()
+        for s in STATES:
+            rec[f"{m}_{s}"] = int(counts.get(s, 0))
+    rec.update({"fit_rds": str(row.fit_rds), "fit_sha256": sha256(pathlib.Path(row.fit_rds)),
+                "table": f"genes/{row.experiment_id}.tsv.gz", "table_sha256": sha256(table)})
+    return rec
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--fits", type=pathlib.Path, required=True)
+    ap.add_argument("--genes", type=pathlib.Path, required=True)
+    ap.add_argument("--out", type=pathlib.Path, required=True)
+    ap.add_argument("--rscript", default="Rscript")
+    ap.add_argument("--workers", type=int, default=8)
+    args = ap.parse_args()
+    fits = pd.read_csv(args.fits, sep="\t")
+    if fits.experiment_id.duplicated().any() or not fits.perturbation.isin(["OE", "KO"]).all():
+        raise ValueError("--fits needs unique experiment_id values and perturbation OE or KO")
+    missing = [p for p in fits.fit_rds if not pathlib.Path(p).exists()]
+    if missing:
+        raise FileNotFoundError(f"missing fits: {missing}")
+    (args.out / "genes").mkdir(parents=True, exist_ok=False)
+    (args.out / "logs").mkdir(parents=True, exist_ok=False)
+    with ThreadPoolExecutor(args.workers) as pool:
+        rows = list(pool.map(lambda r: run_one(r, genes=args.genes, out=args.out, rscript=args.rscript),
+                             fits.itertuples(index=False)))
+    summary = pd.DataFrame(rows)
+    summary.to_csv(args.out / "experiments.tsv", sep="\t", index=False)
+    manifest = {
+        "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "gene_list": str(args.genes), "gene_list_sha256": sha256(args.genes),
+        "label_states_R_sha256": sha256(HERE / "label_states.R"),
+        "states": {"responsive": "threshold-test FDR < 0.05 (BH over listed genes after independent filtering)",
+                   "no_response_above_margin": "oriented log2FC + 1.959964 * lfcSE < d",
+                   "unresolved": "everything else, including genes with no usable estimate"},
+        "margins": {"d05": 0.5, "d10": 1.0},
+        "experiments": len(summary),
+        "tables": {r["experiment_id"]: r["table_sha256"] for r in rows},
+    }
+    (args.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print(summary[["experiment_id", "perturbation", "d05_responsive", "d05_no_response_above_margin",
+                   "d05_unresolved"]].to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
