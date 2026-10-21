@@ -20,16 +20,20 @@ From reads to the final per-gene tables for the 30 FuNmiRBench test comparisons.
 |---|---|
 | `logFC`, `lfcSE`, `stat`, `PValue`, `FDR` | DESeq2 Wald test against 0; FDR over the listed genes |
 | `control_mean_normalized_count`, `treated_mean_normalized_count`, `*_nonzero_samples` | expression |
-| `logFC_shrunk`, `lfcSE_shrunk`, `svalue`, `apeglm_conv` | apeglm shrinkage (prior from the full fit) |
-| `oriented_logFC`, `oriented_ci95_low/high`, `oriented_logFC_shrunk` | sign flipped for OE, so positive means "moved like a target" |
-| `thr_pvalue_d05`, `thr_padj_d05`, `thr_pvalue_d10`, `thr_padj_d10` | one-sided DESeq2 test against margin d = 0.5 or 1.0; FDR over the listed genes |
-| `state_d05`, `state_d10` | `responsive`, `no_response_above_margin` or `unresolved` |
+| `logFC_shrunk`, `lfcSE_shrunk`, `svalue`, `apeglm_conv` | apeglm shrinkage (prior from the full fit); `lfcSE_shrunk` is the posterior SD |
+| `oriented_logFC`, `oriented_ci95_low/high`, `oriented_logFC_shrunk`, `oriented_ci95_low/high_shrunk` | sign flipped for OE, so positive means "moved like a target" |
+| `svalue_<d>` | FSOS ("false sign or small") s-value against d, over the listed genes, for d in `d00`, `d01`, `d025`, `d05`, `d075`, `d10`, `d15`, `d20`, `d30` (0 to 3) |
+| `state_<d>` | `responsive`, `no_response_above_margin` or `unresolved`, from the shrunken log2FC, for the same d values |
+| `thr_pvalue_d05`, `thr_padj_d05`, `thr_pvalue_d10`, `thr_padj_d10` | one-sided DESeq2 test against margin d = 0.5 or 1.0 on the raw log2FC; FDR over the listed genes |
+| `state_raw_d05`, `state_raw_d10` | the earlier raw states, kept as a check |
 | `eligible`, `ineligible_reason`, `analysis_status` | why a gene has no usable estimate (not fitted, Cook's outlier, …) |
 
-**States.**
-- **responsive:** the threshold test passes at FDR < 0.05.
-- **no_response_above_margin:** the whole 95% interval of the oriented change is below d. This also covers genes that moved the opposite way.
+**States** (`state_<d>`, from the shrunken log2FC and its posterior SD).
+- **responsive:** the oriented shrunken change is positive and the FSOS s-value against d is below 0.05. The per-gene probability is the normal tail of the shrunken estimate below d, which is what `lfcShrink(lfcThreshold = d)` computes; the s-value is then taken over the listed genes.
+- **no_response_above_margin:** the whole shrunken 95% interval of the oriented change is below d. This also covers genes that moved the opposite way.
 - **unresolved:** everything else.
+
+**Raw states** (`state_raw_d05`, `state_raw_d10`): responsive if the raw threshold test passes at FDR < 0.05; no response if the whole raw 95% interval is below d.
 
 Genes with zero counts in every sample keep a row, with no statistics.
 

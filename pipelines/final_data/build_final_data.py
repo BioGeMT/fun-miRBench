@@ -1,8 +1,9 @@
 """Build the final v2 benchmark tables from saved DESeq2 analyses.
 
 For each comparison, label_states.R writes one row per gene of the benchmark gene list: statistics, shrunken
-log2FC, the threshold tests (FDR over the listed genes) and the three states at d = 0.5 and 1.0. This driver runs
-it for every comparison and writes a summary table and a manifest with SHA-256 hashes.
+log2FC, FSOS s-values and the three states for each d of the grid (from the shrunken log2FC), and the raw threshold
+tests and raw states at d = 0.5 and 1.0 as a check. This driver runs it for every comparison and writes a summary
+table and a manifest with SHA-256 hashes.
 
 Input --fits is a TSV with columns: experiment_id, perturbation (OE or KO), fit_rds (complete_analysis.rds written
 by pipelines/experiments/run_deseq2_counts.R).
@@ -26,6 +27,8 @@ import pandas as pd
 
 HERE = pathlib.Path(__file__).resolve().parent
 MARGINS = ("d05", "d10")
+D_GRID = {"d00": 0.0, "d01": 0.1, "d025": 0.25, "d05": 0.5, "d075": 0.75, "d10": 1.0, "d15": 1.5, "d20": 2.0,
+          "d30": 3.0}
 STATES = ("responsive", "no_response_above_margin", "unresolved")
 
 
@@ -46,10 +49,11 @@ def run_one(row, *, genes: pathlib.Path, out: pathlib.Path, rscript: str) -> dic
     for suffix in ("_events.tsv", "_metadata.txt"):
         pathlib.Path(f"{prefix}{suffix}").replace(out / "logs" / f"{row.experiment_id}{suffix}")
     table = pathlib.Path(f"{prefix}.tsv.gz")
-    t = pd.read_csv(table, sep="\t", usecols=["eligible", "analysis_status", *[f"state_{m}" for m in MARGINS]])
+    tags = [*MARGINS, *[f"raw_{m}" for m in MARGINS]]
+    t = pd.read_csv(table, sep="\t", usecols=["eligible", "analysis_status", *[f"state_{m}" for m in tags]])
     rec = {"experiment_id": row.experiment_id, "perturbation": row.perturbation, "n_genes": len(t),
            "n_fitted": int((t.analysis_status != "not_fitted_all_zero").sum()), "n_eligible": int(t.eligible.sum())}
-    for m in MARGINS:
+    for m in tags:
         counts = t[f"state_{m}"].value_counts()
         for s in STATES:
             rec[f"{m}_{s}"] = int(counts.get(s, 0))
@@ -89,10 +93,13 @@ def main() -> None:
         "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gene_list": str(args.genes), "gene_list_sha256": sha256(args.genes),
         "label_states_R_sha256": sha256(HERE / "label_states.R"),
-        "states": {"responsive": "threshold-test FDR < 0.05 (BH over listed genes after independent filtering)",
-                   "no_response_above_margin": "oriented log2FC + 1.959964 * lfcSE < d",
+        "states": {"responsive": "oriented shrunken log2FC > 0 and FSOS s-value against d < 0.05 (over listed genes)",
+                   "no_response_above_margin": "oriented shrunken log2FC + 1.959964 * lfcSE_shrunk < d",
                    "unresolved": "everything else, including genes with no usable estimate"},
-        "margins": {"d05": 0.5, "d10": 1.0},
+        "raw_states": {"responsive": "threshold-test FDR < 0.05 (BH over listed genes after independent filtering)",
+                       "no_response_above_margin": "oriented log2FC + 1.959964 * lfcSE < d"},
+        "margins": D_GRID,
+        "raw_margins": {"d05": 0.5, "d10": 1.0},
         "experiments": len(summary),
         "comparisons_sha256": sha256(args.out / "comparisons.tsv"),
         "tables": {r["experiment_id"]: r["table_sha256"] for r in rows},

@@ -8,11 +8,17 @@
 #     independent filtering and the Benjamini-Hochberg FDR use the listed genes only. Cook's
 #     filtering is DESeq2's default.
 #  2. apeglm shrinkage uses the full fit (its prior is estimated from all fitted genes).
-#  3. States per margin d, on the oriented change o (-log2FC for OE, +log2FC for KO):
-#       responsive                eligible and threshold-test FDR < 0.05;
-#       no_response_above_margin  eligible and o + 1.959964 * lfcSE < d (whole 95% interval below d);
+#  3. FSOS ("false sign or small") s-values for each d of the grid, over the listed genes: the per-gene
+#     probability that the change is smaller than d or of the other sign, pnorm((d - |shrunken log2FC|) /
+#     shrunken SD), which is what lfcShrink(lfcThreshold = d) gives, then apeglm::svalue.
+#  4. States per d of the grid, on the shrunken oriented change o (-log2FC for OE, +log2FC for KO):
+#       responsive                eligible, o > 0 and FSOS s-value < 0.05;
+#       no_response_above_margin  eligible and o + 1.959964 * shrunken SD < d (whole 95% interval below d);
 #       unresolved                everything else.
-#     Eligible: finite log2FC, finite lfcSE > 0 and a finite p-value in the standard test.
+#     Eligible: finite log2FC, finite lfcSE > 0 and a finite p-value in the standard test, and a finite
+#     shrunken log2FC with shrunken SD > 0.
+#  5. Raw states at d = 0.5 and 1.0 (state_raw_*), kept as a check: responsive if the threshold-test FDR < 0.05,
+#     no response if o + 1.959964 * lfcSE < d on the raw log2FC.
 #
 # Usage: Rscript label_states.R <complete_analysis.rds> <gene_list.tsv[.gz]> <OE|KO> <output_prefix>
 args <- commandArgs(trailingOnly = TRUE)
@@ -27,6 +33,7 @@ genes <- read.delim(args[[2]], stringsAsFactors = FALSE)
 perturbation <- args[[3]]
 prefix <- args[[4]]
 MARGINS <- c(d05 = 0.5, d10 = 1.0)
+D_GRID <- c(d00 = 0, d01 = 0.1, d025 = 0.25, d05 = 0.5, d075 = 0.75, d10 = 1.0, d15 = 1.5, d20 = 2.0, d30 = 3.0)
 Z95 <- qnorm(0.975)
 
 dds <- analysis$dds
@@ -106,10 +113,27 @@ out$oriented_logFC <- sign * out$logFC
 out$oriented_ci95_low <- out$oriented_logFC - Z95 * out$lfcSE
 out$oriented_ci95_high <- out$oriented_logFC + Z95 * out$lfcSE
 out$oriented_logFC_shrunk <- sign * out$logFC_shrunk
-out$eligible <- is.finite(out$logFC) & is.finite(out$lfcSE) & out$lfcSE > 0 & is.finite(out$PValue)
+out$oriented_ci95_low_shrunk <- out$oriented_logFC_shrunk - Z95 * out$lfcSE_shrunk
+out$oriented_ci95_high_shrunk <- out$oriented_logFC_shrunk + Z95 * out$lfcSE_shrunk
+out$eligible <- is.finite(out$logFC) & is.finite(out$lfcSE) & out$lfcSE > 0 & is.finite(out$PValue) &
+  is.finite(out$logFC_shrunk) & is.finite(out$lfcSE_shrunk) & out$lfcSE_shrunk > 0
 out$ineligible_reason <- ifelse(out$eligible, "",
   ifelse(out$analysis_status %in% c("not_fitted_all_zero", "cooks_outlier", "pvalue_missing_other"),
          out$analysis_status, "no_usable_estimate"))
+for (tag in names(D_GRID)) {
+  d <- D_GRID[[tag]]
+  small <- pnorm((d - abs(out$logFC_shrunk[out$eligible])) / out$lfcSE_shrunk[out$eligible])
+  sval <- rep(NA_real_, nrow(out))
+  sval[out$eligible] <- apeglm::svalue(small)
+  responsive <- out$eligible & out$oriented_logFC_shrunk > 0 & sval < 0.05
+  no_response <- out$eligible & out$oriented_ci95_high_shrunk < d
+  stopifnot(!any(responsive & no_response))
+  state <- rep("unresolved", nrow(out))
+  state[responsive] <- "responsive"
+  state[no_response] <- "no_response_above_margin"
+  out[[paste0("svalue_", tag)]] <- sval
+  out[[paste0("state_", tag)]] <- state
+}
 for (tag in names(MARGINS)) {
   d <- MARGINS[[tag]]
   padj <- out[[paste0("thr_padj_", tag)]]
@@ -117,7 +141,7 @@ for (tag in names(MARGINS)) {
   state[out$eligible & !is.na(padj) & padj < 0.05] <- "responsive"
   state[out$eligible & out$oriented_ci95_high < d] <- "no_response_above_margin"
   stopifnot(!any(out$eligible & !is.na(padj) & padj < 0.05 & out$oriented_ci95_high < d))
-  out[[paste0("state_", tag)]] <- state
+  out[[paste0("state_raw_", tag)]] <- state
 }
 
 gz <- gzfile(paste0(prefix, ".tsv.gz"), "w")
