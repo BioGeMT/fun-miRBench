@@ -17,8 +17,8 @@ Reusable or supplementary TSV tables belong under `manuscript_assets/tables/`.
 
 ## Prepare Conservation Scores
 
-Panel F uses gene-level mean phastCons100way scores over each gene's longest
-protein-coding 3'UTR. If the conservation BigWig is not already available
+Panel F uses gene-level mean phastCons100way scores over each gene's MANE
+Select protein-coding 3'UTR. If the conservation BigWig is not already available
 locally, download it first:
 
 ```bash
@@ -42,11 +42,11 @@ uv run python scripts/figure2_utr_conservation.py
 By default this writes:
 
 ```text
-manuscript_assets/tables/figure2F_utr_conservation_raw.tsv
+manuscript_assets/tables/figure2F_utr_conservation_mane_raw.tsv
 ```
 
 The table contains `gene_id` and `utr3_mean_conservation`, plus supporting
-transcript, scored-base, and 3'UTR-length columns. The main Figure 2 script
+MANE transcript, scored-base, and 3'UTR-length columns. The main Figure 2 script
 consumes this precomputed table so normal figure regeneration does not need to
 re-read the multi-GB BigWig. This raw support table is generated locally and is
 not tracked in git.
@@ -118,22 +118,28 @@ Panels:
 - B: FGS/IGS gene-set coverage
 - C: positive miRNA-gene pair coverage
 - D: background miRNA-gene pair coverage
-- E: longest protein-coding transcript 3'UTR length for IGS vs non-IGS genes
+- E: MANE Select 3'UTR length for IGS vs non-IGS genes
 - F: mean 3'UTR conservation for IGS vs non-IGS genes
 
-Panel E derives longest 3'UTR length from:
+Panels E/F use the 19,226 protein-coding genes with a MANE Select transcript in
+the Ensembl GTF. Each experiment in the selected benchmark run must contain
+exactly this gene universe; the script stops with a diagnostic if it does not.
+Genes without an annotated MANE 3'UTR are excluded from the corresponding
+length/conservation distribution and are reflected in the reported sample size.
+
+Panel E derives MANE Select 3'UTR length from:
 
 ```text
-data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
+data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
 ```
 
-For each gene, the script keeps one value: the longest 3'UTR among
-protein-coding transcripts, after merging transcript-level 3'UTR intervals.
+For each gene, the script merges the 3'UTR intervals of its MANE Select
+protein-coding transcript.
 
 Panel F reads the precomputed gene-level conservation table:
 
 ```text
-manuscript_assets/tables/figure2F_utr_conservation_raw.tsv
+manuscript_assets/tables/figure2F_utr_conservation_mane_raw.tsv
 ```
 
 The table must contain:
@@ -142,3 +148,22 @@ The table must contain:
 gene_id
 utr3_mean_conservation
 ```
+
+### MANE Score Coverage and IGS Panels
+
+For score availability over the fixed MANE universe, generate panels B/E/F
+directly from the standardized score files:
+
+```bash
+uv run python scripts/figure2_mane_gene_sets.py \
+  --out-dir results/mane_select_igs/<run-name>
+```
+
+This pools each predictor's scored gene set across the listed experiments. A
+gene enters the IGS when every predictor scores it for at least one listed
+miRNA; predictors do not need to score it for the same miRNA. TargetScan's
+family-expanded rows carry a shared family score, not a member-specific score.
+The output includes the coverage panel, the IGS versus non-IGS panels,
+per-experiment coverage, pooled gene-set membership, and an input audit. This
+score-only analysis does not evaluate differential-expression labels; use a
+benchmark evaluation run for performance metrics.

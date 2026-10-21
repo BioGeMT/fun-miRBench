@@ -430,6 +430,28 @@ def parse_mirbase_mature(mature_fa: pathlib.Path) -> Dict[str, str]:
 class MirnaEntry:
     mirna_id: str
     mirna_name: str
+    targetscan_name: str = ""
+    targetscan_family: str = ""
+    targetscan_seed: str = ""
+
+
+@dataclass(frozen=True)
+class HumanMirnaAnnotations:
+    """Resolved human TargetScan family membership against miRBase v22.1."""
+
+    by_targetscan_name: Dict[str, MirnaEntry]
+    members_by_family: Dict[str, Tuple[MirnaEntry, ...]]
+    members_by_seed: Dict[str, Tuple[MirnaEntry, ...]]
+
+    def members_for(self, family_or_seed: str) -> Tuple[MirnaEntry, ...]:
+        key = family_or_seed.strip()
+        seed_members = self.members_by_seed.get(key)
+        family_members = self.members_by_family.get(key)
+        if seed_members is not None and family_members is not None and seed_members != family_members:
+            raise ValueError(
+                f"Ambiguous TargetScan family/seed key {key!r}: it identifies different member sets"
+            )
+        return seed_members or family_members or ()
 
 
 def step_build_human_mirna_annotations(
@@ -437,8 +459,10 @@ def step_build_human_mirna_annotations(
     *,
     mirbase_acc2name: Dict[str, str],
     species_id: str = "9606",
-) -> Dict[str, MirnaEntry]:
+) -> HumanMirnaAnnotations:
     annotations: Dict[str, MirnaEntry] = {}
+    members_by_family_mutable: Dict[str, Dict[str, MirnaEntry]] = {}
+    members_by_seed_mutable: Dict[str, Dict[str, MirnaEntry]] = {}
 
     n_total = 0
     n_species = 0
@@ -448,6 +472,8 @@ def step_build_human_mirna_annotations(
     n_name_replaced = 0
     n_kept = 0
     n_duplicate_names = 0
+    unmapped_reasons: Counter[str] = Counter()
+    unmapped_examples: List[Tuple[str, str, str, str]] = []
 
     with pathlib.Path(mir_family_info_path).open("r", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
@@ -458,17 +484,36 @@ def step_build_human_mirna_annotations(
                 continue
             n_species += 1
 
+            family = row["miR family"].strip()
             seed = row["Seed+m8"].strip()
             mir_name_ts = row["MiRBase ID"].strip()
             mir_acc = row["MiRBase Accession"].strip()
 
-            if not seed or not mir_name_ts or not mir_acc:
+            missing = []
+            if not family:
+                missing.append("missing_family")
+            if not seed:
+                missing.append("missing_seed")
+            if not mir_name_ts:
+                missing.append("missing_targetscan_mirna_name")
+            if not mir_acc:
+                missing.append("missing_mirbase_accession")
+            if missing:
                 n_missing_fields += 1
+                reason = "+".join(missing)
+                unmapped_reasons[reason] += 1
+                if len(unmapped_examples) < 10:
+                    unmapped_examples.append((family or "NA", seed or "NA", mir_name_ts or "NA", reason))
                 continue
 
             mir_name_v22 = mirbase_acc2name.get(mir_acc)
             if mir_name_v22 is None:
                 n_acc_missing_in_mirbase += 1
+                unmapped_reasons["accession_absent_from_mirbase_v22.1"] += 1
+                if len(unmapped_examples) < 10:
+                    unmapped_examples.append(
+                        (family, seed, mir_name_ts, "accession_absent_from_mirbase_v22.1")
+                    )
                 continue
 
             if mir_name_ts == mir_name_v22:
@@ -476,18 +521,47 @@ def step_build_human_mirna_annotations(
             else:
                 n_name_replaced += 1
 
+            entry = MirnaEntry(
+                mirna_id=mir_acc,
+                mirna_name=mir_name_v22,
+                targetscan_name=mir_name_ts,
+                targetscan_family=family,
+                targetscan_seed=seed,
+            )
+
             if mir_name_ts in annotations:
                 existing = annotations[mir_name_ts]
-                if existing.mirna_id != mir_acc or existing.mirna_name != mir_name_v22:
+                if existing != entry:
                     raise ValueError(
                         f"Conflicting human mature miRNA annotation for {mir_name_ts!r}: "
-                        f"{existing.mirna_id}/{existing.mirna_name} vs {mir_acc}/{mir_name_v22}"
+                        f"{existing} vs {entry}"
                     )
                 n_duplicate_names += 1
-                continue
+            else:
+                annotations[mir_name_ts] = entry
+                n_kept += 1
 
-            annotations[mir_name_ts] = MirnaEntry(mirna_id=mir_acc, mirna_name=mir_name_v22)
-            n_kept += 1
+            for group_name, group in (
+                (family, members_by_family_mutable),
+                (seed, members_by_seed_mutable),
+            ):
+                members = group.setdefault(group_name, {})
+                existing_member = members.get(mir_acc)
+                if existing_member is not None and existing_member != entry:
+                    raise ValueError(
+                        f"Conflicting TargetScan family membership for {group_name!r}, "
+                        f"miRBase accession {mir_acc!r}: {existing_member} vs {entry}"
+                    )
+                members[mir_acc] = entry
+
+    def freeze_groups(groups: Dict[str, Dict[str, MirnaEntry]]) -> Dict[str, Tuple[MirnaEntry, ...]]:
+        return {
+            key: tuple(sorted(members.values(), key=lambda entry: (entry.mirna_id, entry.targetscan_name)))
+            for key, members in sorted(groups.items())
+        }
+
+    members_by_family = freeze_groups(members_by_family_mutable)
+    members_by_seed = freeze_groups(members_by_seed_mutable)
 
     logger.info(
         "miR_Family_Info stats: rows_total=%d | rows_species(%s)=%d | kept=%d | unique_human_mature_mirnas=%d",
@@ -497,6 +571,30 @@ def step_build_human_mirna_annotations(
         "miRNA annotation QC vs miRBase v%s: name_match=%d | name_replaced=%d | duplicate_names=%d | dropped_missing_accession=%d | dropped_missing_fields=%d",
         MIRBASE_RELEASE, n_name_match, n_name_replaced, n_duplicate_names, n_acc_missing_in_mirbase, n_missing_fields
     )
+    member_count_distribution = Counter(len(members) for members in members_by_family.values())
+    logger.info(
+        "TargetScan human family QC: families=%d | seeds=%d | mature_members=%d | members_per_family=%s",
+        len(members_by_family),
+        len(members_by_seed),
+        len({entry.mirna_id for members in members_by_family.values() for entry in members}),
+        " | ".join(
+            f"{member_count}_members:{family_count}_families"
+            for member_count, family_count in sorted(member_count_distribution.items())
+        ),
+    )
+    logger.info(
+        "Unmapped human TargetScan family members: total=%d | reasons=%s",
+        sum(unmapped_reasons.values()),
+        " | ".join(f"{reason}:{count}" for reason, count in sorted(unmapped_reasons.items())) or "none",
+    )
+    for family, seed, mirna_name, reason in unmapped_examples:
+        logger.info(
+            "  unmapped family member: family=%s seed=%s TargetScan_miRNA=%s reason=%s",
+            family,
+            seed,
+            mirna_name,
+            reason,
+        )
 
     if annotations:
         key = next(iter(annotations.keys()))
@@ -505,7 +603,11 @@ def step_build_human_mirna_annotations(
             key, annotations[key].mirna_id
         )
 
-    return annotations
+    return HumanMirnaAnnotations(
+        by_targetscan_name=annotations,
+        members_by_family=members_by_family,
+        members_by_seed=members_by_seed,
+    )
 
 
 def step_write_standardized_predictions(
@@ -513,8 +615,10 @@ def step_write_standardized_predictions(
     *,
     tx_index: Dict[str, Any],
     ensembl_tables: Dict[str, Dict[str, str]],
-    mirna_annotations: Dict[str, MirnaEntry],
+    mirna_annotations: HumanMirnaAnnotations,
     output_path: pathlib.Path,
+    provenance_audit_path: pathlib.Path | None = None,
+    coverage_audit_path: pathlib.Path | None = None,
     species_id: str = "9606",
 ) -> None:
     rep_txs_by_gene_id = tx_index["rep_txs_by_gene_id"]
@@ -530,15 +634,31 @@ def step_write_standardized_predictions(
 
     output_path = pathlib.Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    provenance_audit_path = provenance_audit_path or output_path.with_name(
+        f"{output_path.stem}_score_provenance.tsv"
+    )
+    coverage_audit_path = coverage_audit_path or output_path.with_name(
+        f"{output_path.stem}_mirna_gene_coverage.tsv"
+    )
 
     stats = Counter()
     mismatch_examples = []
     mismatch_example_keys = set()
     null_score_examples = []
     duplicate_examples = []
+    conflict_examples = []
+    unmapped_family_examples = []
     unique_rows: Dict[Tuple[str, str], Dict[str, str | float]] = {}
-    pre_mismatch_pair_counts: Counter[Tuple[str, str]] = Counter()
-    post_mismatch_pair_counts: Counter[Tuple[str, str]] = Counter()
+    provenance_rows: Dict[Tuple[str, str], Dict[str, str]] = {}
+    source_order: Dict[Tuple[str, str], Tuple[int, str, str, str]] = {}
+    representative_pair_counts: Counter[Tuple[str, str]] = Counter()
+    expanded_pair_counts: Counter[Tuple[str, str]] = Counter()
+    representative_gene_coverage: Dict[str, set[str]] = {}
+    expanded_gene_coverage: Dict[str, set[str]] = {}
+    mirna_names_by_accession: Dict[str, str] = {
+        entry.mirna_id: entry.mirna_name
+        for entry in mirna_annotations.by_targetscan_name.values()
+    }
 
     with pathlib.Path(summary_counts_path).open("r", encoding="utf-8") as handle:
         summary_reader = csv.DictReader(handle, delimiter="\t")
@@ -546,9 +666,11 @@ def step_write_standardized_predictions(
         for row in summary_reader:
             if row["Species ID"].strip() != species_id:
                 continue
+            stats["human_summary_rows"] += 1
 
             tx_raw = row["Transcript ID"].strip()
             if tx_raw not in representative_tx_set:
+                stats["rows_nonrepresentative_transcript"] += 1
                 continue
 
             tx_stable = strip_version(tx_raw)
@@ -557,13 +679,13 @@ def step_write_standardized_predictions(
                 stats["rows_missing_ensembl_gene"] += 1
                 continue
 
-            representative_mirna = row["Representative miRNA"].strip()
-            mirna_entry = mirna_annotations.get(representative_mirna)
-            if mirna_entry is None:
-                stats["rows_missing_mirna_annotation"] += 1
+            family_or_seed = row["miRNA family"].strip()
+            family_members = mirna_annotations.members_for(family_or_seed)
+            if not family_members:
+                stats["rows_missing_family_members"] += 1
+                if len(unmapped_family_examples) < 10:
+                    unmapped_family_examples.append((family_or_seed or "NA", tx_raw))
                 continue
-
-            pre_mismatch_pair_counts[(gene_id_ens, mirna_entry.mirna_id)] += 1
 
             targetscan_gene_id = targetscan_gene_id_by_tx.get(tx_raw)
             if targetscan_gene_id != gene_id_ens:
@@ -578,34 +700,103 @@ def step_write_standardized_predictions(
             if raw_score is None:
                 stats["rows_null_score"] += 1
                 if len(null_score_examples) < 10:
-                    null_score_examples.append((tx_raw, representative_mirna))
+                    null_score_examples.append((tx_raw, family_or_seed))
                 continue
 
-            stats["rows_after_filters"] += 1
-            key = (gene_id_ens, mirna_entry.mirna_id)
-            post_mismatch_pair_counts[key] += 1
-            if key in unique_rows:
+            stats["summary_rows_before_family_expansion"] += 1
+            representative_mirna = row["Representative miRNA"].strip()
+            representative_entry = mirna_annotations.by_targetscan_name.get(representative_mirna)
+            if representative_entry is None:
+                stats["rows_missing_representative_annotation"] += 1
+            else:
+                representative_gene_coverage.setdefault(representative_entry.mirna_id, set()).add(
+                    gene_id_ens
+                )
+                representative_pair_counts[(gene_id_ens, representative_entry.mirna_id)] += 1
+
+            canonical_families = {member.targetscan_family for member in family_members}
+            canonical_seeds = {member.targetscan_seed for member in family_members}
+            if len(canonical_families) != 1 or len(canonical_seeds) != 1:
+                raise ValueError(
+                    f"TargetScan key {family_or_seed!r} resolved to inconsistent family metadata: "
+                    f"families={sorted(canonical_families)} seeds={sorted(canonical_seeds)}"
+                )
+            canonical_family = next(iter(canonical_families))
+            canonical_seed = next(iter(canonical_seeds))
+
+            for member in family_members:
+                stats["rows_after_family_expansion"] += 1
+                is_official_representative = (
+                    representative_entry is not None
+                    and member.mirna_id == representative_entry.mirna_id
+                )
+                provenance = (
+                    "official_representative_level_score"
+                    if is_official_representative
+                    else "family_expanded_score"
+                )
+                provenance_priority = 0 if is_official_representative else 1
+                key = (gene_id_ens, member.mirna_id)
+                expanded_pair_counts[key] += 1
+                expanded_gene_coverage.setdefault(member.mirna_id, set()).add(gene_id_ens)
+                candidate_order = (
+                    provenance_priority,
+                    canonical_family,
+                    representative_mirna,
+                    tx_raw,
+                )
+                candidate_row: Dict[str, str | float] = {
+                    "Ensembl_ID": gene_id_ens,
+                    "Gene_Name": gene_to_name_ens.get(gene_id_ens) or row["Gene Symbol"].strip(),
+                    "miRNA_ID": member.mirna_id,
+                    "miRNA_Name": member.mirna_name,
+                    "Score": raw_score,
+                }
+                candidate_provenance = {
+                    "Ensembl_ID": gene_id_ens,
+                    "miRNA_ID": member.mirna_id,
+                    "miRNA_Name": member.mirna_name,
+                    "TargetScan_Family": canonical_family,
+                    "TargetScan_Seed": canonical_seed,
+                    "TargetScan_Representative_miRNA": representative_mirna,
+                    "Score_Provenance": provenance,
+                    "Score": f"{raw_score:.6g}",
+                    "Source_Transcript_ID": tx_raw,
+                }
+
+                existing = unique_rows.get(key)
+                if existing is None:
+                    unique_rows[key] = candidate_row
+                    provenance_rows[key] = candidate_provenance
+                    source_order[key] = candidate_order
+                    continue
+
                 stats["duplicate_gene_mirna_rows"] += 1
+                existing_score = float(existing["Score"])
+                if existing_score != raw_score:
+                    stats["conflicting_gene_mirna_rows"] += 1
+                    if len(conflict_examples) < 10:
+                        conflict_examples.append(
+                            (
+                                gene_id_ens,
+                                member.mirna_id,
+                                existing_score,
+                                raw_score,
+                                provenance_rows[key]["Source_Transcript_ID"],
+                                tx_raw,
+                            )
+                        )
+                    continue
+
+                stats["identical_duplicate_gene_mirna_rows"] += 1
                 if len(duplicate_examples) < 10:
                     duplicate_examples.append(
-                        (
-                            gene_id_ens,
-                            mirna_entry.mirna_id,
-                            representative_mirna,
-                            float(unique_rows[key]["Score"]),
-                            raw_score,
-                            tx_raw,
-                        )
+                        (gene_id_ens, member.mirna_id, raw_score, tx_raw)
                     )
-                continue
-
-            unique_rows[key] = {
-                "Ensembl_ID": gene_id_ens,
-                "Gene_Name": gene_to_name_ens.get(gene_id_ens) or row["Gene Symbol"].strip(),
-                "miRNA_ID": mirna_entry.mirna_id,
-                "miRNA_Name": mirna_entry.mirna_name,
-                "Score": raw_score,
-            }
+                if candidate_order < source_order[key]:
+                    unique_rows[key] = candidate_row
+                    provenance_rows[key] = candidate_provenance
+                    source_order[key] = candidate_order
 
     if stats["rows_null_score"]:
         details = ", ".join(f"{tx}/{mirna}" for tx, mirna in null_score_examples)
@@ -614,11 +805,32 @@ def step_write_standardized_predictions(
             f"{stats['rows_null_score']} rows. Sample rows: {details}"
         )
 
-    if stats["rows_after_filters"] == 0:
+    if stats["summary_rows_before_family_expansion"] == 0:
         raise ValueError(f"No rows remain after filters for {PREDICTOR_NAME}.")
 
-    duplicate_pairs_before_mismatch = sum(1 for count in pre_mismatch_pair_counts.values() if count > 1)
-    duplicate_pairs_after_mismatch = sum(1 for count in post_mismatch_pair_counts.values() if count > 1)
+    if stats["conflicting_gene_mirna_rows"]:
+        details = "; ".join(
+            (
+                f"{gene_id}/{mirna_id} existing_score={existing_score:.6g} "
+                f"new_score={new_score:.6g} source_tx={existing_tx},{new_tx}"
+            )
+            for gene_id, mirna_id, existing_score, new_score, existing_tx, new_tx in conflict_examples
+        )
+        logger.error(
+            "Conflicting TargetScan gene-miRNA scores after family expansion: rows=%s | pairs=%s",
+            f"{stats['conflicting_gene_mirna_rows']:,}",
+            f"{sum(1 for count in expanded_pair_counts.values() if count > 1):,}",
+        )
+        raise ValueError(
+            "Conflicting TargetScan scores found for duplicate Ensembl_ID/miRNA_ID pairs "
+            "after family expansion; refusing to select one silently. "
+            f"Conflicting rows: {stats['conflicting_gene_mirna_rows']}. Sample: {details}"
+        )
+
+    representative_duplicate_pairs = sum(
+        1 for count in representative_pair_counts.values() if count > 1
+    )
+    expanded_duplicate_pairs = sum(1 for count in expanded_pair_counts.values() if count > 1)
     rep_gene_mismatch_count = sum(
         1 for reps in rep_txs_by_gene_id.values()
         for tx_raw, _tags, _sym in reps
@@ -630,10 +842,11 @@ def step_write_standardized_predictions(
     )
 
     logger.info(
-        "%s score column '%s': kept raw TargetScan score | rows_missing_mirna_annotation=%d | rows_missing_ensembl_gene=%d | rows_gene_id_mismatch=%d | NULL rows=%d",
+        "%s score column '%s': kept raw TargetScan score | rows_missing_family_members=%d | rows_missing_representative_annotation=%d | rows_missing_ensembl_gene=%d | rows_gene_id_mismatch=%d | NULL rows=%d",
         PREDICTOR_NAME,
         TARGETSCAN_SCORE_COL,
-        stats["rows_missing_mirna_annotation"],
+        stats["rows_missing_family_members"],
+        stats["rows_missing_representative_annotation"],
         stats["rows_missing_ensembl_gene"],
         stats["rows_gene_id_mismatch"],
         stats["rows_null_score"],
@@ -644,35 +857,44 @@ def step_write_standardized_predictions(
         f"{rep_gene_mismatch_count:,}",
     )
     logger.info(
-        "Filtering summary: %s summary rows dropped by the TargetScan/Ensembl gene mismatch filter | duplicate gene-miRNA pairs before mismatch filter=%s | surviving duplicate gene-miRNA pairs after mismatch filter=%s",
+        "Filtering summary: %s summary rows dropped by the TargetScan/Ensembl gene mismatch filter | representative-only duplicate pairs=%s | family-expanded duplicate pairs=%s",
         f"{stats['rows_gene_id_mismatch']:,}",
-        f"{duplicate_pairs_before_mismatch:,}",
-        f"{duplicate_pairs_after_mismatch:,}",
+        f"{representative_duplicate_pairs:,}",
+        f"{expanded_duplicate_pairs:,}",
     )
     if mismatch_examples:
         logger.info("Sample rows dropped for TargetScan/Ensembl gene-ID mismatch (tx -> TargetScan gene -> Ensembl gene):")
         for tx_raw, targetscan_gene_id, gene_id_ens in mismatch_examples:
             logger.info("  %s -> %s -> %s", tx_raw, targetscan_gene_id, gene_id_ens)
 
-    if stats["duplicate_gene_mirna_rows"]:
-        details = "; ".join(
-            (
-                f"{gene_id}/{mirna_id} ({mirna_name}) "
-                f"existing_score={existing_score:.6g} new_score={new_score:.6g} "
-                f"tx={tx_raw}"
-            )
-            for gene_id, mirna_id, mirna_name, existing_score, new_score, tx_raw in duplicate_examples
+    for family_or_seed, tx_raw in unmapped_family_examples:
+        logger.info(
+            "  unmapped TargetScan summary family: key=%s transcript=%s reason=no_valid_human_members",
+            family_or_seed,
+            tx_raw,
         )
-        logger.error(
-            "Unexpected duplicate gene-miRNA rows remain after all filters: duplicate_rows=%s | duplicate_pairs=%s",
-            f"{stats['duplicate_gene_mirna_rows']:,}",
-            f"{duplicate_pairs_after_mismatch:,}",
-        )
-        raise ValueError(
-            "Unexpected duplicate gene-miRNA rows remain after all TargetScan filters: "
-            f"{stats['duplicate_gene_mirna_rows']} duplicate rows across "
-            f"{duplicate_pairs_after_mismatch} duplicate pairs. "
-            f"Sample rows: {details}"
+    logger.info(
+        "TargetScan family expansion: summary_rows_before=%s | expanded_member_rows=%s | "
+        "unique_gene_miRNA_rows=%s",
+        f"{stats['summary_rows_before_family_expansion']:,}",
+        f"{stats['rows_after_family_expansion']:,}",
+        f"{len(unique_rows):,}",
+    )
+    logger.info(
+        "TargetScan duplicate QC after expansion: duplicate_rows=%s | identical_duplicates=%s | "
+        "conflicting_duplicates=%s | duplicate_pairs=%s",
+        f"{stats['duplicate_gene_mirna_rows']:,}",
+        f"{stats['identical_duplicate_gene_mirna_rows']:,}",
+        f"{stats['conflicting_gene_mirna_rows']:,}",
+        f"{expanded_duplicate_pairs:,}",
+    )
+    for gene_id, mirna_id, score, tx_raw in duplicate_examples:
+        logger.info(
+            "  identical duplicate collapsed: %s/%s score=%.6g source_tx=%s",
+            gene_id,
+            mirna_id,
+            score,
+            tx_raw,
         )
 
     with output_path.open("w", encoding="utf-8", newline="") as handle:
@@ -690,13 +912,83 @@ def step_write_standardized_predictions(
                 }
             )
 
+    provenance_audit_path = pathlib.Path(provenance_audit_path)
+    provenance_audit_path.parent.mkdir(parents=True, exist_ok=True)
+    with provenance_audit_path.open("w", encoding="utf-8", newline="") as handle:
+        fieldnames = [
+            "Ensembl_ID",
+            "miRNA_ID",
+            "miRNA_Name",
+            "TargetScan_Family",
+            "TargetScan_Seed",
+            "TargetScan_Representative_miRNA",
+            "Score_Provenance",
+            "Score",
+            "Source_Transcript_ID",
+        ]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        for key in sorted(provenance_rows):
+            writer.writerow(provenance_rows[key])
+
+    coverage_audit_path = pathlib.Path(coverage_audit_path)
+    coverage_audit_path.parent.mkdir(parents=True, exist_ok=True)
+    coverage_rows = []
+    for mirna_id in sorted(set(representative_gene_coverage) | set(expanded_gene_coverage)):
+        before_count = len(representative_gene_coverage.get(mirna_id, set()))
+        after_count = len(expanded_gene_coverage.get(mirna_id, set()))
+        coverage_rows.append(
+            {
+                "miRNA_ID": mirna_id,
+                "miRNA_Name": mirna_names_by_accession.get(mirna_id, ""),
+                "Representative_Level_Gene_Count": before_count,
+                "Family_Expanded_Gene_Count": after_count,
+                "Gene_Count_Delta": after_count - before_count,
+            }
+        )
+    with coverage_audit_path.open("w", encoding="utf-8", newline="") as handle:
+        fieldnames = [
+            "miRNA_ID",
+            "miRNA_Name",
+            "Representative_Level_Gene_Count",
+            "Family_Expanded_Gene_Count",
+            "Gene_Count_Delta",
+        ]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(coverage_rows)
+
+    changed_coverage = [row for row in coverage_rows if row["Gene_Count_Delta"] != 0]
+    logger.info(
+        "miRNA-level gene coverage QC: representative_miRNAs=%d | expanded_miRNAs=%d | "
+        "miRNAs_with_changed_coverage=%d | audit=%s",
+        len(representative_gene_coverage),
+        len(expanded_gene_coverage),
+        len(changed_coverage),
+        display_path(coverage_audit_path),
+    )
+    for row in sorted(
+        changed_coverage,
+        key=lambda item: (-int(item["Gene_Count_Delta"]), str(item["miRNA_ID"])),
+    )[:10]:
+        logger.info(
+            "  coverage change: %s (%s) representative=%s expanded=%s delta=%+d",
+            row["miRNA_ID"],
+            row["miRNA_Name"],
+            f"{row['Representative_Level_Gene_Count']:,}",
+            f"{row['Family_Expanded_Gene_Count']:,}",
+            row["Gene_Count_Delta"],
+        )
+
     logger.info(
         "%s -> retained %d unique gene-miRNA rows from %d transcript-level rows",
         PREDICTOR_NAME,
         len(unique_rows),
-        stats["rows_after_filters"],
+        stats["rows_after_family_expansion"],
     )
     logger.info("Output written to: %s", display_path(output_path))
+    logger.info("Score provenance audit written to: %s", display_path(provenance_audit_path))
+    logger.info("miRNA gene-coverage audit written to: %s", display_path(coverage_audit_path))
     logger.info("Rows written: %d", len(unique_rows))
 
 

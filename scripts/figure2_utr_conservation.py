@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the gene-level 3'UTR conservation table used by Figure 2F."""
+"""Build the MANE Select gene-level 3'UTR conservation table used by Figure 2F."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ import pyBigWig
 from funmirbench.logger import setup_logging
 
 
-DEFAULT_GTF = Path("data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz")
+DEFAULT_GTF = Path("data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz")
 DEFAULT_BIGWIG = Path("data/resources/conservation/hg38.phastCons100way.bw")
-DEFAULT_OUT = Path("manuscript_assets/tables/figure2F_utr_conservation_raw.tsv")
+DEFAULT_OUT = Path("manuscript_assets/tables/figure2F_utr_conservation_mane_raw.tsv")
 ATTR_RE = re.compile(r'([A-Za-z0-9_]+) "([^"]*)"')
 UTR3_FEATURE_NAMES = {"three_prime_utr", "three_prime_UTR", "3UTR", "3utr"}
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compute mean phastCons100way score for each gene's longest protein-coding 3'UTR."
+        description="Compute mean phastCons100way score for each protein-coding MANE Select 3'UTR."
     )
     parser.add_argument("--gtf", type=Path, default=DEFAULT_GTF)
     parser.add_argument("--bigwig", type=Path, default=DEFAULT_BIGWIG)
@@ -81,10 +81,58 @@ def normalize_chrom_for_bigwig(chrom: str, chrom_sizes: dict[str, int]) -> str |
     return None
 
 
-def parse_longest_protein_coding_utr3_intervals(gtf_path: Path) -> dict[str, dict[str, object]]:
+def parse_mane_select_utr3_intervals(gtf_path: Path) -> dict[str, dict[str, object]]:
+    """Return annotated 3'UTRs for each protein-coding MANE Select transcript."""
     if not gtf_path.exists():
         raise FileNotFoundError(f"GTF does not exist: {gtf_path}")
 
+    intervals_by_gene_tx: dict[str, dict[str, dict[str, list[tuple[int, int]]]]] = {}
+    with open_text(gtf_path) as handle:
+        for line in handle:
+            if not line or line.startswith("#"):
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9 or fields[2] not in UTR3_FEATURE_NAMES:
+                continue
+            if 'tag "MANE_Select"' not in fields[8]:
+                continue
+            attrs = parse_attributes(fields[8])
+            if attrs.get("transcript_biotype") != "protein_coding":
+                continue
+            gene_id = attrs.get("gene_id")
+            transcript_id = attrs.get("transcript_id")
+            if not gene_id or not transcript_id:
+                continue
+            key_gene = strip_version(gene_id)
+            key_transcript = strip_version(transcript_id)
+            intervals_by_gene_tx.setdefault(key_gene, {}).setdefault(key_transcript, {}).setdefault(fields[0], []).append(
+                (int(fields[3]), int(fields[4]))
+            )
+
+    selected = {}
+    for gene_id, transcript_intervals in intervals_by_gene_tx.items():
+        for transcript_id, chrom_intervals in transcript_intervals.items():
+            merged_by_chrom = {
+                chrom: merge_intervals(intervals)
+                for chrom, intervals in chrom_intervals.items()
+                if intervals
+            }
+            length = sum(interval_length(intervals) for intervals in merged_by_chrom.values())
+            if length > 0:
+                selected[gene_id] = {
+                    "transcript_id": transcript_id,
+                    "utr3_length": int(length),
+                    "intervals_by_chrom": merged_by_chrom,
+                }
+    if not selected:
+        raise ValueError(f"No protein-coding MANE Select 3'UTR intervals parsed from {gtf_path}")
+    return selected
+
+
+def parse_longest_protein_coding_utr3_intervals(gtf_path: Path) -> dict[str, dict[str, object]]:
+    """Return each gene's longest protein-coding 3'UTR (legacy helper)."""
+    if not gtf_path.exists():
+        raise FileNotFoundError(f"GTF does not exist: {gtf_path}")
     intervals_by_gene_tx: dict[str, dict[str, dict[str, list[tuple[int, int]]]]] = {}
     with open_text(gtf_path) as handle:
         for line in handle:
@@ -106,12 +154,9 @@ def parse_longest_protein_coding_utr3_intervals(gtf_path: Path) -> dict[str, dic
             transcript_id = attrs.get("transcript_id")
             if not gene_id or not transcript_id:
                 continue
-            key_gene = strip_version(gene_id)
-            key_transcript = strip_version(transcript_id)
-            intervals_by_gene_tx.setdefault(key_gene, {}).setdefault(key_transcript, {}).setdefault(fields[0], []).append(
-                (int(fields[3]), int(fields[4]))
-            )
-
+            intervals_by_gene_tx.setdefault(strip_version(gene_id), {}).setdefault(
+                strip_version(transcript_id), {}
+            ).setdefault(fields[0], []).append((int(fields[3]), int(fields[4])))
     selected = {}
     for gene_id, transcript_intervals in intervals_by_gene_tx.items():
         candidates = []
@@ -125,14 +170,14 @@ def parse_longest_protein_coding_utr3_intervals(gtf_path: Path) -> dict[str, dic
             if length > 0:
                 candidates.append((transcript_id, length, merged_by_chrom))
         if candidates:
-            transcript_id, length, merged_by_chrom = sorted(candidates, key=lambda item: (-item[1], item[0]))[0]
+            transcript_id, length, merged_by_chrom = sorted(
+                candidates, key=lambda item: (-item[1], item[0])
+            )[0]
             selected[gene_id] = {
                 "transcript_id": transcript_id,
                 "utr3_length": int(length),
                 "intervals_by_chrom": merged_by_chrom,
             }
-    if not selected:
-        raise ValueError(f"No protein-coding 3'UTR intervals parsed from {gtf_path}")
     return selected
 
 
@@ -168,8 +213,8 @@ def build_table(gtf_path: Path, bigwig_path: Path) -> pd.DataFrame:
             "Download it with: uv run python scripts/download_phastcons100way.py"
         )
 
-    selected_by_gene = parse_longest_protein_coding_utr3_intervals(gtf_path)
-    logger.info("Parsed longest protein-coding 3'UTRs for %d genes", len(selected_by_gene))
+    selected_by_gene = parse_mane_select_utr3_intervals(gtf_path)
+    logger.info("Parsed MANE Select 3'UTRs for %d genes", len(selected_by_gene))
     rows = []
     with pyBigWig.open(str(bigwig_path)) as bw:
         for index, (gene_id, selected) in enumerate(selected_by_gene.items(), start=1):

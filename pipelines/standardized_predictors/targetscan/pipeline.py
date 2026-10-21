@@ -97,14 +97,14 @@ def main() -> None:
     )
     mirbase_acc2name = parse_mirbase_mature(mirbase_fa)
 
-    log_step(logger, 7, total_steps, "Build human miRNA annotations")
+    log_step(logger, 7, total_steps, "Build human miRNA family annotations")
     mirna_annotations = step_build_human_mirna_annotations(
         files["miR_Family_Info.txt"],
         mirbase_acc2name=mirbase_acc2name,
         species_id="9606",
     )
 
-    log_step(logger, 8, total_steps, "Write standardized TargetScan predictions")
+    log_step(logger, 8, total_steps, "Expand families and write standardized TargetScan predictions")
     step_write_standardized_predictions(
         files["Summary_Counts.all_predictions.txt"],
         tx_index=tx_index,

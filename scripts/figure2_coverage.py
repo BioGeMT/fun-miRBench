@@ -61,8 +61,8 @@ DEFAULT_MANUSCRIPT_OUTPUT_DIR = Path("manuscript_assets/figure2")
 DEFAULT_MANUSCRIPT_TABLES_DIR = Path("manuscript_assets/tables")
 DEFAULT_FORMATS = ("png", "svg")
 PANEL_CHOICES = ("A", "B", "C", "D", "E", "F", "all")
-DEFAULT_CONSERVATION_TABLE = Path("figure2F_utr_conservation_raw.tsv")
-DEFAULT_GTF = Path("data/resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz")
+DEFAULT_CONSERVATION_TABLE = Path("figure2F_utr_conservation_mane_raw.tsv")
+DEFAULT_GTF = Path("data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz")
 ATTR_RE = re.compile(r'([A-Za-z0-9_]+) "([^"]*)"')
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
@@ -178,7 +178,7 @@ def parse_args() -> argparse.Namespace:
         "--gtf",
         type=Path,
         default=DEFAULT_GTF,
-        help="GTF used to derive longest protein-coding transcript 3'UTR lengths.",
+        help="Ensembl GTF used to identify MANE Select genes and their 3'UTRs.",
     )
     parser.add_argument(
         "--conservation-table",
@@ -675,7 +675,31 @@ def interval_length(intervals: list[tuple[int, int]]) -> int:
     return sum(end - start + 1 for start, end in merge_intervals(intervals))
 
 
-def load_max_utr_lengths(gtf_path: Path) -> pd.DataFrame:
+def load_mane_select_gene_ids(gtf_path: Path) -> set[str]:
+    """Load the fixed set of protein-coding genes with a MANE Select transcript."""
+    if not gtf_path.exists():
+        raise FileNotFoundError(f"GTF does not exist: {gtf_path}")
+    genes: set[str] = set()
+    with open_text(gtf_path) as handle:
+        for line in handle:
+            if not line or line.startswith("#"):
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9 or fields[2] != "transcript":
+                continue
+            if 'tag "MANE_Select"' not in fields[8]:
+                continue
+            attrs = parse_attributes(fields[8])
+            if attrs.get("transcript_biotype") != "protein_coding":
+                continue
+            gene_id = attrs.get("gene_id")
+            if gene_id:
+                genes.add(strip_version(gene_id))
+    return genes
+
+
+def load_mane_select_utr_lengths(gtf_path: Path) -> pd.DataFrame:
+    """Load 3'UTR lengths from MANE Select protein-coding transcripts."""
     if not gtf_path.exists():
         raise FileNotFoundError(f"GTF does not exist: {gtf_path}")
 
@@ -686,6 +710,8 @@ def load_max_utr_lengths(gtf_path: Path) -> pd.DataFrame:
                 continue
             fields = line.rstrip("\n").split("\t")
             if len(fields) < 9 or fields[2] != "three_prime_utr":
+                continue
+            if 'tag "MANE_Select"' not in fields[8]:
                 continue
             attrs = parse_attributes(fields[8])
             gene_id = attrs.get("gene_id")
@@ -856,21 +882,28 @@ def plot_metric(
     ax.set_axisbelow(True)
 
 
-def figure2_gene_sets(inputs: Figure2Inputs) -> SimpleNamespace:
+def figure2_gene_sets(
+    inputs: Figure2Inputs,
+    *,
+    mane_gene_ids: set[str],
+) -> SimpleNamespace:
     all_pairs = pd.concat(
         [
-            dataset.frame.assign(dataset_id=dataset.dataset_id)
+            dataset.frame.assign(
+                dataset_id=dataset.dataset_id,
+                gene_id=dataset.frame["gene_id"].map(strip_version),
+            )
             for dataset in inputs.datasets
         ],
         ignore_index=True,
     )
-    fgs_genes = set(all_pairs["gene_id"].dropna().astype(str))
+    fgs_genes = set(mane_gene_ids)
     scored_gene_sets = {
         tool_id: set(
             all_pairs.loc[all_pairs[score_column(tool_id)].notna(), "gene_id"]
             .dropna()
             .astype(str)
-        )
+        ) & fgs_genes
         for tool_id in inputs.tool_ids
     }
     igs_genes = (
@@ -879,13 +912,44 @@ def figure2_gene_sets(inputs: Figure2Inputs) -> SimpleNamespace:
     return SimpleNamespace(fgs=fgs_genes, igs=igs_genes)
 
 
+def validate_mane_run_universe(
+    inputs: Figure2Inputs,
+    mane_gene_ids: set[str],
+) -> None:
+    """Fail if a run does not contain the complete MANE universe per experiment."""
+    problems = []
+    for dataset in inputs.datasets:
+        observed = set(dataset.frame["gene_id"].dropna().map(strip_version))
+        missing = mane_gene_ids - observed
+        extra = observed - mane_gene_ids
+        if missing or extra:
+            problems.append(
+                f"{dataset.dataset_id}: {len(missing):,} MANE genes missing, "
+                f"{len(extra):,} genes outside MANE"
+            )
+    if problems:
+        preview = "\n".join(f"- {problem}" for problem in problems[:5])
+        remainder = len(problems) - 5
+        suffix = f"\n- ... and {remainder} more experiments" if remainder > 0 else ""
+        raise ValueError(
+            "Figure 2E/F require every experiment to contain exactly the fixed "
+            f"MANE Select protein-coding universe ({len(mane_gene_ids):,} genes). "
+            "This run does not match that universe:\n"
+            f"{preview}{suffix}\n"
+            "Run the benchmark with the v2 MANE Select experiment tables, then "
+            "regenerate panels E/F."
+        )
+
+
 def panel_e_utr_length(
     inputs: Figure2Inputs,
     *,
     gtf_path: Path,
 ) -> tuple[pd.DataFrame, plt.Figure]:
-    gene_sets = figure2_gene_sets(inputs)
-    lengths = annotate_sets(load_max_utr_lengths(gtf_path), gene_sets)
+    mane_gene_ids = load_mane_select_gene_ids(gtf_path)
+    validate_mane_run_universe(inputs, mane_gene_ids)
+    gene_sets = figure2_gene_sets(inputs, mane_gene_ids=mane_gene_ids)
+    lengths = annotate_sets(load_mane_select_utr_lengths(gtf_path), gene_sets)
     stats = pd.DataFrame(
         [metric_stats(lengths, metric="utr3_length", label="3'UTR length")]
     )
@@ -910,6 +974,7 @@ def panel_e_utr_length(
 def panel_f_utr_conservation(
     inputs: Figure2Inputs,
     *,
+    gtf_path: Path,
     conservation_table: Path,
 ) -> tuple[pd.DataFrame, plt.Figure]:
     if not conservation_table.exists():
@@ -917,7 +982,9 @@ def panel_f_utr_conservation(
             "Panel F requires a gene-level conservation table. "
             f"Missing: {conservation_table}"
         )
-    gene_sets = figure2_gene_sets(inputs)
+    mane_gene_ids = load_mane_select_gene_ids(gtf_path)
+    validate_mane_run_universe(inputs, mane_gene_ids)
+    gene_sets = figure2_gene_sets(inputs, mane_gene_ids=mane_gene_ids)
     conservation = annotate_sets(
         load_conservation_table(conservation_table),
         gene_sets,
@@ -1376,6 +1443,7 @@ def write_panel(
     elif panel == "F":
         summary, fig = panel_f_utr_conservation(
             inputs,
+            gtf_path=gtf_path,
             conservation_table=conservation_table,
         )
     else:
