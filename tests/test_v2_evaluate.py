@@ -75,17 +75,22 @@ class EndToEndTests(unittest.TestCase):
             for exp, kind in (("E1", "OE"), ("E2", "KO")):
                 o = np.where(target, 1.2, 0.0) + rng.normal(0, 0.3, 400)
                 state = np.where(o > 1.0, "responsive", np.where(o < 0.3, "no_response_above_margin", "unresolved"))
+                raw_state = np.where(o > 1.1, "responsive", "no_response_above_margin")
                 pd.DataFrame({"gene_id": genes, "eligible": True, "oriented_logFC": o, "oriented_logFC_shrunk": o,
                               "control_mean_normalized_count": rng.gamma(2, 50, 400), "state_d05": state,
-                              "state_d10": state}).to_csv(final / "genes" / f"{exp}.tsv.gz", sep="\t", index=False)
+                              "state_d10": state, "state_raw_d05": raw_state, "state_raw_d10": raw_state}).to_csv(
+                    final / "genes" / f"{exp}.tsv.gz", sep="\t", index=False)
                 rows.append({"experiment_id": exp, "table": f"genes/{exp}.tsv.gz"})
             pd.DataFrame(rows).to_csv(final / "experiments.tsv", sep="\t", index=False)
             pd.DataFrame({"experiment_id": ["E1", "E2"], "mirna_name": ["hsa-miR-16-5p"] * 2,
                           "perturbation": ["OE", "KO"], "action": ["keep", "flag"],
                           "dependency_group": ["g1", "g2"]}).to_csv(final / "comparisons.tsv", sep="\t", index=False)
+            decoy_site = rng.random(400) < 0.2  # miR-1-3p sites, so the seed baselines have a decoy score
+            s6_decoy = "UGGAAUGUAAAGAAGUAUGUAU"[1:7].translate(v2.COMPLEMENT)[::-1]
             with open(tmp / "utr.fa", "w") as fh:
-                for g, t in zip(genes, target):
-                    fh.write(f">{g}|transcript=T\n{'CCCC' + (s6 + 'A' if t else 'GGGGGGG') + 'CCCC'}\n")
+                for g, t, d in zip(genes, target, decoy_site):
+                    utr = "CCCC" + (s6 + "A" if t else "GGGGGGG") + "CCCC" + (s6_decoy + "A" if d else "")
+                    fh.write(f">{g}|transcript=T\n{utr}\n")
             pd.DataFrame({"mirna_name": ["hsa-miR-16-5p", "hsa-miR-15b-5p", "hsa-miR-1-3p"],
                           "mirna_sequence": [MIR, "UAGCAGCACAUCAUGGUUUACA", "UGGAAUGUAAAGAAGUAUGUAU"]}).to_csv(
                 tmp / "mirnas.tsv", sep="\t", index=False)
@@ -112,10 +117,17 @@ class EndToEndTests(unittest.TestCase):
             # Unscored genes rank last, so a tool that covers 75% of the genes scores below full coverage.
             self.assertGreater(tool.loc["E1", "auroc_d05"], 0.6)
             self.assertLess(tool.loc["E1", "auroc_d05"], seed.loc["E1", "auroc_d05"])
+            # The raw states are scored separately from the table's main states.
+            self.assertNotEqual(seed.loc["E1", "n_responsive_raw_d05"], seed.loc["E1", "n_responsive_d05"])
             # miR-15b-5p shares the nt 2-8 seed, so it is not a decoy; only miR-1-3p is.
             self.assertTrue((decoy.n_decoys == 1).all())
+            self.assertEqual(set(decoy.predictor), {"tool", "seed_site", "seed_plus_expression"})
+            self.assertEqual(set(decoy.target), {"raw", "shrunk"})
+            self.assertIn("decoy_z_shrunk", per.columns)  # NaN here: a z needs at least two decoys
             summary = pd.read_csv(tmp / "out/summary.tsv", sep="\t")
             self.assertEqual(set(summary.subset), {"all", "unflagged"})
+            pooled = summary[(summary.subset == "all") & (summary.track == "pooled") & (summary.metric == "spearman")]
+            self.assertTrue((pooled.n_comparisons == 2).all())
             self.assertTrue((tmp / "out/paired_vs_reference.tsv").exists())
 
 

@@ -264,24 +264,26 @@ uv run python pipelines/standardized_predictors/targetscan/pipeline.py --expand-
 uv run funmirbench-v2-evaluate --final-dir <final-v2> --utr-fasta <MANE Select 3'UTR FASTA> --out results/v2/
 ```
 
-- **Labels:** `state_d05` / `state_d10`: responsive, no response above margin, or unresolved. Unresolved genes are never negatives.
+- **Labels:** `state_d05` / `state_d10`: responsive, no response above margin, or unresolved, from the shrunken log2FC (FSOS s-value < 0.05 against d; whole shrunken 95% interval below d). Unresolved genes are never negatives. The raw states `state_raw_d05` / `state_raw_d10` are scored too, as a check (metrics named `*_raw_*`).
 - **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
 - **Scores per comparison:**
-  - Spearman between the score and the oriented log2FC (raw is the headline, shrunken the check), overall and within tenths of control expression;
+  - Spearman between the score and the oriented log2FC (raw and shrunken), overall and within tenths of control expression;
   - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
 - **Reference rows:**
   - `random`;
   - `expression_high` / `expression_low` (control expression);
   - `seed_site`: 3 × 8mer + 2 × 7mer-m8 + 7mer-A1 + 0.5 × 6mer in the MANE 3′UTR;
   - `seed_plus_expression`: seed score with expression breaking ties.
-- **Decoy check:** for each tool, the same Spearman for its predictions of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/v2/benchmark_mirnas.tsv`). `decoy_z` is the cognate miRNA against its decoys.
+- **Decoy check:** for each tool and the two seed baselines, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/v2/benchmark_mirnas.tsv`). `decoy_z` (raw log2FC) and `decoy_z_shrunk` are the cognate miRNA against its decoys.
 - **Summaries:**
-  - OE and KO separately, on all comparisons and on unflagged ones;
+  - OE, KO and both pooled, on all comparisons and on unflagged ones;
   - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
   - `paired_vs_reference.tsv` compares each ranking with `seed_plus_expression` on the same comparisons.
 - **Predictors:** `metadata/v2/predictions.tsv` lists the five published tools plus `targetscan_family_expanded`, which gives every family member the family score.
 
 Outputs: `per_comparison.tsv`, `decoy.tsv`, `summary.tsv`, `paired_vs_reference.tsv`, `run_info.json`.
+
+`python -m funmirbench.v2_margin_report --final-dir <final dir> --utr-fasta <MANE Select 3'UTR FASTA> --out <dir>` counts the states for every d of the final tables, the genes that moved the other way by more than d (the responsive rule mirrored), their ratio to the responsive genes, and the share of genes with a seed site on each side (`margin_grid.tsv`, and `margin_summary.tsv` at d = 0.5).
 
 ## Manuscript Assets
 

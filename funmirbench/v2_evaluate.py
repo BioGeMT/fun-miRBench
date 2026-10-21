@@ -2,15 +2,17 @@
 
 For every comparison and every tool or reference baseline:
   * all scores are on the same fixed gene list; a gene the tool does not score is ranked last;
-  * Spearman between the score and the oriented log2FC (raw, and shrunken as a check), over genes with a usable
-    estimate, overall and averaged within tenths of control expression;
+  * Spearman between the score and the oriented log2FC (raw and shrunken), over genes with a usable estimate,
+    overall and averaged within tenths of control expression;
   * AUROC of responsive against no-response genes (unresolved left out), plain and within tenths of control
-    expression, only where each state has at least --min-per-state genes;
-  * for tools, a decoy check: the same Spearman for the tool's predictions of unrelated benchmark miRNAs
-    (different nt 2-8 seed), giving a z-score of the cognate miRNA against its decoys.
-Comparisons are summarised per track (OE, KO), on all comparisons and on unflagged ones, as the mean over
-comparisons with 95% intervals from a bootstrap over dependency groups; tools are also compared with the
-seed-plus-expression reference on the same comparisons.
+    expression, only where each state has at least --min-per-state genes; for the states of the table (state_*)
+    and for the raw states kept as a check (state_raw_*, metrics named *_raw_*);
+  * for tools and the two seed baselines, a decoy check: the same Spearman for the predictor's scores of
+    unrelated benchmark miRNAs (different nt 2-8 seed), giving a z-score of the cognate miRNA against its
+    decoys, on the raw (decoy_z) and shrunken (decoy_z_shrunk) oriented log2FC.
+Comparisons are summarised per track (OE, KO, and pooled over both), on all comparisons and on unflagged ones, as
+the mean over comparisons with 95% intervals from a bootstrap over dependency groups; tools are also compared
+with the seed-plus-expression reference on the same comparisons.
 
 Usage:
   uv run funmirbench-v2-evaluate --final-dir <final-v2> --utr-fasta <MANE 3'UTR fasta> --out <dir>
@@ -32,9 +34,11 @@ from funmirbench.gene_ids import strip_ensembl_version
 logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[1]
 MARGINS = ("d05", "d10")
+STATE_SETS = {"": "state_", "raw_": "state_raw_"}  # metric tag prefix -> state column prefix
+TRACKS = ("OE", "KO", "pooled")
 REFERENCE = "seed_plus_expression"
 TABLE_COLUMNS = ["gene_id", "eligible", "oriented_logFC", "oriented_logFC_shrunk", "control_mean_normalized_count",
-                 *[f"state_{m}" for m in MARGINS]]
+                 *[f"{column}{m}" for column in STATE_SETS.values() for m in MARGINS]]
 COMPLEMENT = str.maketrans("ACGU", "UGCA")
 
 
@@ -134,23 +138,38 @@ def score_metrics(score: pd.Series, table: pd.DataFrame, *, min_per_state: int) 
     s = score.reindex(table.index).to_numpy(float)
     est = table.eligible.to_numpy(bool)
     bins = table.expression_tenth.to_numpy()
-    rec = {"spearman": spearman(s[est], table.oriented_logFC.to_numpy(float)[est]),
-           "spearman_shrunk": spearman(s[est], table.oriented_logFC_shrunk.to_numpy(float)[est]),
-           "spearman_within_tenths": binned_spearman(s[est], table.oriented_logFC.to_numpy(float)[est], bins[est])}
-    for m in MARGINS:
-        state = table[f"state_{m}"].to_numpy()
-        labelled = (state == "responsive") | (state == "no_response_above_margin")
-        pos = state[labelled] == "responsive"
-        n_pos, n_neg = int(pos.sum()), int((~pos).sum())
-        rec[f"n_responsive_{m}"], rec[f"n_no_response_{m}"] = n_pos, n_neg
-        if n_pos >= min_per_state and n_neg >= min_per_state:
-            rec[f"auroc_{m}"] = auroc(s[labelled], pos)
-            rec[f"auroc_within_tenths_{m}"] = binned_auroc(s[labelled], pos, bins[labelled])
-            rec[f"auroc_na_reason_{m}"] = ""
-        else:
-            rec[f"auroc_{m}"] = rec[f"auroc_within_tenths_{m}"] = np.nan
-            rec[f"auroc_na_reason_{m}"] = f"fewer than {min_per_state} genes in a state"
+    raw = table.oriented_logFC.to_numpy(float)[est]
+    shrunk = table.oriented_logFC_shrunk.to_numpy(float)[est]
+    rec = {"spearman": spearman(s[est], raw),
+           "spearman_shrunk": spearman(s[est], shrunk),
+           "spearman_within_tenths": binned_spearman(s[est], raw, bins[est]),
+           "spearman_within_tenths_shrunk": binned_spearman(s[est], shrunk, bins[est])}
+    for prefix, column in STATE_SETS.items():
+        for m in MARGINS:
+            tag = f"{prefix}{m}"
+            state = table[f"{column}{m}"].to_numpy()
+            labelled = (state == "responsive") | (state == "no_response_above_margin")
+            pos = state[labelled] == "responsive"
+            n_pos, n_neg = int(pos.sum()), int((~pos).sum())
+            rec[f"n_responsive_{tag}"], rec[f"n_no_response_{tag}"] = n_pos, n_neg
+            if n_pos >= min_per_state and n_neg >= min_per_state:
+                rec[f"auroc_{tag}"] = auroc(s[labelled], pos)
+                rec[f"auroc_within_tenths_{tag}"] = binned_auroc(s[labelled], pos, bins[labelled])
+                rec[f"auroc_na_reason_{tag}"] = ""
+            else:
+                rec[f"auroc_{tag}"] = rec[f"auroc_within_tenths_{tag}"] = np.nan
+                rec[f"auroc_na_reason_{tag}"] = f"fewer than {min_per_state} genes in a state"
     return rec
+
+
+def decoy_record(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> dict:
+    """Spearman of the cognate scores and of each decoy's scores with y; z of the cognate against the decoys."""
+    rho = spearman(cognate, y)
+    dvals = np.array([v for v in (spearman(d, y) for d in decoys) if not np.isnan(v)])
+    return {"spearman": rho, "n_decoys": len(dvals), "decoy_mean": dvals.mean() if len(dvals) else np.nan,
+            "decoy_sd": dvals.std(ddof=1) if len(dvals) > 1 else np.nan,
+            "decoy_z": ((rho - dvals.mean()) / dvals.std(ddof=1)) if len(dvals) > 1 else np.nan,
+            "share_decoys_at_least_cognate": (dvals >= rho).mean() if len(dvals) else np.nan}
 
 
 # ---------------------------------------------------------------- inputs
@@ -223,36 +242,42 @@ def evaluate(args: argparse.Namespace) -> None:
         logger.info("loading %s", r.tool_id)
         preds[r.tool_id] = load_predictions(path, r.score_direction, set(mirnas.index), set(universe))
 
+    sites = {}
+
+    def site_score(mirna: str) -> pd.Series:
+        if mirna not in sites:
+            sites[mirna] = seed_score(utrs, universe, mirnas.loc[mirna, "mirna_sequence"])
+        return sites[mirna]
+
     rng = np.random.default_rng(args.seed)
     rows, decoy_rows = [], []
     for c in comps.itertuples(index=False):
         t = tables[c.experiment_id]
-        seq = mirnas.loc[c.mirna_name, "mirna_sequence"]
         expr = t.control_mean_normalized_count.fillna(0.0)
-        site = seed_score(utrs, universe, seq)
+        expr_pct = expr.rank(pct=True)
+        site = site_score(c.mirna_name)
         rankings = {
             "random": pd.Series(rng.random(len(universe)), index=universe),
             "expression_high": expr,
             "expression_low": -expr,
             "seed_site": site,
-            REFERENCE: site * 10 + expr.rank(pct=True),
+            REFERENCE: site * 10 + expr_pct,
         }
         kinds = {k: "reference" for k in rankings}
         decoys = [m for m in mirnas.index if m != c.mirna_name and seeds[m] != seeds[c.mirna_name]]
+        decoy_scores = {"seed_site": [site_score(m) for m in decoys],
+                        REFERENCE: [site_score(m) * 10 + expr_pct for m in decoys]}
         for tool, by_mirna in preds.items():
             scored = by_mirna.get(c.mirna_name, pd.Series(dtype=float))
             rankings[tool] = rank_last(scored, universe)
             kinds[tool] = "tool"
-            est = t.eligible.to_numpy(bool)
-            y = t.oriented_logFC.to_numpy(float)[est]
-            cognate = spearman(rankings[tool].to_numpy(float)[est], y)
-            dvals = [spearman(rank_last(by_mirna[d], universe).to_numpy(float)[est], y) for d in decoys if d in by_mirna]
-            dvals = np.array([v for v in dvals if not np.isnan(v)])
-            decoy_rows.append({"experiment_id": c.experiment_id, "predictor": tool, "spearman": cognate,
-                               "n_decoys": len(dvals), "decoy_mean": dvals.mean() if len(dvals) else np.nan,
-                               "decoy_sd": dvals.std(ddof=1) if len(dvals) > 1 else np.nan,
-                               "decoy_z": ((cognate - dvals.mean()) / dvals.std(ddof=1)) if len(dvals) > 1 else np.nan,
-                               "share_decoys_at_least_cognate": (dvals >= cognate).mean() if len(dvals) else np.nan})
+            decoy_scores[tool] = [rank_last(by_mirna[d], universe) for d in decoys if d in by_mirna]
+        est = t.eligible.to_numpy(bool)
+        for target, column in (("raw", "oriented_logFC"), ("shrunk", "oriented_logFC_shrunk")):
+            y = t[column].to_numpy(float)[est]
+            for name, scores in decoy_scores.items():
+                rec = decoy_record(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
+                decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "target": target, **rec})
         for name, score in rankings.items():
             rec = {"experiment_id": c.experiment_id, "perturbation": c.perturbation, "action": c.action,
                    "dependency_group": c.dependency_group, "predictor": name, "kind": kinds[name],
@@ -264,41 +289,49 @@ def evaluate(args: argparse.Namespace) -> None:
         logger.info("scored %s", c.experiment_id)
 
     per = pd.DataFrame(rows)
-    decoy = pd.DataFrame(decoy_rows, columns=["experiment_id", "predictor", "spearman", "n_decoys", "decoy_mean",
-                                              "decoy_sd", "decoy_z", "share_decoys_at_least_cognate"])
-    per = per.merge(decoy[["experiment_id", "predictor", "decoy_z"]], on=["experiment_id", "predictor"], how="left")
+    decoy = pd.DataFrame(decoy_rows, columns=["experiment_id", "predictor", "target", "spearman", "n_decoys",
+                                              "decoy_mean", "decoy_sd", "decoy_z", "share_decoys_at_least_cognate"])
+    z = decoy.pivot(index=["experiment_id", "predictor"], columns="target", values="decoy_z")
+    z = z.rename(columns={"raw": "decoy_z", "shrunk": "decoy_z_shrunk"}).reset_index()
+    per = per.merge(z, on=["experiment_id", "predictor"], how="left")
     per.to_csv(out / "per_comparison.tsv", sep="\t", index=False)
     decoy.to_csv(out / "decoy.tsv", sep="\t", index=False)
 
-    metrics = ["spearman", "spearman_shrunk", "spearman_within_tenths", *[f"auroc_{m}" for m in MARGINS],
-               *[f"auroc_within_tenths_{m}" for m in MARGINS], "decoy_z", "coverage"]
+    tags = [f"{prefix}{m}" for prefix in STATE_SETS for m in MARGINS]
+    metrics = ["spearman", "spearman_shrunk", "spearman_within_tenths", "spearman_within_tenths_shrunk",
+               *[f"auroc_{t}" for t in tags], *[f"auroc_within_tenths_{t}" for t in tags], "decoy_z",
+               "decoy_z_shrunk", "coverage"]
     summary, paired = [], []
     boot_rng = np.random.default_rng(args.seed + 1)
     for subset, sub in (("all", per), ("unflagged", per[per.action == "keep"])):
-        for (track, name), g in sub.groupby(["perturbation", "predictor"]):
-            ref = sub[(sub.perturbation == track) & (sub.predictor == REFERENCE)].set_index("experiment_id")
-            gi = g.set_index("experiment_id")
-            for metric in metrics:
-                v = gi[metric]
-                lo, hi = group_bootstrap(v, gi.dependency_group, n=args.bootstrap, rng=boot_rng)
-                summary.append({"subset": subset, "track": track, "predictor": name, "kind": gi.kind.iloc[0],
-                                "metric": metric, "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
-                                "n_comparisons": int(v.notna().sum()),
-                                "n_groups": int(gi.dependency_group[v.notna()].nunique())})
-                if name != REFERENCE and metric != "coverage" and metric in ref and ref[metric].notna().any():
-                    d = (v - ref[metric].reindex(v.index)).dropna()
-                    lo, hi = group_bootstrap(d, gi.dependency_group.reindex(d.index), n=args.bootstrap, rng=boot_rng)
-                    paired.append({"subset": subset, "track": track, "predictor": name, "metric": metric,
-                                   "mean_difference_vs_" + REFERENCE: d.mean() if len(d) else np.nan,
-                                   "ci95_low": lo, "ci95_high": hi, "n_comparisons": len(d),
-                                   "n_groups": int(gi.dependency_group.reindex(d.index).nunique())})
+        for track in TRACKS:
+            in_track = sub if track == "pooled" else sub[sub.perturbation == track]
+            for name, g in in_track.groupby("predictor"):
+                ref = in_track[in_track.predictor == REFERENCE].set_index("experiment_id")
+                gi = g.set_index("experiment_id")
+                for metric in metrics:
+                    v = gi[metric]
+                    lo, hi = group_bootstrap(v, gi.dependency_group, n=args.bootstrap, rng=boot_rng)
+                    summary.append({"subset": subset, "track": track, "predictor": name, "kind": gi.kind.iloc[0],
+                                    "metric": metric, "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
+                                    "n_comparisons": int(v.notna().sum()),
+                                    "n_groups": int(gi.dependency_group[v.notna()].nunique())})
+                    if name != REFERENCE and metric != "coverage" and metric in ref and ref[metric].notna().any():
+                        d = (v - ref[metric].reindex(v.index)).dropna()
+                        lo, hi = group_bootstrap(d, gi.dependency_group.reindex(d.index), n=args.bootstrap,
+                                                 rng=boot_rng)
+                        paired.append({"subset": subset, "track": track, "predictor": name, "metric": metric,
+                                       "mean_difference_vs_" + REFERENCE: d.mean() if len(d) else np.nan,
+                                       "ci95_low": lo, "ci95_high": hi, "n_comparisons": len(d),
+                                       "n_groups": int(gi.dependency_group.reindex(d.index).nunique())})
     pd.DataFrame(summary).to_csv(out / "summary.tsv", sep="\t", index=False)
     pd.DataFrame(paired).to_csv(out / "paired_vs_reference.tsv", sep="\t", index=False)
     (out / "run_info.json").write_text(json.dumps({
         "built": datetime.now(timezone.utc).isoformat(timespec="seconds"), "final_dir": str(args.final_dir),
         "comparisons": int(len(comps)), "genes": int(len(universe)), "tools": list(preds),
         "min_per_state": args.min_per_state, "bootstrap": args.bootstrap, "seed": args.seed,
-        "reference": REFERENCE, "decoys": "benchmark miRNAs (--mirnas) with a different nt 2-8 seed"}, indent=2) + "\n")
+        "reference": REFERENCE, "tracks": list(TRACKS), "states": {"state_*": "main", "state_raw_*": "raw check"},
+        "decoys": "benchmark miRNAs (--mirnas) with a different nt 2-8 seed"}, indent=2) + "\n")
     logger.info("wrote %s", out)
 
 
