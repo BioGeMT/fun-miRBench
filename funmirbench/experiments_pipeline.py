@@ -658,6 +658,10 @@ def load_reads_samples(config: dict, *, config_path: pathlib.Path, repo: pathlib
     sample_ids = [sample["sample_id"] for sample in control_samples + treated_samples]
     if len(set(sample_ids)) != len(sample_ids):
         raise ValueError(f"Reads config contains duplicate sample_id values: {sample_ids}")
+    input_paths = [path for sample in control_samples + treated_samples
+                   for key in ("reads_1", "reads_2", "unpaired_reads") for path in sample.get(key, [])]
+    if len(input_paths) != len(set(input_paths)):
+        raise ValueError("Reads config reuses a FASTQ within the same biological comparison.")
     return control_samples, treated_samples
 
 
