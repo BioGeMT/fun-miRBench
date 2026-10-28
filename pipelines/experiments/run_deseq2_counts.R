@@ -69,7 +69,26 @@ condition <- factor(
 )
 col_data <- data.frame(row.names = all_columns, condition = condition)
 
-dds <- DESeqDataSetFromMatrix(countData = count_matrix, colData = col_data, design = ~ condition)
+design_formula <- ~ condition
+if ("--sample-covariates" %in% args) {
+  covariates <- read_table_auto(read_arg("--sample-covariates"))
+  if (!all(c("sample_id", "batch") %in% colnames(covariates)) ||
+      anyDuplicated(covariates$sample_id) || !setequal(covariates$sample_id, all_columns)) {
+    stop("Sample covariates must provide one batch per biological sample.", call. = FALSE)
+  }
+  batches <- covariates$batch[match(all_columns, covariates$sample_id)]
+  if (anyNA(batches) || any(!nzchar(trimws(batches)))) {
+    stop("Missing sample batch.", call. = FALSE)
+  }
+  col_data$batch <- factor(batches)
+  if (nlevels(col_data$batch) > 1) design_formula <- ~ batch + condition
+}
+design_matrix <- model.matrix(design_formula, col_data)
+if (qr(design_matrix)$rank < ncol(design_matrix) || nrow(design_matrix) <= ncol(design_matrix)) {
+  stop("DE design is confounded or has no residual replication.", call. = FALSE)
+}
+
+dds <- DESeqDataSetFromMatrix(countData = count_matrix, colData = col_data, design = design_formula)
 dds <- dds[rowSums(counts(dds)) > 0, ]
 dds <- DESeq(dds)
 res <- results(dds, contrast = c("condition", "treated", "control"))

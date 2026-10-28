@@ -324,6 +324,7 @@ def run_deseq2_from_counts(
     control_cols: list[str],
     treated_cols: list[str],
     output_path: pathlib.Path,
+    sample_covariates_path: pathlib.Path | None = None,
 ) -> tuple[list[str], pathlib.Path, pathlib.Path]:
     require_local_binary("Rscript")
     logger.info("Running DESeq2 from count matrix...")
@@ -342,6 +343,8 @@ def run_deseq2_from_counts(
         "--output",
         str(output_path),
     ]
+    if sample_covariates_path is not None:
+        command.extend(["--sample-covariates", str(sample_covariates_path)])
     stdout_path = run_dir / "deseq2.stdout.txt"
     stderr_path = run_dir / "deseq2.stderr.txt"
     run_logged_command(
@@ -384,6 +387,18 @@ def run_de_from_counts(
     pd.DataFrame(mapping_rows).to_csv(run_dir / "sample_column_mapping.tsv", sep="\t", index=False)
 
     de_results_path = run_dir / "de_results.tsv"
+    batch_by_sample = config.get("comparison", {}).get("batch_by_sample")
+    sample_covariates_path = None
+    if batch_by_sample is not None:
+        columns = control_cols + treated_cols
+        if set(batch_by_sample) != set(columns) or any(
+            not normalize_space(batch_by_sample[column]) for column in columns
+        ):
+            raise ValueError("comparison.batch_by_sample must provide a nonempty batch for every biological sample.")
+        sample_covariates_path = run_dir / "sample_covariates.tsv"
+        pd.DataFrame({"sample_id": columns, "batch": [batch_by_sample[column] for column in columns]}).to_csv(
+            sample_covariates_path, sep="\t", index=False
+        )
     deseq2_command, stdout_path, stderr_path = run_deseq2_from_counts(
         repo=repo,
         run_dir=run_dir,
@@ -392,6 +407,7 @@ def run_de_from_counts(
         control_cols=control_cols,
         treated_cols=treated_cols,
         output_path=de_results_path,
+        sample_covariates_path=sample_covariates_path,
     )
     de_df = read_table_auto(de_results_path)
     required = {"gene_id", "logFC", "control_mean_normalized_count", "FDR"}
@@ -423,6 +439,7 @@ def run_de_from_counts(
         "deseq2_command": deseq2_command,
         "deseq2_stdout": str(stdout_path),
         "deseq2_stderr": str(stderr_path),
+        "deseq2_design": "~ batch + condition" if sample_covariates_path else "~ condition",
         "de_gene_count": int(de_df.shape[0]),
         "output_de_table": str(out_path),
     }
