@@ -1,0 +1,37 @@
+dataset_id: GSE199332_KO_miR_27a-3p_HepG2
+gse: GSE199332
+mirna_name: hsa-miR-27a-3p
+experiment_type: Knockout
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM5970489
+    reads_1: data/experiments/prepared/GSE199332/GSM5970489/SRR18463660_1.fastq.gz
+    reads_2: data/experiments/prepared/GSE199332/GSM5970489/SRR18463660_2.fastq.gz
+  - sample_id: GSM5970490
+    reads_1: data/experiments/prepared/GSE199332/GSM5970490/SRR18463659_1.fastq.gz
+    reads_2: data/experiments/prepared/GSE199332/GSM5970490/SRR18463659_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM5970493
+    reads_1: data/experiments/prepared/GSE199332/GSM5970493/SRR18463656_1.fastq.gz
+    reads_2: data/experiments/prepared/GSE199332/GSM5970493/SRR18463656_2.fastq.gz
+  - sample_id: GSM5970494
+    reads_1: data/experiments/prepared/GSE199332/GSM5970494/SRR18463655_1.fastq.gz
+    reads_2: data/experiments/prepared/GSE199332/GSM5970494/SRR18463655_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HepG2
+  treatment_dose: ''
+  treatment: Knockout of hsa-miR-27a-3p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task.
