@@ -440,6 +440,10 @@ def run_de_from_counts(
         "deseq2_stdout": str(stdout_path),
         "deseq2_stderr": str(stderr_path),
         "deseq2_design": "~ batch + condition" if sample_covariates_path else "~ condition",
+        "native_de_results": str(run_dir / "native_de_results.tsv"),
+        "normalized_counts": str(run_dir / "normalized_counts.tsv"),
+        "expression_summary": str(run_dir / "expression_summary.tsv"),
+        "sample_size_factors": str(run_dir / "sample_size_factors.tsv"),
         "de_gene_count": int(de_df.shape[0]),
         "output_de_table": str(out_path),
     }
