@@ -1,4 +1,4 @@
-"""Build the final v2 benchmark tables from saved DESeq2 analyses.
+"""Build the final benchmark tables from saved DESeq2 analyses.
 
 For each comparison, label_states.R writes one row per gene of the benchmark gene list: statistics, shrunken
 log2FC, FSOS s-values and the three states for each d of the grid (from the shrunken log2FC), and the raw threshold
@@ -8,11 +8,11 @@ table and a manifest with SHA-256 hashes.
 Input --fits is a TSV with columns: experiment_id, perturbation (OE or KO), fit_rds (complete_analysis.rds written
 by pipelines/experiments/run_deseq2_counts.R).
 
-The comparison metadata (metadata/v2/comparisons.tsv: groups, flags, KO evidence) is copied into the output.
+The comparison metadata (metadata/comparisons.tsv: groups, flags, KO evidence) is copied into the output.
 
 Usage:
   uv run python pipelines/final_data/build_final_data.py --fits fits.tsv \
-      --genes metadata/v2/benchmark_genes.tsv.gz --out <final_dir> [--rscript Rscript] [--workers 8]
+      --genes metadata/benchmark_genes.tsv.gz --out <final_dir> [--rscript Rscript] [--workers 8]
 """
 import argparse
 import hashlib
@@ -69,7 +69,7 @@ def main() -> None:
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--rscript", default="Rscript")
     ap.add_argument("--workers", type=int, default=8)
-    ap.add_argument("--comparisons", type=pathlib.Path, default=pathlib.Path("metadata/v2/comparisons.tsv"),
+    ap.add_argument("--comparisons", type=pathlib.Path, default=pathlib.Path("metadata/comparisons.tsv"),
                     help="copied into the output so the evaluation reads one folder")
     args = ap.parse_args()
     fits = pd.read_csv(args.fits, sep="\t")

@@ -6,7 +6,7 @@ same genes.
 Usage:
   uv run python pipelines/final_data/build_gene_list.py \
       --gtf data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf.gz \
-      --out metadata/v2/benchmark_genes.tsv.gz
+      --out metadata/benchmark_genes.tsv.gz
 """
 import argparse
 import gzip

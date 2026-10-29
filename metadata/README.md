@@ -1,4 +1,4 @@
-# v2 metadata for the 30 test comparisons
+# Metadata of the 30 test comparisons
 
 - **`benchmark_genes.tsv.gz`:** the fixed gene list. It has 19,226 Ensembl 115 protein-coding genes with a MANE Select transcript, built by `pipelines/final_data/build_gene_list.py` from the GTF alone.
 - **`comparisons.tsv`:** one row per comparison.
@@ -12,6 +12,7 @@
   - the number of comparisons sharing the sample.
 
   Human RNA-seq samples of the study that no comparison uses are listed with role `not_used`.
+- **`mirna_experiment_info.tsv`, `predictions_info.tsv`:** the experiment and predictor lists that the evaluation (`benchmark.yaml`) reads.
 
 ## Flags
 
