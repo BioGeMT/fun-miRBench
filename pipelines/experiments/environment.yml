@@ -12,3 +12,4 @@ dependencies:
   - subread
   - r-base
   - bioconductor-deseq2
+  - bioconductor-apeglm
