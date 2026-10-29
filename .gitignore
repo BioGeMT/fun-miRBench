@@ -47,6 +47,9 @@ pipelines/geo/runs/*
 # Experiments pipeline outputs
 pipelines/experiments/runs/*
 
+# Final data scripts: conda environment, logs and fit list
+pipelines/final_data/work/
+
 # Predictor pipeline generated data (downloads + intermediate tables)
 pipelines/standardized_predictors/*/data/
 pipelines/standardized_predictors/*/resources/

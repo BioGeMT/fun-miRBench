@@ -2,6 +2,18 @@
 
 From reads to the final per-gene tables for the 30 FuNmiRBench test comparisons.
 
+## Run
+
+```bash
+pipelines/final_data/setup.sh
+pipelines/final_data/download.sh
+pipelines/final_data/run.sh
+```
+
+- `setup.sh` creates the conda environment of `pipelines/experiments/environment.yml` in the ignored `pipelines/final_data/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools.
+- `download.sh` runs steps 1 and 2 and gets the miRBase names the pipeline checks configs against. It keeps complete files, so it can be rerun after an interruption; its arguments go to `download_reads.py` (for example `--study GSE169128`).
+- `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/final_data/work/fits.tsv` and runs step 5 into `results/final_data` (or `FINAL_DIR`). Its arguments limit the runs to those comparisons; the final tables need all 30.
+
 ## Steps
 
 1. **Reads.** `pipelines/experiments/download_reads.py` downloads the 260 FASTQ files (514.5 GB) listed in `pipelines/experiments/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size. For GSE199332, ENA holds both mates in one file as two positional blocks; the script splits them with `pipelines/experiments/split_mate_blocks.py`, which accepts the split only if true pairs overlap far more often than shuffled pairs.
