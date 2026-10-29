@@ -48,7 +48,7 @@ Supported inputs:
 Tracked example configs:
 
 - `pipelines/experiments/configs/gse253003.count_matrix.example.yaml`
-- `pipelines/experiments/configs/gse93717.reads.example.yaml`
+- `pipelines/experiments/configs/gse129146.reads.example.yaml`
 
 The configs of the 30 test comparisons are in `pipelines/final_data/configs/`; `pipelines/final_data/README.md` runs them.
 
@@ -91,7 +91,7 @@ uv run funmirbench-experiments-download-examples
 That downloader fetches:
 
 - the real `GSE253003` count matrix
-- the real `GSE93717` FASTQ files
+- the real `GSE129146` FASTQ files
 - the shared Homo sapiens Ensembl v115 genome FASTA and GTF used by the reads example
 
 Run the real count-matrix example:
@@ -103,14 +103,14 @@ uv run funmirbench-experiments --config pipelines/experiments/configs/gse253003.
 Run the reads example the same way:
 
 ```bash
-uv run funmirbench-experiments --config pipelines/experiments/configs/gse93717.reads.example.yaml
+uv run funmirbench-experiments --config pipelines/experiments/configs/gse129146.reads.example.yaml
 ```
 
 So the practical reads flow is:
 
 1. activate `funmirbench-experiments`
 2. run `uv run funmirbench-experiments-download-examples`
-3. run `uv run funmirbench-experiments --config pipelines/experiments/configs/gse93717.reads.example.yaml`
+3. run `uv run funmirbench-experiments --config pipelines/experiments/configs/gse129146.reads.example.yaml`
 
 The shipped reads example now points at the downloaded Ensembl v115 reference source files under
 `data/experiments/raw/refs/ensembl_v115/`, so it builds the derived STAR index automatically.
@@ -121,8 +121,8 @@ Each run writes:
 - `pipelines/experiments/runs/<timestamp>_<dataset_id>/candidate_metadata.tsv`
 - `pipelines/experiments/runs/<timestamp>_<dataset_id>/run_manifest.json`
 
-The reads example uses a reproduced dataset id, `GSE93717_OE_miR_941_deseq2`, so syncing it creates
-a separate variant instead of overwriting the curated `GSE93717_OE_miR_941` registry row.
+The reads example, `GSE129146_OE_miR_455-3p`, is not in the experiment registry, so syncing it adds
+a new registry row.
 
 ### Output DE table schema
 
