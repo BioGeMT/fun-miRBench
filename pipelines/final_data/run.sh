@@ -27,7 +27,7 @@ latest_fit() {
 run_one() {
   if [[ -n "$(latest_fit "$1")" ]]; then echo "done    $1"; return; fi
   echo "running $1"
-  uv run --quiet funmirbench-experiments --config "pipelines/experiments/configs/$1.yaml" >"$work/logs/$1.log" 2>&1 \
+  uv run --quiet funmirbench-experiments --config "pipelines/final_data/configs/$1.yaml" >"$work/logs/$1.log" 2>&1 \
     || { echo "FAILED  $1 (log: $work/logs/$1.log)" >&2; return 1; }
   echo "ran     $1"
 }
@@ -37,7 +37,7 @@ mapfile -t all_ids < <(awk -F'\t' 'NR > 1 {print $1}' metadata/comparisons.tsv)
 ids=("$@")
 if (( ${#ids[@]} == 0 )); then ids=("${all_ids[@]}"); fi
 for id in "${ids[@]}"; do
-  [[ -f "pipelines/experiments/configs/$id.yaml" ]] || { echo "ERROR: no config for $id" >&2; exit 1; }
+  [[ -f "pipelines/final_data/configs/$id.yaml" ]] || { echo "ERROR: no config for $id" >&2; exit 1; }
 done
 
 echo "[1/3] Pipeline runs, $workers at a time..."
@@ -62,5 +62,5 @@ fi
 
 echo "[3/3] Final tables in $final_dir..."
 [[ ! -e "$final_dir" ]] || { echo "ERROR: $final_dir exists; move it or set FINAL_DIR" >&2; exit 1; }
-uv run --quiet python pipelines/final_data/build_final_data.py --fits "$fits" \
+uv run --quiet python pipelines/final_data/src/build_final_data.py --fits "$fits" \
   --genes metadata/benchmark_genes.tsv.gz --out "$final_dir" --rscript "$env_prefix/bin/Rscript"

@@ -11,20 +11,20 @@ pipelines/final_data/run.sh
 ```
 
 - `setup.sh` creates the conda environment of `pipelines/experiments/environment.yml` in the ignored `pipelines/final_data/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools.
-- `download.sh` runs steps 1 and 2 and gets the miRBase names the pipeline checks configs against. It keeps complete files, so it can be rerun after an interruption; its arguments go to `download_reads.py` (for example `--study GSE169128`).
+- `download.sh` runs steps 1 and 2 and gets the miRBase names the pipeline checks configs against. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE169128`).
 - `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/final_data/work/fits.tsv` and runs step 5 into `results/final_data` (or `FINAL_DIR`). Its arguments limit the runs to those comparisons; the final tables need all 30.
 
 ## Steps
 
-1. **Reads.** `pipelines/experiments/download_reads.py` downloads the 260 FASTQ files (514.5 GB) listed in `pipelines/experiments/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size. For GSE199332, ENA holds both mates in one file as two positional blocks; the script splits them with `pipelines/experiments/split_mate_blocks.py`, which accepts the split only if true pairs overlap far more often than shuffled pairs.
+1. **Reads.** `pipelines/final_data/src/download_reads.py` downloads the 260 FASTQ files (514.5 GB) listed in `pipelines/final_data/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size. For GSE199332, ENA holds both mates in one file as two positional blocks; the script splits them with `pipelines/final_data/src/split_mate_blocks.py`, which accepts the split only if true pairs overlap far more often than shuffled pairs.
 2. **References.** Download the soft-masked genome `Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz` (https://ftp.ensembl.org/pub/release-115/fasta/homo_sapiens/dna/) and `Homo_sapiens.GRCh38.115.gtf.gz` (https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/) into `data/experiments/raw/refs/ensembl_v115/`, decompress both, and save the genome as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the name the configs point to. This is the genome the reruns used, and the one `funmirbench-experiments-download-examples` fetches.
-3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/experiments/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one:
+3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/final_data/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one:
    - GSE115646: TR blocks;
    - GSE51217: the two experimental sets.
 
    GSE210778 includes the unpaired reads of two samples. DESeq2 writes `complete_analysis.rds` with the fitted object.
-4. **Gene list.** `build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/benchmark_genes.tsv.gz`.
-5. **Final tables.** `build_final_data.py --fits fits.tsv --genes metadata/benchmark_genes.tsv.gz --out <dir>` runs `label_states.R` on every fit and copies `metadata/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id`, `perturbation` (OE or KO) and `fit_rds`.
+4. **Gene list.** `src/build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/benchmark_genes.tsv.gz`.
+5. **Final tables.** `src/build_final_data.py --fits fits.tsv --genes metadata/benchmark_genes.tsv.gz --out <dir>` runs `src/label_states.R` on every fit and copies `metadata/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id`, `perturbation` (OE or KO) and `fit_rds`.
 
 ## Final table (one per comparison, 19,226 rows)
 

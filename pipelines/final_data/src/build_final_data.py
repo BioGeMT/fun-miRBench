@@ -11,7 +11,7 @@ by pipelines/experiments/run_deseq2_counts.R).
 The comparison metadata (metadata/comparisons.tsv: groups, flags, KO evidence) is copied into the output.
 
 Usage:
-  uv run python pipelines/final_data/build_final_data.py --fits fits.tsv \
+  uv run python pipelines/final_data/src/build_final_data.py --fits fits.tsv \
       --genes metadata/benchmark_genes.tsv.gz --out <final_dir> [--rscript Rscript] [--workers 8]
 """
 import argparse

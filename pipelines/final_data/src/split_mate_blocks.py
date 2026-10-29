@@ -6,7 +6,7 @@ pairing, so the split is accepted only if exact sequence overlaps between paired
 than between shuffled pairs. The source file is never modified. A JSON audit is written next to the outputs.
 
 Usage:
-  uv run python pipelines/experiments/split_mate_blocks.py --input <run>.fastq.gz --run <SRR...> --out-dir <dir>
+  uv run python pipelines/final_data/src/split_mate_blocks.py --input <run>.fastq.gz --run <SRR...> --out-dir <dir>
 Needs pigz on PATH.
 """
 import argparse

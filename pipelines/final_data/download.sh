@@ -35,4 +35,4 @@ cd "$repo"
 uv run --quiet funmirbench-experiments-download-examples --example mirbase-hsa-mature --log-level WARNING
 
 echo "[2/2] Reads..."
-uv run --quiet python pipelines/experiments/download_reads.py "$@"
+uv run --quiet python pipelines/final_data/src/download_reads.py "$@"

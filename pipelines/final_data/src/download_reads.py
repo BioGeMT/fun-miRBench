@@ -1,11 +1,11 @@
 """Download the FASTQ files of the 30 test comparisons and prepare split-mate runs.
 
-Reads pipelines/experiments/configs/fastq_manifest.tsv: every file is downloaded from ENA to its repository path
+Reads pipelines/final_data/configs/fastq_manifest.tsv: every file is downloaded from ENA to its repository path
 and checked against the manifest md5 and size. Rows marked prepare=split_mate_blocks are then split into _1/_2
 files in prepared_dir (see split_mate_blocks.py). Existing files that already match their md5 are kept.
 
 Usage:
-  uv run python pipelines/experiments/download_reads.py [--study GSE115646 ...] [--workers 4] [--dry-run]
+  uv run python pipelines/final_data/src/download_reads.py [--study GSE115646 ...] [--workers 4] [--dry-run]
 """
 import argparse
 import hashlib
@@ -17,8 +17,8 @@ import requests
 
 from split_mate_blocks import split
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-MANIFEST = REPO / "pipelines/experiments/configs/fastq_manifest.tsv"
+REPO = pathlib.Path(__file__).resolve().parents[3]
+MANIFEST = REPO / "pipelines/final_data/configs/fastq_manifest.tsv"
 
 
 def md5(path: pathlib.Path) -> str:

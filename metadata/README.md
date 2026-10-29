@@ -1,6 +1,6 @@
 # Metadata of the 30 test comparisons
 
-- **`benchmark_genes.tsv.gz`:** the fixed gene list. It has 19,226 Ensembl 115 protein-coding genes with a MANE Select transcript, built by `pipelines/final_data/build_gene_list.py` from the GTF alone.
+- **`benchmark_genes.tsv.gz`:** the fixed gene list. It has 19,226 Ensembl 115 protein-coding genes with a MANE Select transcript, built by `pipelines/final_data/src/build_gene_list.py` from the GTF alone.
 - **`comparisons.tsv`:** one row per comparison.
   - design, sample numbers;
   - dependency group (comparisons that share controls or samples) and exact-seed group;
