@@ -5,10 +5,10 @@ log2FC, FSOS s-values and the three states for each d of the grid (from the shru
 tests and raw states at d = 0.5 and 1.0 as a check. This driver runs it for every comparison and writes a summary
 table and a manifest with SHA-256 hashes.
 
-Input --fits is a TSV with columns: experiment_id, perturbation (OE or KO), fit_rds (complete_analysis.rds written
+Input --fits is a TSV with columns: experiment_id, fit_rds (complete_analysis.rds written
 by pipelines/experiments/run_deseq2_counts.R).
 
-The comparison metadata (metadata/comparisons.tsv: groups, flags, KO evidence) is copied into the output.
+The comparison metadata (metadata/comparisons.tsv: groups, flags) is copied into the output.
 
 Usage:
   uv run python pipelines/final_data/src/build_final_data.py --fits fits.tsv \
@@ -44,14 +44,13 @@ def run_one(row, *, genes: pathlib.Path, out: pathlib.Path, rscript: str) -> dic
     prefix = out / "genes" / row.experiment_id
     log = out / "logs" / f"{row.experiment_id}.log"
     with open(log, "w") as fh:
-        subprocess.run([rscript, str(HERE / "label_states.R"), str(row.fit_rds), str(genes), row.perturbation,
-                        str(prefix)], stdout=fh, stderr=subprocess.STDOUT, check=True)
+        subprocess.run([rscript, str(HERE / "label_states.R"), str(row.fit_rds), str(genes), str(prefix)], stdout=fh, stderr=subprocess.STDOUT, check=True)
     for suffix in ("_events.tsv", "_metadata.txt"):
         pathlib.Path(f"{prefix}{suffix}").replace(out / "logs" / f"{row.experiment_id}{suffix}")
     table = pathlib.Path(f"{prefix}.tsv.gz")
     tags = [*MARGINS, *[f"raw_{m}" for m in MARGINS]]
     t = pd.read_csv(table, sep="\t", usecols=["eligible", "analysis_status", *[f"state_{m}" for m in tags]])
-    rec = {"experiment_id": row.experiment_id, "perturbation": row.perturbation, "n_genes": len(t),
+    rec = {"experiment_id": row.experiment_id, "n_genes": len(t),
            "n_fitted": int((t.analysis_status != "not_fitted_all_zero").sum()), "n_eligible": int(t.eligible.sum())}
     for m in tags:
         counts = t[f"state_{m}"].value_counts()
@@ -73,8 +72,8 @@ def main() -> None:
                     help="copied into the output so the evaluation reads one folder")
     args = ap.parse_args()
     fits = pd.read_csv(args.fits, sep="\t")
-    if fits.experiment_id.duplicated().any() or not fits.perturbation.isin(["OE", "KO"]).all():
-        raise ValueError("--fits needs unique experiment_id values and perturbation OE or KO")
+    if fits.experiment_id.duplicated().any():
+        raise ValueError("--fits needs unique experiment_id values")
     missing = [p for p in fits.fit_rds if not pathlib.Path(p).exists()]
     if missing:
         raise FileNotFoundError(f"missing fits: {missing}")
@@ -105,7 +104,7 @@ def main() -> None:
         "tables": {r["experiment_id"]: r["table_sha256"] for r in rows},
     }
     (args.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print(summary[["experiment_id", "perturbation", "d05_responsive", "d05_no_response_above_margin",
+    print(summary[["experiment_id", "d05_responsive", "d05_no_response_above_margin",
                    "d05_unresolved"]].to_string(index=False))
 
 

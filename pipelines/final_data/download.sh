@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Download the Ensembl 115 genome and GTF and the FASTQ files of the 30 test comparisons. Complete files are kept,
-# so the script can be rerun after an interruption. Arguments go to download_reads.py (for example --study GSE169128).
+# Download the Ensembl 115 genome and GTF and the FASTQ files of the 21 OE test comparisons. Complete files are kept,
+# so the script can be rerun after an interruption. Arguments go to download_reads.py (for example --study GSE124411).
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

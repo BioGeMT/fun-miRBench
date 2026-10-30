@@ -1,8 +1,7 @@
-"""Download the FASTQ files of the 30 test comparisons and prepare split-mate runs.
+"""Download the FASTQ files of the 21 OE test comparisons.
 
 Reads pipelines/final_data/configs/fastq_manifest.tsv: every file is downloaded from ENA to its repository path
-and checked against the manifest md5 and size. Rows marked prepare=split_mate_blocks are then split into _1/_2
-files in prepared_dir (see split_mate_blocks.py). Existing files that already match their md5 are kept.
+and checked against the manifest md5 and size. Existing files that already match their md5 are kept.
 
 Usage:
   uv run python pipelines/final_data/src/download_reads.py [--study GSE115646 ...] [--workers 4] [--dry-run]
@@ -14,8 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 import requests
-
-from split_mate_blocks import split
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MANIFEST = REPO / "pipelines/final_data/configs/fastq_manifest.tsv"
@@ -61,12 +58,6 @@ def main() -> None:
     with ThreadPoolExecutor(args.workers) as pool:
         for line in pool.map(fetch, man.itertuples(index=False)):
             print(line, flush=True)
-    for row in man[man.prepare == "split_mate_blocks"].itertuples(index=False):
-        out_dir = REPO / row.prepared_dir
-        if (out_dir / f"{row.run_accession}.audit.json").exists():
-            continue
-        report = split(REPO / row.path, row.run_accession, out_dir)
-        print(f"split   {row.run_accession}: {report['outputs'][0]['records']} pairs", flush=True)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the experiments pipeline for each test comparison, then build the final per-gene tables.
-# Arguments: the comparisons to run (default: all 30). Finished runs are skipped; the final tables are built once
+# Arguments: the comparisons to run (default: all 21). Finished runs are skipped; the final tables are built once
 # every comparison has a finished run.
 set -euo pipefail
 
@@ -47,14 +47,13 @@ printf '%s\n' "${ids[@]:1}" | xargs -r -P "$workers" -I{} bash -c 'run_one "$1"'
 
 echo "[2/3] Fit list..."
 fits="$work/fits.tsv"
-printf 'experiment_id\tperturbation\tfit_rds\n' >"$fits"
+printf 'experiment_id\tfit_rds\n' >"$fits"
 missing=0
-while IFS=$'\t' read -r id perturbation; do
+for id in "${all_ids[@]}"; do
   fit="$(latest_fit "$id")"
   if [[ -z "$fit" ]]; then missing=$((missing + 1)); continue; fi
-  printf '%s\t%s\t%s\n' "$id" "$perturbation" "$repo/$fit" >>"$fits"
-done < <(awk -F'\t' 'NR == 1 {for (i = 1; i <= NF; i++) col[$i] = i; next}
-                     {print $col["experiment_id"] "\t" $col["perturbation"]}' metadata/comparisons.tsv)
+  printf '%s\t%s\n' "$id" "$repo/$fit" >>"$fits"
+done
 if (( missing > 0 )); then
   echo "$missing of ${#all_ids[@]} comparisons have no finished run yet; the final tables need all of them."
   exit 0

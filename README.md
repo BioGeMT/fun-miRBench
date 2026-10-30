@@ -45,7 +45,7 @@ Main directories:
 - `metadata/mirna_experiment_info.tsv`: experiment registry
 - `metadata/predictions_info.tsv`: predictor registry
 - `pipelines/experiments/`: experiment-ingestion backend files and example configs
-- `pipelines/final_data/`: the 30 test comparisons, from reads to the final per-gene tables
+- `pipelines/final_data/`: the 21 OE test comparisons, from reads to the final per-gene tables
 - `pipelines/standardized_predictors/`: predictor pipelines
 - `manuscript_assets/`: final manuscript figure exports and compact supporting tables
 - `results/`: benchmark outputs
@@ -92,7 +92,7 @@ workflow:
   auto-generate a YAML config
 - [Experiment ingestion pipeline](pipelines/experiments/README.md) — run DESeq2 (count matrix or
   reads mode) and sync results into the registry
-- [Final benchmark data](pipelines/final_data/README.md): the 30 test comparisons from reads to the
+- [Final benchmark data](pipelines/final_data/README.md): the 21 OE test comparisons from reads to the
   final per-gene tables; run `pipelines/final_data/setup.sh`, then `download.sh`, then `run.sh`
 
 For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
@@ -176,7 +176,7 @@ experiments_tsv: metadata/mirna_experiment_info.tsv
 predictions_tsv: metadata/predictions_info.tsv
 
 experiments:
-  id: [GSE169128_KO_miR_3662, GSE124411_OE_miR_150_5p_1]
+  id: [GSE210778_OE_miR_375_3p, GSE124411_OE_miR_150_5p_1]
 
 predictors:
   tool_id: [targetscan, mirdb_mirtarget, microt_cnn, mirbind2, miraw]
