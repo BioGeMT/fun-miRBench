@@ -1,4 +1,3 @@
-import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -91,11 +90,7 @@ class ReferenceBaselineTests(unittest.TestCase):
         result = _evaluate(_joined())
 
         self.assertEqual([row["tool_id"] for row in result["metric_rows"]], ["tool"])
-        reference_rows = {
-            row["tool_id"]: row
-            for row in result["reference_metric_rows"]
-            if row["population"] == "all_usable_genes"
-        }
+        reference_rows = {row["tool_id"]: row for row in result["reference_metric_rows"]}
         self.assertEqual(set(reference_rows), REFERENCE_IDS)
         self.assertTrue(all(row["is_reference"] for row in reference_rows.values()))
         self.assertAlmostEqual(reference_rows["reference_expression_high"]["auroc"], 1.0)
@@ -116,76 +111,9 @@ class ReferenceBaselineTests(unittest.TestCase):
         result = _evaluate(_joined(with_control_counts=False))
 
         self.assertEqual(
-            sorted((row["population"], row["tool_id"]) for row in result["reference_metric_rows"]),
-            [("all_usable_genes", "reference_random"), ("matched_to_tool", "reference_random")],
+            [row["tool_id"] for row in result["reference_metric_rows"]],
+            ["reference_random"],
         )
-
-    def test_global_reference_rows_are_labelled_all_usable_genes(self):
-        result = _evaluate(_joined())
-
-        global_rows = [row for row in result["reference_metric_rows"] if not row["matched_tool_id"]]
-        self.assertEqual({row["tool_id"] for row in global_rows}, REFERENCE_IDS)
-        self.assertEqual({row["population"] for row in global_rows}, {"all_usable_genes"})
-        self.assertEqual({row["rows_scored"] for row in global_rows}, {10})
-
-    def test_matched_reference_rows_use_each_predictor_scored_genes(self):
-        joined = _joined()
-        # The sparse predictor scores one GT positive and one background gene only.
-        joined["score_sparse"] = [0.4, None, None, 0.6, None, None, None, None, None, None]
-        result = _evaluate(joined)
-
-        self.assertEqual(sorted(row["tool_id"] for row in result["metric_rows"]), ["sparse", "tool"])
-        matched = [
-            row
-            for row in result["reference_metric_rows"]
-            if row["population"] == "matched_to_sparse"
-        ]
-        self.assertEqual({row["tool_id"] for row in matched}, REFERENCE_IDS)
-        self.assertEqual({row["matched_tool_id"] for row in matched}, {"sparse"})
-        self.assertEqual({row["rows_scored"] for row in matched}, {2})
-        self.assertEqual({row["positives_scored"] for row in matched}, {1})
-        by_tool = {row["tool_id"]: row for row in matched}
-        self.assertAlmostEqual(by_tool["reference_expression_high"]["auroc"], 1.0)
-        self.assertAlmostEqual(by_tool["reference_expression_low"]["auroc"], 0.0)
-        sparse_row = [row for row in result["metric_rows"] if row["tool_id"] == "sparse"][0]
-        self.assertEqual(sparse_row["rows_scored"], 2)
-        dense_matched = [
-            row
-            for row in result["reference_metric_rows"]
-            if row["population"] == "matched_to_tool"
-        ]
-        self.assertEqual({row["rows_scored"] for row in dense_matched}, {10})
-
-    def test_matched_reference_is_unavailable_when_expression_is_missing_on_predictor_genes(self):
-        joined = _joined()
-        # The sparse predictor scores genes 1, 3 and 4; control expression is missing for gene 3.
-        joined["score_sparse"] = [0.4, None, 0.5, 0.6, None, None, None, None, None, None]
-        joined.loc[2, "control_mean_normalized_count"] = None
-        result = _evaluate(joined)
-
-        matched = {
-            row["tool_id"]: row
-            for row in result["reference_metric_rows"]
-            if row["population"] == "matched_to_sparse"
-        }
-        self.assertEqual(set(matched), REFERENCE_IDS)
-        for tool_id in ("reference_expression_high", "reference_expression_low"):
-            with self.subTest(tool_id=tool_id):
-                row = matched[tool_id]
-                self.assertEqual(
-                    row["reference_unavailable_reason"],
-                    "reference_missing_on_1_of_3_predictor_genes",
-                )
-                self.assertEqual(row["matched_genes"], 3)
-                self.assertEqual(row["reference_missing_genes"], 1)
-                for metric_name in ("aps", "pr_auc", "auroc", "spearman", "pearson"):
-                    self.assertTrue(math.isnan(row[metric_name]), metric_name)
-        random_row = matched["reference_random"]
-        self.assertEqual(random_row["reference_unavailable_reason"], "")
-        self.assertEqual(random_row["rows_scored"], 3)
-        self.assertEqual(random_row["matched_genes"], 3)
-        self.assertEqual(random_row["reference_missing_genes"], 0)
-        self.assertFalse(math.isnan(random_row["auroc"]))
 
 
 if __name__ == "__main__":

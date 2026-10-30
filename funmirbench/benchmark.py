@@ -175,9 +175,6 @@ def _finalize_run_bundle(
             effect_threshold=effect_threshold,
             predictor_top_fraction=predictor_top_fraction,
             tool_labels=tool_labels,
-            tool_ids=tool_ids,
-            reference_baselines=evaluation_options.get("reference_baselines", False),
-            reference_seed=evaluation_options.get("reference_seed", 0),
             logger=logger.info,
         )
         common_summary_path = write_combined_common_prediction_summary(
@@ -211,16 +208,10 @@ def _finalize_run_bundle(
             reference_metric_rows,
             layout["per_experiment_tables_dir"],
             layout["combined_tables_dir"],
-            metric_rows=metric_rows,
             logger=logger.info,
         )
         metric_tables["reference_baselines"] = reference_tables["per_experiment"]
-        combined_outputs.setdefault("tables", {}).update(
-            {
-                "cross_dataset_reference_summary": reference_tables["summary"],
-                "cross_dataset_tool_vs_reference_paired": reference_tables["paired_summary"],
-            }
-        )
+        combined_outputs.setdefault("tables", {})["cross_dataset_reference_summary"] = reference_tables["summary"]
     readme_path = write_run_readme(
         out_dir,
         config_path=config_path,

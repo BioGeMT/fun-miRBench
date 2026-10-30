@@ -14,35 +14,6 @@ import funmirbench.evaluate as ev
 
 CONTROL_PLOT_TOOL_IDS = set()
 SUMMARY_STATS = ["count", "mean", "median", "std", "min", "max"]
-MATCHED_POPULATION = "matched"
-MATCHED_SUMMARY_METRICS = ["aps", "pr_auc", "auroc", "spearman", "pearson"]
-MATCHED_COHORT_STATS = ["mean", "median", "std", "min", "max"]
-MATCHED_METRIC_COLUMNS = [
-    "dataset_id",
-    "tool_id",
-    "tool_type",
-    "population",
-    "matched_tool_ids",
-    "common_rows",
-    "common_positives",
-    *MATCHED_SUMMARY_METRICS,
-    "metrics_na_reason",
-]
-MATCHED_ROSTER_COLUMNS = ["tool_id", "tool_type", "configured", "included", "exclusion_reason"]
-PAIRED_REFERENCE_METRICS = ["aps", "pr_auc", "auroc", "spearman", "pearson"]
-PAIRED_REFERENCE_COLUMNS = [
-    "tool_id",
-    "reference_tool_id",
-    "population",
-    "summary_type",
-    "metric",
-    "comparisons",
-    "tool_mean",
-    "reference_mean",
-    "mean_difference_reference_minus_tool",
-    "median_difference_reference_minus_tool",
-]
-NO_METRIC_ROWS_REASON = "no metric rows in any evaluated dataset"
 
 
 def _is_real_plot_tool(tool_id):
@@ -98,60 +69,8 @@ def write_continuous_metric_table(continuous_rows, tables_dir, *, logger=None):
     return str(out_path)
 
 
-def _paired_reference_rows(metric_rows, reference_df):
-    """Pair each predictor with its ``matched_to_<tool_id>`` references, metric by metric.
-
-    For every metric, only datasets where both the predictor and the reference have a
-    finite value are compared, so both means cover the same comparisons.
-    """
-    if not metric_rows or reference_df.empty or "matched_tool_id" not in reference_df.columns:
-        return []
-    tool_df = _publication_metrics_df(pd.DataFrame(metric_rows))
-    matched = reference_df[reference_df["matched_tool_id"].fillna("").astype(str) != ""]
-    rows = []
-    for (tool_id, reference_id), reference_group in matched.groupby(["matched_tool_id", "tool_id"], sort=True):
-        tool_metrics = tool_df[tool_df["tool_id"].astype(str) == str(tool_id)].set_index("dataset_id")
-        reference_metrics = reference_group.set_index("dataset_id")
-        for metric_name in PAIRED_REFERENCE_METRICS:
-            if metric_name not in tool_metrics.columns or metric_name not in reference_metrics.columns:
-                continue
-            pairs = pd.concat(
-                {"tool": tool_metrics[metric_name], "reference": reference_metrics[metric_name]},
-                axis=1,
-            ).astype(float)
-            pairs = pairs[np.isfinite(pairs).all(axis=1)]
-            difference = pairs["reference"] - pairs["tool"]
-            rows.append(
-                {
-                    "tool_id": tool_id,
-                    "reference_tool_id": reference_id,
-                    "population": f"matched_to_{tool_id}",
-                    "summary_type": "paired_common_cohort",
-                    "metric": metric_name,
-                    "comparisons": int(len(pairs)),
-                    "tool_mean": float(pairs["tool"].mean()) if len(pairs) else float("nan"),
-                    "reference_mean": float(pairs["reference"].mean()) if len(pairs) else float("nan"),
-                    "mean_difference_reference_minus_tool": (
-                        float(difference.mean()) if len(pairs) else float("nan")
-                    ),
-                    "median_difference_reference_minus_tool": (
-                        float(difference.median()) if len(pairs) else float("nan")
-                    ),
-                }
-            )
-    return rows
-
-
-def write_reference_baseline_tables(
-    reference_rows, per_experiment_dir, combined_dir, *, metric_rows=None, logger=None,
-):
-    """Write reference-baseline rows, their descriptive summary, and paired comparisons.
-
-    Reference baselines are kept out of the publication metric tables and summaries. The
-    per-reference summary (``summary_type=descriptive_unpaired``) is grouped by population
-    and averages each reference over its own datasets. Tool-vs-reference comparisons belong
-    in the paired table, which uses a metric-specific common cohort for each pair.
-    """
+def write_reference_baseline_tables(reference_rows, per_experiment_dir, combined_dir, *, logger=None):
+    """Write reference-baseline rows and their summary, kept out of the publication tables."""
     per_experiment_dir.mkdir(parents=True, exist_ok=True)
     combined_dir.mkdir(parents=True, exist_ok=True)
     reference_df = pd.DataFrame(reference_rows)
@@ -160,251 +79,12 @@ def write_reference_baseline_tables(
     summary = _summarize_by_tool(
         reference_df,
         ["coverage", "positive_coverage", "aps", "pr_auc", "spearman", "auroc"],
-        group_cols=("population", "matched_tool_id", "tool_id"),
     )
-    summary = summary[
-        ["tool_id", "population", "matched_tool_id"]
-        + [column for column in summary.columns if column not in {"tool_id", "population", "matched_tool_id"}]
-    ]
     summary.insert(1, "is_reference", True)
-    summary.insert(4, "summary_type", "descriptive_unpaired")
     summary_path = combined_dir / "cross_dataset_reference_summary.tsv"
     summary.to_csv(summary_path, sep="\t", index=False)
-    paired_path = combined_dir / "cross_dataset_tool_vs_reference_paired.tsv"
-    pd.DataFrame(
-        _paired_reference_rows(metric_rows, reference_df),
-        columns=PAIRED_REFERENCE_COLUMNS,
-    ).to_csv(paired_path, sep="\t", index=False)
-    ev._emit_log(
-        logger,
-        f"  Wrote reference baseline tables: {per_experiment_path}, {summary_path}, {paired_path}",
-    )
-    return {
-        "per_experiment": str(per_experiment_path),
-        "summary": str(summary_path),
-        "paired_summary": str(paired_path),
-    }
-
-
-def _matched_tool_roster(metrics_df, *, configured_tool_ids=None, reference_baselines=False):
-    """Return the configured, included, and excluded tools of the matched population."""
-    evaluated = set(metrics_df["tool_id"].astype(str))
-    if configured_tool_ids is None:
-        configured_tool_ids = metrics_df["tool_id"].astype(str).drop_duplicates().tolist()
-    configured_tool_ids = [str(tool_id) for tool_id in configured_tool_ids]
-    rows = []
-    for tool_id in configured_tool_ids:
-        included = tool_id in evaluated
-        rows.append(
-            {
-                "tool_id": tool_id,
-                "tool_type": "predictor",
-                "configured": True,
-                "included": included,
-                "exclusion_reason": "" if included else NO_METRIC_ROWS_REASON,
-            }
-        )
-    for tool_id in sorted(evaluated - set(configured_tool_ids)):
-        rows.append(
-            {
-                "tool_id": tool_id,
-                "tool_type": "predictor",
-                "configured": False,
-                "included": False,
-                "exclusion_reason": "not in the configured predictor roster",
-            }
-        )
-    if reference_baselines:
-        for tool_id in sorted(ev.REFERENCE_TOOL_IDS):
-            rows.append(
-                {
-                    "tool_id": tool_id,
-                    "tool_type": "reference",
-                    "configured": True,
-                    "included": True,
-                    "exclusion_reason": "",
-                }
-            )
-    return pd.DataFrame(rows, columns=MATCHED_ROSTER_COLUMNS)
-
-
-def _matched_score_metrics(common, scores, reason):
-    """Return matched metrics for one score vector; undefined values stay NaN.
-
-    Predictors define the common genes, so only a reference can miss scores there; it is
-    then reported as unavailable instead of being scored on fewer genes.
-    """
-    metrics = {metric_name: float("nan") for metric_name in MATCHED_SUMMARY_METRICS}
-    missing_genes = int(scores.isna().sum())
-    if missing_genes:
-        return metrics, f"reference_missing_on_{missing_genes}_of_{len(scores)}_common_genes"
-    frame = common[["expected_effect"]].assign(matched_score=scores.astype(float))
-    if len(frame):
-        metrics["pearson"], metrics["spearman"] = ev._continuous_metrics(frame, score_col="matched_score")
-    if not reason:
-        metrics["pr_auc"], metrics["aps"] = ev._compute_pr_metrics(common["is_positive"], frame["matched_score"])
-        metrics["auroc"] = ev._compute_auroc(common["is_positive"], frame["matched_score"])
-    return metrics, reason
-
-
-def _matched_metric_rows(
-    metrics_df, joined_frames, *, tool_ids, fdr_threshold, effect_threshold, reference_seed=None,
-):
-    """Score every included predictor (and reference) on one shared population per dataset.
-
-    The population is the usable genes scored by all included predictors, restricted to
-    datasets with a metric row for every included predictor. References are scored on the
-    same genes when ``reference_seed`` is given.
-    """
-    if not tool_ids:
-        return []
-    score_cols = [f"{ev.SCORE_PREFIX}{tool_id}" for tool_id in tool_ids]
-    tools_by_dataset = {
-        str(dataset_id): set(group.astype(str))
-        for dataset_id, group in metrics_df.groupby("dataset_id")["tool_id"]
-    }
-    rows = []
-    for joined in joined_frames or []:
-        if joined.empty or "dataset_id" not in joined.columns:
-            continue
-        dataset_id = str(joined["dataset_id"].iloc[0])
-        if not set(tool_ids) <= tools_by_dataset.get(dataset_id, set()):
-            continue
-        if any(score_col not in joined.columns for score_col in score_cols):
-            continue
-        keep_cols = ["gene_id", "logFC", "FDR", *score_cols]
-        for optional in ("dataset_id", "perturbation", *ev.FDR_AUXILIARY_COLUMNS):
-            if optional in joined.columns:
-                keep_cols.append(optional)
-        work = ev._filter_usable_gt_rows(joined[keep_cols], fdr_threshold=fdr_threshold)
-        work = ev._annotate_ground_truth(work)
-        work["is_positive"] = ev._positive_mask(
-            work,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-        ).astype(int)
-        common = work.dropna(subset=score_cols)
-        positives = int(common["is_positive"].sum())
-        negatives = int(len(common) - positives)
-        if common.empty:
-            reason = "No genes are scored by every matched predictor."
-        elif positives == 0:
-            reason = "No positives remain in the matched population."
-        elif negatives == 0:
-            reason = "No negatives remain in the matched population."
-        else:
-            reason = ""
-        entries = [
-            (tool_id, "predictor", common[score_col])
-            for tool_id, score_col in zip(tool_ids, score_cols)
-        ]
-        if reference_seed is not None:
-            reference_scores = ev._reference_scores(joined, dataset_id=dataset_id, seed=reference_seed)
-            for tool_id in sorted(ev.REFERENCE_TOOL_IDS):
-                score_col = f"{ev.SCORE_PREFIX}{tool_id}"
-                if score_col in reference_scores.columns:
-                    scores = reference_scores.loc[common.index, score_col]
-                else:
-                    scores = pd.Series(float("nan"), index=common.index)
-                entries.append((tool_id, "reference", scores))
-        for tool_id, tool_type, scores in entries:
-            metrics, metrics_na_reason = _matched_score_metrics(common, scores, reason)
-            rows.append(
-                {
-                    "dataset_id": dataset_id,
-                    "tool_id": tool_id,
-                    "tool_type": tool_type,
-                    "population": MATCHED_POPULATION,
-                    "matched_tool_ids": ",".join(tool_ids),
-                    "common_rows": int(len(common)),
-                    "common_positives": positives,
-                    **metrics,
-                    "metrics_na_reason": metrics_na_reason,
-                }
-            )
-    return rows
-
-
-def _matched_cohort_summary(matched_df, *, cohort_tool_ids):
-    """Summarize each metric over the datasets where every included predictor is finite.
-
-    The cohort is metric-specific but identical for all tools, so every tool is averaged
-    over the same comparisons. Undefined values are never filled; a reference without a
-    finite value on every cohort dataset gets NaN statistics for that metric.
-    """
-    tool_types = matched_df.drop_duplicates("tool_id").set_index("tool_id")["tool_type"]
-    summary = pd.DataFrame({"tool_id": tool_types.index, "tool_type": tool_types.to_numpy()})
-    for metric_name in MATCHED_SUMMARY_METRICS:
-        wide = matched_df.pivot(index="dataset_id", columns="tool_id", values=metric_name).astype(float)
-        cohort = wide.loc[np.isfinite(wide[list(cohort_tool_ids)]).all(axis=1)]
-        summary[f"{metric_name}_comparisons"] = int(len(cohort))
-        for stat_name in MATCHED_COHORT_STATS:
-            summary[f"{metric_name}_{stat_name}"] = [
-                float(getattr(cohort[tool_id], stat_name)(skipna=False)) if len(cohort) else float("nan")
-                for tool_id in summary["tool_id"]
-            ]
-    return summary
-
-
-def _write_matched_summary(
-    metrics_df,
-    joined_frames,
-    tables_dir,
-    *,
-    fdr_threshold,
-    effect_threshold,
-    configured_tool_ids=None,
-    reference_seed=None,
-    logger=None,
-):
-    roster = _matched_tool_roster(
-        metrics_df,
-        configured_tool_ids=configured_tool_ids,
-        reference_baselines=reference_seed is not None,
-    )
-    predictors = roster[roster["tool_type"] == "predictor"]
-    configured = predictors.loc[predictors["configured"], "tool_id"].tolist()
-    included = predictors.loc[predictors["included"], "tool_id"].tolist()
-    excluded = predictors.loc[~predictors["included"], "tool_id"].tolist()
-    matched_df = pd.DataFrame(
-        _matched_metric_rows(
-            metrics_df,
-            joined_frames,
-            tool_ids=included,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            reference_seed=reference_seed,
-        ),
-        columns=MATCHED_METRIC_COLUMNS,
-    )
-    per_dataset_path = tables_dir / "matched_metrics_per_experiment.tsv"
-    matched_df.to_csv(per_dataset_path, sep="\t", index=False)
-    if matched_df.empty:
-        summary = pd.DataFrame(columns=["tool_id", "tool_type"])
-    else:
-        summary = _matched_cohort_summary(matched_df, cohort_tool_ids=included)
-    summary.insert(2, "is_reference", summary["tool_type"] == "reference")
-    summary.insert(3, "population", MATCHED_POPULATION)
-    summary.insert(4, "configured_tool_ids", ",".join(configured))
-    summary.insert(5, "matched_tool_ids", ",".join(included))
-    summary.insert(6, "excluded_tool_ids", ",".join(excluded))
-    summary.insert(7, "matched_dataset_count", int(matched_df["dataset_id"].nunique()))
-    summary_path = tables_dir / "cross_dataset_predictor_summary_matched.tsv"
-    summary.to_csv(summary_path, sep="\t", index=False)
-    roster_path = tables_dir / "matched_tool_roster.tsv"
-    roster.to_csv(roster_path, sep="\t", index=False)
-    ev._emit_log(logger, f"  Wrote matched cross-dataset summary table: {summary_path}")
-    if excluded:
-        ev._emit_log(
-            logger,
-            "  Matched summary excludes configured predictor(s): "
-            + ", ".join(f"{tool_id} ({NO_METRIC_ROWS_REASON})" for tool_id in excluded),
-        )
-    return {
-        "cross_dataset_predictor_summary_matched": str(summary_path),
-        "matched_metrics_per_experiment": str(per_dataset_path),
-        "matched_tool_roster": str(roster_path),
-    }
+    ev._emit_log(logger, f"  Wrote reference baseline tables: {per_experiment_path}, {summary_path}")
+    return {"per_experiment": str(per_experiment_path), "summary": str(summary_path)}
 
 
 def _plot_cross_dataset_metric_distribution(metrics_df, *, metric_name, out_path):
@@ -1000,9 +680,6 @@ def write_cross_dataset_summaries(
     effect_threshold=1.0,
     predictor_top_fraction=0.10,
     tool_labels=None,
-    tool_ids=None,
-    reference_baselines=False,
-    reference_seed=0,
     logger=None,
 ):
     del predictor_top_fraction
@@ -1032,21 +709,6 @@ def write_cross_dataset_summaries(
     summary_path = tables_dir / "cross_dataset_predictor_summary.tsv"
     summary.to_csv(summary_path, sep="\t", index=False)
     ev._emit_log(logger, f"  Wrote cross-dataset summary table: {summary_path}")
-    # The summary above averages each predictor over its own scored genes and evaluated
-    # datasets; the matched summary compares predictors on one shared population.
-    matched_tables = {}
-    if joined_frames:
-        matched_tables = _write_matched_summary(
-            metrics_df,
-            joined_frames,
-            tables_dir,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            configured_tool_ids=tool_ids,
-            reference_seed=reference_seed if reference_baselines else None,
-            logger=logger,
-        )
-
     distribution_paths = {}
     for metric_name in metric_names:
         metric_path = metric_plots_dir / f"cross_dataset_{metric_name}_distribution.png"
@@ -1121,7 +783,6 @@ def write_cross_dataset_summaries(
     return {
         "tables": {
             "cross_dataset_predictor_summary": str(summary_path),
-            **matched_tables,
         },
         "plots": {
             **distribution_paths,

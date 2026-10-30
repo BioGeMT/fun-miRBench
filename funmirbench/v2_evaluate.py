@@ -1,6 +1,6 @@
-"""FuNmiRBench v2 evaluation on the final three-state tables (no plots; TSV outputs).
+"""FuNmiRBench v2 evaluation on the final three-state tables (TSV outputs, plots and REPORT.pdf).
 
-For every comparison and every tool or reference baseline:
+For every overexpression (OE) comparison and every tool or reference baseline:
   * all scores are on the same fixed gene list; a gene the tool does not score is ranked last;
   * Spearman between the score and the oriented log2FC (raw and shrunken), over genes with a usable estimate,
     overall and averaged within tenths of control expression;
@@ -10,9 +10,9 @@ For every comparison and every tool or reference baseline:
   * for tools and the two seed baselines, a decoy check: the same Spearman for the predictor's scores of
     unrelated benchmark miRNAs (different nt 2-8 seed), giving a z-score of the cognate miRNA against its
     decoys, on the raw (decoy_z) and shrunken (decoy_z_shrunk) oriented log2FC.
-Comparisons are summarised per track (OE, KO, and pooled over both), on all comparisons and on unflagged ones, as
-the mean over comparisons with 95% intervals from a bootstrap over dependency groups; tools are also compared
-with the seed-plus-expression reference on the same comparisons.
+Comparisons are summarised on all comparisons and on unflagged ones, as the mean over comparisons with 95% intervals
+from a bootstrap over dependency groups; tools are also compared with the seed-plus-expression reference on the same
+comparisons.
 
 Usage:
   uv run funmirbench-v2-evaluate --final-dir <final-v2> --utr-fasta <MANE 3'UTR fasta> --out <dir>
@@ -30,13 +30,16 @@ import pandas as pd
 from scipy.stats import rankdata, spearmanr
 
 from funmirbench.gene_ids import strip_ensembl_version
+from funmirbench.v2_plots import plot_all_genes, plot_coverage, plot_recovery
+from funmirbench.v2_report_pdf import write_report
 
 logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[1]
 MARGINS = ("d05", "d10")
 STATE_SETS = {"": "state_", "raw_": "state_raw_"}  # metric tag prefix -> state column prefix
-TRACKS = ("OE", "KO", "pooled")
 REFERENCE = "seed_plus_expression"
+BUDGETS = (10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
+RECALL_TARGET = 0.5
 TABLE_COLUMNS = ["gene_id", "eligible", "oriented_logFC", "oriented_logFC_shrunk", "control_mean_normalized_count",
                  *[f"{column}{m}" for column in STATE_SETS.values() for m in MARGINS]]
 COMPLEMENT = str.maketrans("ACGU", "UGCA")
@@ -162,6 +165,22 @@ def score_metrics(score: pd.Series, table: pd.DataFrame, *, min_per_state: int) 
     return rec
 
 
+def recall_at_budgets(score: np.ndarray, positive: np.ndarray, genes: np.ndarray) -> dict[int, float]:
+    """Share of the positives among the top genes for each budget; ties in gene order."""
+    found = np.cumsum(positive[np.lexsort((genes, -score))])
+    return {b: found[min(b, len(found)) - 1] / positive.sum() for b in BUDGETS}
+
+
+def precision_at_recall(score: np.ndarray, positive: np.ndarray, target: float = RECALL_TARGET) -> dict:
+    """Precision at the highest score whose genes reach the target recall; tied genes enter together."""
+    by_score = pd.DataFrame({"score": score, "positive": positive}).groupby("score").positive.agg(["size", "sum"])
+    by_score = by_score.sort_index(ascending=False).cumsum()
+    row = by_score[by_score["sum"] / positive.sum() >= target].iloc[0]
+    return {"precision": row["sum"] / row["size"], "random_precision": positive.mean(),
+            "precision_over_random": row["sum"] / row["size"] / positive.mean(),
+            "false_positives_per_true_positive": (row["size"] - row["sum"]) / row["sum"]}
+
+
 def decoy_record(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> dict:
     """Spearman of the cognate scores and of each decoy's scores with y; z of the cognate against the decoys."""
     rho = spearman(cognate, y)
@@ -209,6 +228,8 @@ def evaluate(args: argparse.Namespace) -> None:
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
     comps = pd.read_csv(args.comparisons or args.final_dir / "comparisons.tsv", sep="\t", keep_default_na=False)
+    comps = comps[comps.perturbation == "OE"]
+    set_aside = comps[comps.action == "set_aside"]
     comps = comps[comps.action != "set_aside"]
     mirnas = pd.read_csv(args.mirnas, sep="\t").set_index("mirna_name")
     tools = pd.read_csv(args.predictions, sep="\t")
@@ -250,7 +271,8 @@ def evaluate(args: argparse.Namespace) -> None:
         return sites[mirna]
 
     rng = np.random.default_rng(args.seed)
-    rows, decoy_rows = [], []
+    rows, decoy_rows, pair_rows, recovery_rows, precision_rows = [], [], [], [], []
+    covered, measured = {tool: set() for tool in preds}, set()
     for c in comps.itertuples(index=False):
         t = tables[c.experiment_id]
         expr = t.control_mean_normalized_count.fillna(0.0)
@@ -279,13 +301,33 @@ def evaluate(args: argparse.Namespace) -> None:
                 rec = decoy_record(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
                 decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "target": target, **rec})
         for name, score in rankings.items():
-            rec = {"experiment_id": c.experiment_id, "perturbation": c.perturbation, "action": c.action,
+            rec = {"experiment_id": c.experiment_id, "action": c.action,
                    "dependency_group": c.dependency_group, "predictor": name, "kind": kinds[name],
                    "n_genes": len(universe),
                    "coverage": float(preds[name].get(c.mirna_name, pd.Series(dtype=float)).size / len(universe))
                    if name in preds else 1.0}
             rec.update(score_metrics(score, t, min_per_state=args.min_per_state))
             rows.append(rec)
+        state = t.state_d05.to_numpy()
+        responsive, no_response = state == "responsive", state == "no_response_above_margin"
+        labelled = responsive | no_response
+        enough = min(responsive.sum(), no_response.sum()) >= args.min_per_state
+        measured.update(universe[est])
+        for tool, by_mirna in preds.items():
+            scored = universe.isin(by_mirna.get(c.mirna_name, pd.Series(dtype=float)).index)
+            covered[tool].update(universe[scored & est])
+            pair_rows.append({"experiment_id": c.experiment_id, "predictor": tool,
+                              "responsive_scored": int((scored & responsive).sum()),
+                              "responsive_total": int(responsive.sum()),
+                              "no_response_scored": int((scored & no_response).sum()),
+                              "no_response_total": int(no_response.sum())})
+            if enough:
+                s = rankings[tool].to_numpy(float)[labelled]
+                recalls = recall_at_budgets(s, responsive[labelled], universe[labelled].to_numpy())
+                recovery_rows += [{"experiment_id": c.experiment_id, "predictor": tool, "budget": b, "recall": r}
+                                  for b, r in recalls.items()]
+                precision_rows.append({"experiment_id": c.experiment_id, "predictor": tool,
+                                       **precision_at_recall(s, responsive[labelled])})
         logger.info("scored %s", c.experiment_id)
 
     per = pd.DataFrame(rows)
@@ -304,33 +346,51 @@ def evaluate(args: argparse.Namespace) -> None:
     summary, paired = [], []
     boot_rng = np.random.default_rng(args.seed + 1)
     for subset, sub in (("all", per), ("unflagged", per[per.action == "keep"])):
-        for track in TRACKS:
-            in_track = sub if track == "pooled" else sub[sub.perturbation == track]
-            for name, g in in_track.groupby("predictor"):
-                ref = in_track[in_track.predictor == REFERENCE].set_index("experiment_id")
-                gi = g.set_index("experiment_id")
-                for metric in metrics:
-                    v = gi[metric]
-                    lo, hi = group_bootstrap(v, gi.dependency_group, n=args.bootstrap, rng=boot_rng)
-                    summary.append({"subset": subset, "track": track, "predictor": name, "kind": gi.kind.iloc[0],
-                                    "metric": metric, "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
-                                    "n_comparisons": int(v.notna().sum()),
-                                    "n_groups": int(gi.dependency_group[v.notna()].nunique())})
-                    if name != REFERENCE and metric != "coverage" and metric in ref and ref[metric].notna().any():
-                        d = (v - ref[metric].reindex(v.index)).dropna()
-                        lo, hi = group_bootstrap(d, gi.dependency_group.reindex(d.index), n=args.bootstrap,
-                                                 rng=boot_rng)
-                        paired.append({"subset": subset, "track": track, "predictor": name, "metric": metric,
-                                       "mean_difference_vs_" + REFERENCE: d.mean() if len(d) else np.nan,
-                                       "ci95_low": lo, "ci95_high": hi, "n_comparisons": len(d),
-                                       "n_groups": int(gi.dependency_group.reindex(d.index).nunique())})
-    pd.DataFrame(summary).to_csv(out / "summary.tsv", sep="\t", index=False)
+        for name, g in sub.groupby("predictor"):
+            ref = sub[sub.predictor == REFERENCE].set_index("experiment_id")
+            gi = g.set_index("experiment_id")
+            for metric in metrics:
+                v = gi[metric]
+                lo, hi = group_bootstrap(v, gi.dependency_group, n=args.bootstrap, rng=boot_rng)
+                summary.append({"subset": subset, "predictor": name, "kind": gi.kind.iloc[0],
+                                "metric": metric, "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
+                                "n_comparisons": int(v.notna().sum()),
+                                "n_groups": int(gi.dependency_group[v.notna()].nunique())})
+                if name != REFERENCE and metric != "coverage" and metric in ref and ref[metric].notna().any():
+                    d = (v - ref[metric].reindex(v.index)).dropna()
+                    lo, hi = group_bootstrap(d, gi.dependency_group.reindex(d.index), n=args.bootstrap,
+                                             rng=boot_rng)
+                    paired.append({"subset": subset, "predictor": name, "metric": metric,
+                                   "mean_difference_vs_" + REFERENCE: d.mean() if len(d) else np.nan,
+                                   "ci95_low": lo, "ci95_high": hi, "n_comparisons": len(d),
+                                   "n_groups": int(gi.dependency_group.reindex(d.index).nunique())})
+    summary = pd.DataFrame(summary)
+    summary.to_csv(out / "summary.tsv", sep="\t", index=False)
     pd.DataFrame(paired).to_csv(out / "paired_vs_reference.tsv", sep="\t", index=False)
+    pairs = pd.DataFrame(pair_rows)
+    retained = pairs[(pairs.responsive_scored > 0) & (pairs.no_response_scored > 0)].groupby("predictor").size()
+    coverage = pairs.groupby("predictor")[["responsive_scored", "responsive_total", "no_response_scored",
+                                           "no_response_total"]].sum()
+    coverage.insert(0, "genes_covered", pd.Series({tool: len(genes) for tool, genes in covered.items()}))
+    coverage.insert(1, "genes_measured", len(measured))
+    coverage.insert(2, "experiments_retained", retained.reindex(coverage.index, fill_value=0))
+    coverage.insert(3, "experiments_total", len(comps))
+    coverage = coverage.reset_index()
+    recovery, precision = pd.DataFrame(recovery_rows), pd.DataFrame(precision_rows)
+    coverage.to_csv(out / "coverage.tsv", sep="\t", index=False)
+    recovery.to_csv(out / "recovery.tsv", sep="\t", index=False)
+    precision.to_csv(out / "precision_at_recall.tsv", sep="\t", index=False)
+    plots = out / "plots"
+    plot_coverage(coverage, tools, plots)
+    plot_all_genes(per, tools, plots)
+    plot_recovery(recovery, precision, tools, plots)
+    write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, tools=tools,
+                 n_genes=len(universe), min_per_state=args.min_per_state, plots=plots)
     (out / "run_info.json").write_text(json.dumps({
         "built": datetime.now(timezone.utc).isoformat(timespec="seconds"), "final_dir": str(args.final_dir),
         "comparisons": int(len(comps)), "genes": int(len(universe)), "tools": list(preds),
         "min_per_state": args.min_per_state, "bootstrap": args.bootstrap, "seed": args.seed,
-        "reference": REFERENCE, "tracks": list(TRACKS), "states": {"state_*": "main", "state_raw_*": "raw check"},
+        "reference": REFERENCE, "states": {"state_*": "main", "state_raw_*": "raw check"},
         "decoys": "benchmark miRNAs (--mirnas) with a different nt 2-8 seed"}, indent=2) + "\n")
     logger.info("wrote %s", out)
 

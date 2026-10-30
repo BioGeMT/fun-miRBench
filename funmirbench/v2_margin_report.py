@@ -67,7 +67,7 @@ def report(args: argparse.Namespace) -> None:
     if args.main_margin not in margins:
         raise ValueError(f"--main-margin {args.main_margin} is not one of {list(margins)}")
     comps = pd.read_csv(args.final_dir / "comparisons.tsv", sep="\t", keep_default_na=False)
-    comps = comps[comps.action != "set_aside"]
+    comps = comps[(comps.action != "set_aside") & (comps.perturbation == "OE")]
     final = pd.read_csv(args.final_dir / "experiments.tsv", sep="\t").set_index("experiment_id")
     mirnas = pd.read_csv(args.mirnas, sep="\t").set_index("mirna_name")
     utrs = read_fasta_by_gene(args.utr_fasta)
@@ -77,7 +77,7 @@ def report(args: argparse.Namespace) -> None:
         t = pd.read_csv(args.final_dir / final.loc[c.experiment_id, "table"], sep="\t", usecols=cols)
         site = has_site(utrs, t.gene_id, mirnas.loc[c.mirna_name, "mirna_sequence"])
         for r in margin_rows(t, margins, site):
-            rows.append({"experiment_id": c.experiment_id, "perturbation": c.perturbation, "action": c.action,
+            rows.append({"experiment_id": c.experiment_id, "action": c.action,
                          "dependency_group": c.dependency_group, **r})
     grid = pd.DataFrame(rows)
     args.out.mkdir(parents=True, exist_ok=True)

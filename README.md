@@ -201,7 +201,7 @@ selection. Other changes are active regardless of these keys:
   single distinct score in a dataset, every gene, including unscored ones, received rank 1.0. This can
   change combination, heatmap, and rank-plot outputs for such predictors.
 - Added outputs: DE covariate columns in `joined.tsv`, continuous metrics for every evaluated
-  predictor, reference-baseline tables, and the matched cross-dataset summary.
+  predictor and reference-baseline tables.
 
 The evaluator still uses the legacy binary rule (`FDR < fdr_threshold` and oriented effect
 `> effect_threshold`; everything else usable is a negative). Confidence-aware labels, for example
@@ -226,16 +226,8 @@ Options:
   computed inside the evaluator from each DE table: `reference_random` (seeded, reproducible,
   independent of row order) and `reference_expression_high` / `reference_expression_low`
   (`control_mean_normalized_count`, descending and ascending). They use the predictors' GT labels
-  and are reported on two kinds of gene population. `population=all_usable_genes` rows use every
-  usable gene and are descriptive only: sparse predictors are scored on fewer genes.
-  `population=matched_to_<tool_id>` rows (one set per predictor with a metric row in that dataset)
-  use exactly the genes that predictor scored, so predictor-vs-reference differences are read on
-  identical genes and datasets. If a reference score (e.g. control expression) is missing on any of
-  those genes, the row is reported as unavailable: NaN metrics, `matched_genes`,
-  `reference_missing_genes`, and `reference_unavailable_reason` such as
-  `reference_missing_on_1_of_3_predictor_genes`; it is never scored on fewer genes. References are
-  also scored on the common population of the matched cross-dataset summary, with the same rule.
-  They never enter predictor metric tables, the per-predictor cross-dataset summary, or plots.
+  and are scored on every usable gene. They never enter predictor metric tables, the per-predictor
+  cross-dataset summary, or plots.
 
 DE covariates present in the DE table (`baseMean`, `lfcSE`, `stat`,
 `control_mean_normalized_count`, `treated_mean_normalized_count`, edgeR `logCPM`/`F`, the
@@ -256,7 +248,7 @@ normal workflow is just to edit or uncomment filters.
 
 ## v2 Evaluation (three-state labels)
 
-`funmirbench-v2-evaluate` scores tools on the v2 final tables made by the `v2-processing` branch (`pipelines/final_data/`). It produces TSVs only, no plots.
+`funmirbench-v2-evaluate` scores tools on the overexpression (OE) comparisons of the v2 final tables made by the `v2-processing` branch (`pipelines/final_data/`), on all genes. KO comparisons in the tables are not scored.
 
 ```bash
 uv run funmirbench-download-data                       # published standardized predictors
@@ -276,12 +268,20 @@ uv run funmirbench-v2-evaluate --final-dir <final-v2> --utr-fasta <MANE Select 3
   - `seed_plus_expression`: seed score with expression breaking ties.
 - **Decoy check:** for each tool and the two seed baselines, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/v2/benchmark_mirnas.tsv`). `decoy_z` (raw log2FC) and `decoy_z_shrunk` are the cognate miRNA against its decoys.
 - **Summaries:**
-  - OE, KO and both pooled, on all comparisons and on unflagged ones;
+  - on all comparisons and on unflagged ones;
   - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
   - `paired_vs_reference.tsv` compares each ranking with `seed_plus_expression` on the same comparisons.
 - **Predictors:** `metadata/v2/predictions.tsv` lists the five published tools plus `targetscan_family_expanded`, which gives every family member the family score.
 
-Outputs: `per_comparison.tsv`, `decoy.tsv`, `summary.tsv`, `paired_vs_reference.tsv`, `run_info.json`.
+- **Plots**, in `plots/` as PNG and SVG:
+  - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
+  - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC and the experiments each tool wins, for every tool on all genes;
+  - `recovery`: recall by prediction budget and each experiment's best precision at 50% recall relative to random, on the comparisons with at least 30 genes in each state.
+
+  `targetscan_family_expanded` takes the place of `targetscan` in the plots.
+- **Report:** `REPORT.pdf`: run settings, key results, the mean coverage, AUROC and Spearman per tool, the experiments evaluated and skipped, and the plots.
+
+Outputs: `REPORT.pdf`, `per_comparison.tsv`, `decoy.tsv`, `summary.tsv`, `paired_vs_reference.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `run_info.json`, `plots/`.
 
 `python -m funmirbench.v2_margin_report --final-dir <final dir> --utr-fasta <MANE Select 3'UTR FASTA> --out <dir>` counts the states for every d of the final tables, the genes that moved the other way by more than d (the responsive rule mirrored), their ratio to the responsive genes, and the share of genes with a seed site on each side (`margin_grid.tsv`, and `margin_summary.tsv` at d = 0.5).
 
@@ -319,19 +319,8 @@ Inside each run folder you get:
   plus `continuous_metrics_per_experiment.tsv` and `reference_baselines_per_experiment.tsv`
 - `tables/combined/`: cross-dataset predictor summaries when evaluation metrics are available.
   `cross_dataset_predictor_summary.tsv` averages each predictor over its own scored genes and
-  evaluated datasets. `cross_dataset_predictor_summary_matched.tsv` (per dataset:
-  `matched_metrics_per_experiment.tsv`) scores the included predictors, and the reference baselines,
-  on one population: genes scored by all included predictors, in datasets evaluated for all of them.
-  Each metric is averaged over the datasets where every included predictor has a defined value
-  (`<metric>_comparisons`); undefined values such as Spearman of constant scores stay missing and
-  are never set to 0. `matched_tool_roster.tsv` lists the configured predictors, the included ones,
-  and each excluded predictor with its reason (for example no metric rows in any evaluated dataset).
-  A very sparse predictor shrinks the matched population. `cross_dataset_reference_summary.tsv`
-  (`summary_type=descriptive_unpaired`) averages each reference over its own datasets per population
-  and is descriptive only. For tool-vs-reference comparisons use
-  `cross_dataset_tool_vs_reference_paired.tsv` (`summary_type=paired_common_cohort`): for each
-  predictor and matched reference, each metric is averaged over the datasets where both have a finite
-  value (`comparisons`), with `mean_difference_reference_minus_tool`.
+  evaluated datasets. `cross_dataset_reference_summary.tsv` averages each reference over its own
+  datasets.
 - `plots/combined/metrics/`, `plots/combined/ranks/`, `plots/combined/combinations/`:
   cross-dataset comparison plots grouped by theme when evaluation metrics are available
 - `summary.json`: machine-readable run summary, including configured tags and skipped-dataset reasons

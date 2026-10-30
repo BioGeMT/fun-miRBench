@@ -47,9 +47,8 @@ evaluation:
   #   whose scored genes contain no positives.
   zero_positive_policy: exclude
   # Reference baselines scored from each DE table: seeded random and control expression
-  # (control_mean_normalized_count, both directions), on all usable genes and on each
-  # predictor's scored genes (matched_to_<tool_id>). They are written to separate
-  # reference tables and the matched summary, never to predictor tables or plots.
+  # (control_mean_normalized_count, both directions), on all usable genes. They are
+  # written to separate reference tables, never to predictor tables or plots.
   reference_baselines: true
   reference_seed: 0
 

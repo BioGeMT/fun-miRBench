@@ -29,21 +29,10 @@ def _continuous_metric_row(identity, coverage_info, *, pearson, spearman):
     }
 
 
-REFERENCE_ALL_GENES_POPULATION = "all_usable_genes"
-
-
 def _evaluate_reference_baselines(
-    joined, *, identity, fdr_threshold, effect_threshold, perturbation, seed,
-    matched_gene_ids=None, logger=None,
+    joined, *, identity, fdr_threshold, effect_threshold, perturbation, seed, logger=None,
 ):
-    """Score reference baselines with the predictors' GT labels on two kinds of population.
-
-    ``all_usable_genes`` rows use every usable gene with a reference score and are
-    descriptive only: sparse predictors are scored on fewer genes. ``matched_to_<tool_id>``
-    rows use exactly the usable genes that predictor scored, so predictor-vs-reference
-    differences can be read on identical genes. A reference with a missing score on any of
-    those genes is reported as unavailable (NaN metrics plus counts), never on fewer genes.
-    """
+    """Score reference baselines with the predictors' GT labels on every usable gene."""
     if "gene_id" not in joined.columns:
         return []
     base_cols = [
@@ -52,84 +41,10 @@ def _evaluate_reference_baselines(
         if not column.startswith((SCORE_PREFIX, GLOBAL_RANK_PREFIX, LOCAL_RANK_PREFIX))
     ]
     reference_scores = _reference_scores(joined, dataset_id=identity["dataset_id"], seed=seed)
-    gene_ids = joined["gene_id"].astype(str)
-    populations = [(REFERENCE_ALL_GENES_POPULATION, "", reference_scores, None)]
-    for tool_id, tool_gene_ids in (matched_gene_ids or {}).items():
-        in_population = gene_ids.isin(set(tool_gene_ids))
-        matched_scores = reference_scores.copy()
-        matched_scores.loc[~in_population, :] = float("nan")
-        populations.append((f"matched_to_{tool_id}", tool_id, matched_scores, in_population))
+    frame = pd.concat([joined[base_cols], reference_scores], axis=1)
     rows = []
-    for population, matched_tool_id, population_scores, in_population in populations:
-        rows.extend(
-            _reference_population_rows(
-                pd.concat([joined[base_cols], population_scores], axis=1),
-                score_cols=list(population_scores.columns),
-                identity=identity,
-                population=population,
-                matched_tool_id=matched_tool_id,
-                in_population=in_population,
-                fdr_threshold=fdr_threshold,
-                effect_threshold=effect_threshold,
-                perturbation=perturbation,
-                seed=seed,
-                logger=logger if not matched_tool_id else None,
-            )
-        )
-    return rows
-
-
-def _unavailable_reference_row(identity, *, tool_id, population, matched_tool_id, seed, matched_genes, missing_genes):
-    return {
-        **identity,
-        "tool_id": tool_id,
-        "is_reference": True,
-        "population": population,
-        "matched_tool_id": matched_tool_id,
-        "matched_genes": matched_genes,
-        "reference_missing_genes": missing_genes,
-        "reference_description": REFERENCE_TOOL_DESCRIPTIONS[tool_id],
-        "reference_seed": int(seed),
-        **{
-            column: float("nan")
-            for column in (
-                "rows_total", "rows_scored", "rows_missing_score", "coverage",
-                "positives_total", "positives_scored", "positive_coverage",
-                "aps", "pr_auc", "auroc", "spearman", "pearson",
-            )
-        },
-        "class_metrics_na_reason": "",
-        "reference_unavailable_reason": (
-            f"reference_missing_on_{missing_genes}_of_{matched_genes}_predictor_genes"
-        ),
-    }
-
-
-def _reference_population_rows(
-    frame, *, score_cols, identity, population, matched_tool_id, in_population,
-    fdr_threshold, effect_threshold, perturbation, seed, logger=None,
-):
-    """Score each reference on one population; ``in_population`` marks matched genes."""
-    rows = []
-    for score_col in score_cols:
+    for score_col in reference_scores.columns:
         tool_id = _tool_id_from_score_col(score_col)
-        matched_genes = missing_genes = float("nan")
-        if in_population is not None:
-            matched_genes = int(in_population.sum())
-            missing_genes = int(frame.loc[in_population, score_col].isna().sum())
-            if missing_genes:
-                rows.append(
-                    _unavailable_reference_row(
-                        identity,
-                        tool_id=tool_id,
-                        population=population,
-                        matched_tool_id=matched_tool_id,
-                        seed=seed,
-                        matched_genes=matched_genes,
-                        missing_genes=missing_genes,
-                    )
-                )
-                continue
         try:
             scored, coverage_info = _prepare_scored_frame(
                 frame, score_col=score_col,
@@ -138,7 +53,7 @@ def _reference_population_rows(
                 require_both_classes=False,
             )
         except ValueError as exc:
-            _emit_log(logger, f"    Reference: {tool_id} [{population}] | skipped: {exc}")
+            _emit_log(logger, f"    Reference: {tool_id} | skipped: {exc}")
             continue
         pearson, spearman = _continuous_metrics(scored, score_col=score_col)
         aps = pr_auc = auroc = float("nan")
@@ -149,10 +64,6 @@ def _reference_population_rows(
             **identity,
             "tool_id": tool_id,
             "is_reference": True,
-            "population": population,
-            "matched_tool_id": matched_tool_id,
-            "matched_genes": matched_genes,
-            "reference_missing_genes": missing_genes,
             "reference_description": REFERENCE_TOOL_DESCRIPTIONS[tool_id],
             "reference_seed": int(seed),
             "rows_total": coverage_info["rows_total"],
@@ -165,12 +76,10 @@ def _reference_population_rows(
             "aps": aps, "pr_auc": pr_auc, "auroc": auroc,
             "spearman": spearman, "pearson": pearson,
             "class_metrics_na_reason": coverage_info["class_metrics_na_reason"],
-            "reference_unavailable_reason": "",
         })
         _emit_log(
             logger,
-            f"    Reference: {tool_id} [{population}] | APS={aps:.3f} | AUROC={auroc:.3f} "
-            f"| Spearman={spearman:.3f}",
+            f"    Reference: {tool_id} | APS={aps:.3f} | AUROC={auroc:.3f} | Spearman={spearman:.3f}",
         )
     return rows
 
@@ -236,8 +145,6 @@ def evaluate_joined_dataframe(
     metric_rows = []
     skipped_tool_rows = []
     continuous_metric_rows = []
-    # Usable scored genes of each predictor with a metric row, for matched references.
-    matched_gene_ids = {}
     dataset_plots = {}
     predictor_correlation_tsv = None
     comparisons = []
@@ -337,7 +244,6 @@ def evaluate_joined_dataframe(
                     "rows_excluded_fdr_na_scored": coverage_info["rows_excluded_fdr_na_scored"],
                     "class_metrics_na_reason": class_metrics_na_reason,
                 })
-                matched_gene_ids[tool_id] = scored["gene_id"].astype(str).tolist()
             else:
                 skipped_tool_rows.append({
                     **identity,
@@ -459,7 +365,6 @@ def evaluate_joined_dataframe(
         continuous_metric_rows.append(
             _continuous_metric_row(identity, coverage_info, pearson=pearson, spearman=spearman)
         )
-        matched_gene_ids[tool_id] = scored["gene_id"].astype(str).tolist()
         comparisons.append({
             "tool_id": tool_id,
             "y_true": scored["is_positive"],
@@ -488,7 +393,6 @@ def evaluate_joined_dataframe(
             effect_threshold=effect_threshold,
             perturbation=perturbation,
             seed=reference_seed,
-            matched_gene_ids=matched_gene_ids,
             logger=logger,
         )
 

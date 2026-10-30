@@ -18,7 +18,7 @@ REFERENCE_IDS = {
 }
 
 
-def _write_fixture(root, *, evaluation_lines=(), unscored_tool=False):
+def _write_fixture(root, *, evaluation_lines=()):
     pd.DataFrame({
         "gene_id": GENE_IDS,
         "logFC": [-2.0, -1.8, -1.5, -2.2, 0.1, 0.2, -0.1, 0.0, 0.3, -0.2, 0.4, -2.5],
@@ -52,12 +52,6 @@ def _write_fixture(root, *, evaluation_lines=(), unscored_tool=False):
         "tool_a\tTool A\thigher_is_stronger\ttool_a.tsv\n"
         "tool_b\tTool B\thigher_is_stronger\ttool_b.tsv\n"
     )
-    if unscored_tool:
-        # Configured, but it only scores a miRNA that no selected experiment uses.
-        pd.DataFrame(
-            {"Ensembl_ID": GENE_IDS[:3], "miRNA_Name": "hsa-miR-999", "Score": [1.0, 2.0, 3.0]}
-        ).to_csv(root / "tool_c.tsv", sep="\t", index=False)
-        predictions += "tool_c\tTool C\thigher_is_stronger\ttool_c.tsv\n"
     (root / "predictions.tsv").write_text(predictions, encoding="utf-8")
     (root / "experiments.tsv").write_text(
         "id\tmirna_name\torganism\texperiment_type\tde_table_path\n"
@@ -101,9 +95,6 @@ class BenchmarkOptionTests(unittest.TestCase):
             reference_summary_exists = (
                 out_dir / "tables/combined/cross_dataset_reference_summary.tsv"
             ).is_file()
-            matched_summary_exists = (
-                out_dir / "tables/combined/cross_dataset_predictor_summary_matched.tsv"
-            ).is_file()
             readme = (out_dir / "README.md").read_text(encoding="utf-8")
 
         self.assertEqual(summary["dataset_ids"], ["ds_pos"])
@@ -121,7 +112,6 @@ class BenchmarkOptionTests(unittest.TestCase):
         self.assertEqual(set(references["tool_id"]), REFERENCE_IDS)
         self.assertTrue(references["is_reference"].all())
         self.assertTrue(reference_summary_exists)
-        self.assertTrue(matched_summary_exists)
         self.assertEqual(set(continuous["tool_id"]), {"tool_a", "tool_b"})
         self.assertEqual(set(continuous.loc[continuous["dataset_id"] == "ds_pos", "rows_total"]), {12})
         self.assertIn("reference", readme.lower())
@@ -156,52 +146,6 @@ class BenchmarkOptionTests(unittest.TestCase):
         zero_aps = aps.set_index("dataset_id")
         self.assertTrue("ds_zero" not in zero_aps.index or pd.isna(zero_aps.loc["ds_zero", "tool_a"]))
         self.assertEqual(set(continuous.loc[continuous["dataset_id"] == "ds_pos", "rows_total"]), {11})
-
-    def test_matched_roster_and_reference_populations_are_reported(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            out_dir = _run(_write_fixture(root, unscored_tool=True), "roster")
-            roster = _read_table(out_dir, "tables/combined/matched_tool_roster.tsv").set_index("tool_id")
-            references = _read_table(out_dir, "tables/per_experiment/reference_baselines_per_experiment.tsv")
-            matched = _read_table(out_dir, "tables/combined/cross_dataset_predictor_summary_matched.tsv")
-            readme = (out_dir / "README.md").read_text(encoding="utf-8")
-
-        self.assertFalse(roster.loc["tool_c", "included"])
-        self.assertIn("no metric rows", roster.loc["tool_c", "exclusion_reason"])
-        self.assertEqual(set(matched["configured_tool_ids"]), {"tool_a,tool_b,tool_c"})
-        self.assertEqual(set(matched["matched_tool_ids"]), {"tool_a,tool_b"})
-        self.assertTrue(REFERENCE_IDS <= set(matched["tool_id"]))
-        self.assertEqual(
-            set(references["population"]),
-            {"all_usable_genes", "matched_to_tool_a", "matched_to_tool_b"},
-        )
-        matched_b = references[references["population"] == "matched_to_tool_b"]
-        self.assertEqual(set(matched_b["rows_scored"]), {6})
-        self.assertIn("`tool_c`", readme)
-        self.assertIn("no metric rows", readme)
-        self.assertIn("all_usable_genes", readme)
-        self.assertIn("matched_to_<tool_id>", readme)
-
-    def test_reference_summaries_are_labelled_descriptive_or_paired(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            out_dir = _run(_write_fixture(root), "paired")
-            summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
-            descriptive = _read_table(out_dir, "tables/combined/cross_dataset_reference_summary.tsv")
-            paired = _read_table(out_dir, "tables/combined/cross_dataset_tool_vs_reference_paired.tsv")
-            readme = (out_dir / "README.md").read_text(encoding="utf-8")
-
-        self.assertIn(
-            "cross_dataset_tool_vs_reference_paired",
-            summary["cross_dataset_outputs"]["tables"],
-        )
-        self.assertEqual(set(descriptive["summary_type"]), {"descriptive_unpaired"})
-        self.assertEqual(set(paired["summary_type"]), {"paired_common_cohort"})
-        self.assertEqual(set(paired["tool_id"]), {"tool_a", "tool_b"})
-        self.assertEqual(set(paired["reference_tool_id"]), REFERENCE_IDS)
-        self.assertIn("mean_difference_reference_minus_tool", paired.columns)
-        self.assertIn("descriptive_unpaired", readme)
-        self.assertIn("cross_dataset_tool_vs_reference_paired.tsv", readme)
 
 
 if __name__ == "__main__":
