@@ -179,7 +179,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     root = config_path.parent
     input_dir = resolve_predictor_output_path(config["input_dir"], root)
     if not (input_dir / "comparisons.tsv").is_file():
-        raise FileNotFoundError(f"no final tables in {input_dir}; run `uv run funmirbench-download-data`")
+        raise FileNotFoundError(f"no benchmark tables in {input_dir}; run `uv run funmirbench-download-data`")
     evaluation = config.get("evaluation") or {}
     min_per_state = int(evaluation.get("min_per_state", 30))
     bootstrap = int(evaluation.get("bootstrap", 2000))
@@ -205,7 +205,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     final = pd.read_csv(input_dir / "experiments.tsv", sep="\t").set_index("experiment_id")
     missing = set(comps.experiment_id) - set(final.index)
     if missing:
-        raise ValueError(f"comparisons without a final table: {sorted(missing)}")
+        raise ValueError(f"comparisons without a benchmark table: {sorted(missing)}")
     if (set(comps.mirna_name) - set(mirnas.index)):
         raise ValueError("every comparison miRNA needs a sequence in mirnas_tsv")
 
@@ -217,7 +217,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         tables[exp] = t
     universe = next(iter(tables.values())).index
     if any(not t.index.equals(universe) for t in tables.values()):
-        raise ValueError("final tables must share the same gene list in the same order")
+        raise ValueError("benchmark tables must share the same gene list in the same order")
     logger.info("%d comparisons, %d genes", len(tables), len(universe))
 
     seeds = mirnas.mirna_sequence.str.upper().str.replace("T", "U").str[1:8]

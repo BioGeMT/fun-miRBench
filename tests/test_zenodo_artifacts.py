@@ -14,7 +14,7 @@ from funmirbench.experiment_store import (
     ensure_zenodo_experiment_cached,
     sync_zenodo_experiments,
 )
-from funmirbench.final_data_store import sync_family_expanded_targetscan, sync_final_data
+from funmirbench.benchmark_data_store import sync_family_expanded_targetscan, sync_benchmark_data
 from funmirbench.predictor_store import _download_archive, sync_zenodo_predictors
 from funmirbench.zenodo_store import compute_md5
 
@@ -291,30 +291,30 @@ class ZenodoArtifactTests(unittest.TestCase):
                 [],
             )
 
-    def test_final_data_is_unpacked_once_and_checked(self):
+    def test_benchmark_data_is_unpacked_once_and_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
-            archive = repo / "final_data.zip"
+            archive = repo / "benchmark_data.zip"
             with zipfile.ZipFile(archive, "w") as handle:
-                handle.writestr("final_data/comparisons.tsv", "experiment_id\n")
-                handle.writestr("final_data/genes/E1.tsv.gz", "table")
+                handle.writestr("benchmark_data/comparisons.tsv", "experiment_id\n")
+                handle.writestr("benchmark_data/genes/E1.tsv.gz", "table")
             payload = archive.read_bytes()
             archive.unlink()
-            meta = {"filename": "final_data.zip", "url": "https://example.org/final_data.zip", "size": len(payload)}
-            registry = {"final_data.zip": {**meta, "checksum": "md5:" + hashlib.md5(payload).hexdigest()}}
+            meta = {"filename": "benchmark_data.zip", "url": "https://example.org/benchmark_data.zip", "size": len(payload)}
+            registry = {"benchmark_data.zip": {**meta, "checksum": "md5:" + hashlib.md5(payload).hexdigest()}}
             with patch("funmirbench.predictor_store.requests.get", return_value=FakeResponse(payload)) as get:
-                final = sync_final_data(repo=repo, registry=registry)
-                self.assertEqual(sync_final_data(repo=repo, registry=registry), final)
+                final = sync_benchmark_data(repo=repo, registry=registry)
+                self.assertEqual(sync_benchmark_data(repo=repo, registry=registry), final)
             self.assertEqual(get.call_count, 1)
-            self.assertEqual(final, (repo / "results/final_data").resolve())
+            self.assertEqual(final, (repo / "data/benchmark_data").resolve())
             self.assertEqual((final / "genes/E1.tsv.gz").read_text(), "table")
-            self.assertEqual([p.name for p in final.parent.iterdir()], ["final_data"])
+            self.assertEqual([p.name for p in final.parent.iterdir()], ["benchmark_data"])
             # An existing folder, such as tables built from reads, is only replaced on request.
             (final / "own.tsv").write_text("x")
             with patch("funmirbench.predictor_store.requests.get", return_value=FakeResponse(payload)):
-                sync_final_data(repo=repo, registry=registry)
+                sync_benchmark_data(repo=repo, registry=registry)
                 self.assertTrue((final / "own.tsv").exists())
-                sync_final_data(repo=repo, registry=registry, force=True)
+                sync_benchmark_data(repo=repo, registry=registry, force=True)
             self.assertFalse((final / "own.tsv").exists())
 
     def test_family_expanded_targetscan_is_decompressed_to_its_registered_path(self):

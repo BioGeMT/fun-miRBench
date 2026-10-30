@@ -1,4 +1,4 @@
-"""Cache the final per-gene tables and the family-expanded TargetScan scores from their Zenodo record."""
+"""Cache the per-gene benchmark tables and the family-expanded TargetScan scores from their Zenodo record."""
 
 from __future__ import annotations
 
@@ -13,42 +13,42 @@ import pandas as pd
 
 from funmirbench.benchmark_config import resolve_predictor_output_path
 from funmirbench.predictor_store import _download_archive, repo_root
-from funmirbench.zenodo_store import FINAL_DATA_RECORD, fetch_zenodo_file_registry
+from funmirbench.zenodo_store import BENCHMARK_DATA_RECORD, fetch_zenodo_file_registry
 
 logger = logging.getLogger(__name__)
 
-FINAL_DATA_ARCHIVE = "final_data.zip"
-FINAL_DATA_DIR = pathlib.Path("results/final_data")
+BENCHMARK_DATA_ARCHIVE = "benchmark_data.zip"
+BENCHMARK_DATA_DIR = pathlib.Path("data/benchmark_data")
 FAMILY_EXPANDED_TOOL = "targetscan_family_expanded"
 FAMILY_EXPANDED_ARCHIVE = "targetscan_family_expanded_standardized.tsv.gz"
 
 
 def _registry(registry: dict[str, dict] | None, timeout: int) -> dict[str, dict]:
-    return registry if registry is not None else fetch_zenodo_file_registry(record=FINAL_DATA_RECORD, timeout=timeout)
+    return registry if registry is not None else fetch_zenodo_file_registry(record=BENCHMARK_DATA_RECORD, timeout=timeout)
 
 
-def sync_final_data(
+def sync_benchmark_data(
     *,
     repo: pathlib.Path | None = None,
     registry: dict[str, dict] | None = None,
     timeout: int = 120,
     force: bool = False,
 ) -> pathlib.Path:
-    """Ensure results/final_data is available locally; an existing folder is kept unless force is set."""
-    destination = (repo or repo_root()).resolve() / FINAL_DATA_DIR
+    """Ensure data/benchmark_data is available locally; an existing folder is kept unless force is set."""
+    destination = (repo or repo_root()).resolve() / BENCHMARK_DATA_DIR
     if destination.exists() and not force:
-        logger.info("Final tables already present: %s", destination)
+        logger.info("Benchmark tables already present: %s", destination)
         return destination
     destination.parent.mkdir(parents=True, exist_ok=True)
-    archive = _download_archive(_registry(registry, timeout)[FINAL_DATA_ARCHIVE], directory=destination.parent,
+    archive = _download_archive(_registry(registry, timeout)[BENCHMARK_DATA_ARCHIVE], directory=destination.parent,
                                 timeout=timeout)
     try:
-        with tempfile.TemporaryDirectory(dir=destination.parent, prefix=".final_data.") as unpacked:
+        with tempfile.TemporaryDirectory(dir=destination.parent, prefix=".benchmark_data.") as unpacked:
             with zipfile.ZipFile(archive) as handle:
                 handle.extractall(unpacked)
             if destination.exists():
                 shutil.rmtree(destination)
-            (pathlib.Path(unpacked) / "final_data").replace(destination)
+            (pathlib.Path(unpacked) / "benchmark_data").replace(destination)
     finally:
         archive.unlink(missing_ok=True)
     return destination

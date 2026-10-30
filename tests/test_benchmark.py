@@ -150,7 +150,7 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(coverage.loc["tool", "experiments_retained"], 2)
             self.assertEqual((out / "REPORT.pdf").read_bytes()[:4], b"%PDF")
 
-    def test_missing_final_tables_name_the_download_command(self):
+    def test_missing_benchmark_tables_name_the_download_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = pathlib.Path(tmp) / "benchmark.yaml"
             config.write_text(yaml.safe_dump({"input_dir": "final"}))

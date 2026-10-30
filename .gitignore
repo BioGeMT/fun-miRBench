@@ -29,6 +29,9 @@ data/resources/
 data/common_resources/*
 !data/common_resources/README.md
 
+# Benchmark data tables
+data/benchmark_data/
+
 # Evaluation results
 results/
 

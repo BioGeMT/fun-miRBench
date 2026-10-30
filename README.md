@@ -47,7 +47,7 @@ Main directories:
 - `metadata/benchmark_mirnas.tsv`: miRNA sequences
 - `pipelines/experiments/`: experiment-ingestion backend files and example configs
 - `pipelines/standardized_predictors/`: predictor pipelines
-- `results/final_data/`: the final per-gene tables, the benchmark's input
+- `data/benchmark_data/`: the per-gene benchmark tables, the benchmark's input
 - `results/benchmark_results/`: one folder per benchmark run
 - `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
 
@@ -81,16 +81,16 @@ want to generate, then register the resulting standardized TSV in `metadata/pred
 
 ## Run The Benchmark
 
-`funmirbench` scores predictors on the overexpression (OE) comparisons of the final per-gene tables, on all genes. Other comparisons in the tables, such as KOs, are not scored; a warning names them.
+`funmirbench` scores predictors on the overexpression (OE) comparisons of the per-gene benchmark tables, on all genes. Other comparisons in the tables, such as KOs, are not scored; a warning names them.
 
 ```bash
 uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-download-data` puts the final tables in `results/final_data/` (Zenodo [10.5281/zenodo.23824276](https://doi.org/10.5281/zenodo.23824276)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/final_data/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23824917](https://doi.org/10.5281/zenodo.23824917)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/benchmark_data/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
 
-`benchmark.yaml` sets the final tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config. To add your own predictor, register its standardized TSV in `metadata/predictions_info.tsv` and add it to `predictors`.
+`benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config. To add your own predictor, register its standardized TSV in `metadata/predictions_info.tsv` and add it to `predictors`.
 
 - **Labels:** `state_d05`: responsive, no response above margin, or unresolved at d = 0.5, from the shrunken log2FC (FSOS s-value < 0.05 against d; whole shrunken 95% interval below d). Unresolved genes are never negatives.
 - **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
