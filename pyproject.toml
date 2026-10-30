@@ -19,7 +19,6 @@ funmirbench-experiments-store = "funmirbench.experiment_store:main"
 funmirbench-download-data = "funmirbench.published_data:main"
 funmirbench-sync-metadata = "funmirbench.sync_metadata:main"
 funmirbench-validate-experiments = "funmirbench.validate_experiments:main"
-funmirbench-v2-evaluate = "funmirbench.v2_evaluate:main"
 
 [build-system]
 requires = ["hatchling"]

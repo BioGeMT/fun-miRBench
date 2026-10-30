@@ -1,4 +1,4 @@
-"""Plots of the v2 evaluation, OE comparisons, written by funmirbench-v2-evaluate to plots/ as PNG and SVG.
+"""Plots of the benchmark, OE comparisons, written by funmirbench to plots/ as PNG and SVG.
 
 coverage: genes each tool scores and the responsive and no-response pairs it covers.
 oe_all_genes: AUROC of responsive against no-response genes at d = 0.5, Spearman with the shrunken log2FC and the
@@ -17,7 +17,6 @@ from matplotlib.ticker import FuncFormatter, NullLocator
 
 from funmirbench.evaluate_common import CURVE_COLORS
 
-FAMILY_EXPANDED, PLAIN = "targetscan_family_expanded", "targetscan"
 METRICS = (("auroc_d05", "AUROC", (0.2, 1.0), (0.2, 0.4, 0.6, 0.8, 1.0)),
            ("spearman_shrunk", "Spearman rho", (-0.5, 0.5), (-0.5, -0.25, 0.0, 0.25, 0.5)))
 SLOT, BOX_HEIGHT, WON_WIDTH = 0.75, 2.6, 6.0  # inches per box, boxplot height, width of the experiments-won panel
@@ -32,13 +31,8 @@ DARK_ALPHA, LIGHT_ALPHA = 0.75, 0.40  # coverage bars
 
 
 def drawn_tools(tools: pd.DataFrame) -> dict[str, str]:
-    """tool_id -> label in file order; the family-expanded TargetScan takes the place of the plain file."""
-    names = tools.set_index("tool_id").official_name.to_dict()
-    if FAMILY_EXPANDED in names and PLAIN in names:
-        order = [FAMILY_EXPANDED if t == PLAIN else t for t in names if t != FAMILY_EXPANDED]
-    else:
-        order = list(names)
-    return {t: names[t].removesuffix(" (family members)") for t in order}
+    """tool_id -> label in file order."""
+    return dict(zip(tools.tool_id, tools.official_name))
 
 
 def tool_colors(tool_ids: list[str]) -> dict[str, str]:

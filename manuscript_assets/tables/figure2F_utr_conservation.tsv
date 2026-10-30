@@ -1,2 +1,0 @@
-metric	fgs_genes	igs_genes	non_igs_genes	n_igs	n_non_igs	mean_igs	mean_non_igs	mean_difference_igs_minus_non_igs	median_igs	median_non_igs	mann_whitney_pvalue_two_sided_normal_approx	pvalue_label
-3'UTR mean conservation	19524	11230	8294	11230	7712	0.23262045555291622	0.17968653206263768	0.052933923490278534	0.15181851672433377	0.0991042924118321	7.037405448132822e-106	7.04e-106
