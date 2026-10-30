@@ -6,11 +6,10 @@ For every overexpression (OE) comparison and every tool or reference baseline:
     averaged within tenths of control expression;
   * AUROC of responsive against no-response genes at d = 0.5 (unresolved left out), plain and within tenths of control
     expression, only where each state has at least min_per_state genes;
-  * for tools and the two seed baselines, a decoy check: the same Spearman for the predictor's scores of unrelated
+  * for tools, a decoy check: the same Spearman for the predictor's scores of unrelated
     benchmark miRNAs (different nt 2-8 seed), giving a z-score of the cognate miRNA against its decoys.
 Comparisons are summarised on all comparisons and on unflagged ones, as the mean over comparisons with 95% intervals
-from a bootstrap over dependency groups; tools are also compared with the seed-plus-expression reference on the same
-comparisons.
+from a bootstrap over dependency groups.
 
 Usage:
   uv run funmirbench --config benchmark.yaml
@@ -18,11 +17,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import pathlib
 import shutil
-from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -41,51 +38,9 @@ from funmirbench.plots import plot_all_genes, plot_coverage, plot_recovery
 from funmirbench.report_pdf import write_report
 
 logger = logging.getLogger(__name__)
-REFERENCE = "seed_plus_expression"
 BUDGETS = (10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
 RECALL_TARGET = 0.5
 TABLE_COLUMNS = ["gene_id", "eligible", "oriented_logFC_shrunk", "control_mean_normalized_count", "state_d05"]
-COMPLEMENT = str.maketrans("ACGU", "UGCA")
-
-
-# ---------------------------------------------------------------- seed sites
-def read_fasta_by_gene(path: pathlib.Path) -> dict[str, str]:
-    """FASTA with headers '>ENSG...|...'; returns gene_id -> sequence (RNA alphabet, upper case)."""
-    seqs, gene, parts = {}, None, []
-    with open(path) as fh:
-        for line in fh:
-            line = line.strip()
-            if line.startswith(">"):
-                if gene is not None:
-                    seqs[gene] = "".join(parts).upper().replace("T", "U")
-                gene, parts = strip_ensembl_version(line[1:].split("|")[0]), []
-            elif line:
-                parts.append(line)
-    if gene is not None:
-        seqs[gene] = "".join(parts).upper().replace("T", "U")
-    return seqs
-
-
-def seed_site_counts(utr: str, mirna: str) -> tuple[int, int, int, int]:
-    """Canonical 3'UTR sites: (8mer, 7mer-m8, 7mer-A1, 6mer), each site counted once in that hierarchy."""
-    mirna = mirna.upper().replace("T", "U")
-    s6 = mirna[1:7].translate(COMPLEMENT)[::-1]          # pairs with nt 2-7
-    m8 = mirna[7].translate(COMPLEMENT)                 # pairs with nt 8, 5' of s6 in the target
-    counts = [0, 0, 0, 0]
-    start = utr.find(s6)
-    while start >= 0:
-        has8 = start > 0 and utr[start - 1] == m8
-        hasA = start + 6 < len(utr) and utr[start + 6] == "A"
-        counts[0 if has8 and hasA else 1 if has8 else 2 if hasA else 3] += 1
-        start = utr.find(s6, start + 1)
-    return tuple(counts)
-
-
-def seed_score(utrs: dict[str, str], genes: pd.Index, mirna_sequence: str) -> pd.Series:
-    """3 x 8mer + 2 x 7mer-m8 + 1 x 7mer-A1 + 0.5 x 6mer; 0 for genes without a 3'UTR."""
-    weights = np.array([3.0, 2.0, 1.0, 0.5])
-    values = [float(np.dot(weights, seed_site_counts(utrs[g], mirna_sequence))) if g in utrs else 0.0 for g in genes]
-    return pd.Series(values, index=genes)
 
 
 # ---------------------------------------------------------------- metrics
@@ -178,14 +133,10 @@ def precision_at_recall(score: np.ndarray, positive: np.ndarray, target: float =
             "false_positives_per_true_positive": (row["size"] - row["sum"]) / row["sum"]}
 
 
-def decoy_record(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> dict:
-    """Spearman of the cognate scores and of each decoy's scores with y; z of the cognate against the decoys."""
-    rho = spearman(cognate, y)
+def decoy_z(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> float:
+    """z of the Spearman of the cognate scores with y against the Spearman of each decoy's scores; needs two decoys."""
     dvals = np.array([v for v in (spearman(d, y) for d in decoys) if not np.isnan(v)])
-    return {"spearman": rho, "n_decoys": len(dvals), "decoy_mean": dvals.mean() if len(dvals) else np.nan,
-            "decoy_sd": dvals.std(ddof=1) if len(dvals) > 1 else np.nan,
-            "decoy_z": ((rho - dvals.mean()) / dvals.std(ddof=1)) if len(dvals) > 1 else np.nan,
-            "share_decoys_at_least_cognate": (dvals >= rho).mean() if len(dvals) else np.nan}
+    return (spearman(cognate, y) - dvals.mean()) / dvals.std(ddof=1) if len(dvals) > 1 else np.nan
 
 
 # ---------------------------------------------------------------- inputs
@@ -226,12 +177,14 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     with config_path.open(encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
     root = config_path.parent
-    final_dir = resolve_predictor_output_path(config["final_dir"], root)
+    input_dir = resolve_predictor_output_path(config["input_dir"], root)
+    if not (input_dir / "comparisons.tsv").is_file():
+        raise FileNotFoundError(f"no final tables in {input_dir}; run `uv run funmirbench-download-data`")
     evaluation = config.get("evaluation") or {}
     min_per_state = int(evaluation.get("min_per_state", 30))
     bootstrap = int(evaluation.get("bootstrap", 2000))
     seed = int(evaluation.get("seed", 0))
-    comps = pd.read_csv(final_dir / "comparisons.tsv", sep="\t", keep_default_na=False)
+    comps = pd.read_csv(input_dir / "comparisons.tsv", sep="\t", keep_default_na=False)
     skipped = comps.experiment_id[comps.perturbation != "OE"].tolist()
     if skipped:
         logger.warning("Only OE comparisons are scored; skipping %d others: %s", len(skipped), ", ".join(skipped))
@@ -249,7 +202,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         experiments=None, tool_ids=None, eval_cfg=None)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy2(config_path, out / "benchmark_config.yaml")
-    final = pd.read_csv(final_dir / "experiments.tsv", sep="\t").set_index("experiment_id")
+    final = pd.read_csv(input_dir / "experiments.tsv", sep="\t").set_index("experiment_id")
     missing = set(comps.experiment_id) - set(final.index)
     if missing:
         raise ValueError(f"comparisons without a final table: {sorted(missing)}")
@@ -258,15 +211,14 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
 
     tables = {}
     for exp in comps.experiment_id:
-        t = pd.read_csv(final_dir / final.loc[exp, "table"], sep="\t", usecols=TABLE_COLUMNS).set_index("gene_id")
+        t = pd.read_csv(input_dir / final.loc[exp, "table"], sep="\t", usecols=TABLE_COLUMNS).set_index("gene_id")
         t["eligible"] = t.eligible.astype(bool)
         t["expression_tenth"] = expression_tenths(t.control_mean_normalized_count.fillna(0.0))
         tables[exp] = t
     universe = next(iter(tables.values())).index
     if any(not t.index.equals(universe) for t in tables.values()):
         raise ValueError("final tables must share the same gene list in the same order")
-    utrs = read_fasta_by_gene(resolve_predictor_output_path(config["utr_fasta"], root))
-    logger.info("%d comparisons, %d genes, %d 3'UTRs", len(tables), len(universe), sum(g in utrs for g in universe))
+    logger.info("%d comparisons, %d genes", len(tables), len(universe))
 
     seeds = mirnas.mirna_sequence.str.upper().str.replace("T", "U").str[1:8]
     preds = {}
@@ -275,32 +227,20 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         logger.info("loading %s", r.tool_id)
         preds[r.tool_id] = load_predictions(path, r.score_direction, set(mirnas.index), set(universe))
 
-    sites = {}
-
-    def site_score(mirna: str) -> pd.Series:
-        if mirna not in sites:
-            sites[mirna] = seed_score(utrs, universe, mirnas.loc[mirna, "mirna_sequence"])
-        return sites[mirna]
-
     rng = np.random.default_rng(seed)
     rows, decoy_rows, pair_rows, recovery_rows, precision_rows = [], [], [], [], []
     covered, measured = {tool: set() for tool in preds}, set()
     for c in comps.itertuples(index=False):
         t = tables[c.experiment_id]
         expr = t.control_mean_normalized_count.fillna(0.0)
-        expr_pct = expr.rank(pct=True)
-        site = site_score(c.mirna_name)
         rankings = {
             "random": pd.Series(rng.random(len(universe)), index=universe),
             "expression_high": expr,
             "expression_low": -expr,
-            "seed_site": site,
-            REFERENCE: site * 10 + expr_pct,
         }
         kinds = {k: "reference" for k in rankings}
         decoys = [m for m in mirnas.index if m != c.mirna_name and seeds[m] != seeds[c.mirna_name]]
-        decoy_scores = {"seed_site": [site_score(m) for m in decoys],
-                        REFERENCE: [site_score(m) * 10 + expr_pct for m in decoys]}
+        decoy_scores = {}
         for tool, by_mirna in preds.items():
             scored = by_mirna.get(c.mirna_name, pd.Series(dtype=float))
             rankings[tool] = rank_last(scored, universe)
@@ -309,8 +249,8 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         est = t.eligible.to_numpy(bool)
         y = t.oriented_logFC_shrunk.to_numpy(float)[est]
         for name, scores in decoy_scores.items():
-            rec = decoy_record(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
-            decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, **rec})
+            z = decoy_z(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
+            decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "decoy_z_shrunk": z})
         for name, score in rankings.items():
             rec = {"experiment_id": c.experiment_id, "action": c.action,
                    "dependency_group": c.dependency_group, "predictor": name, "kind": kinds[name],
@@ -341,21 +281,15 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
                                        **precision_at_recall(s, responsive[labelled])})
         logger.info("scored %s", c.experiment_id)
 
-    per = pd.DataFrame(rows)
-    decoy = pd.DataFrame(decoy_rows, columns=["experiment_id", "predictor", "spearman", "n_decoys", "decoy_mean",
-                                              "decoy_sd", "decoy_z", "share_decoys_at_least_cognate"])
-    z = decoy[["experiment_id", "predictor", "decoy_z"]].rename(columns={"decoy_z": "decoy_z_shrunk"})
-    per = per.merge(z, on=["experiment_id", "predictor"], how="left")
+    per = pd.DataFrame(rows).merge(pd.DataFrame(decoy_rows), on=["experiment_id", "predictor"], how="left")
     per.to_csv(out / "per_comparison.tsv", sep="\t", index=False)
-    decoy.to_csv(out / "decoy.tsv", sep="\t", index=False)
 
     metrics = ["spearman_shrunk", "spearman_within_tenths_shrunk", "auroc_d05", "auroc_within_tenths_d05",
                "decoy_z_shrunk", "coverage"]
-    summary, paired = [], []
+    summary = []
     boot_rng = np.random.default_rng(seed + 1)
     for subset, sub in (("all", per), ("unflagged", per[per.action == "keep"])):
         for name, g in sub.groupby("predictor"):
-            ref = sub[sub.predictor == REFERENCE].set_index("experiment_id")
             gi = g.set_index("experiment_id")
             for metric in metrics:
                 v = gi[metric]
@@ -364,17 +298,8 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
                                 "metric": metric, "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
                                 "n_comparisons": int(v.notna().sum()),
                                 "n_groups": int(gi.dependency_group[v.notna()].nunique())})
-                if name != REFERENCE and metric != "coverage" and metric in ref and ref[metric].notna().any():
-                    d = (v - ref[metric].reindex(v.index)).dropna()
-                    lo, hi = group_bootstrap(d, gi.dependency_group.reindex(d.index), n=bootstrap,
-                                             rng=boot_rng)
-                    paired.append({"subset": subset, "predictor": name, "metric": metric,
-                                   "mean_difference_vs_" + REFERENCE: d.mean() if len(d) else np.nan,
-                                   "ci95_low": lo, "ci95_high": hi, "n_comparisons": len(d),
-                                   "n_groups": int(gi.dependency_group.reindex(d.index).nunique())})
     summary = pd.DataFrame(summary)
     summary.to_csv(out / "summary.tsv", sep="\t", index=False)
-    pd.DataFrame(paired).to_csv(out / "paired_vs_reference.tsv", sep="\t", index=False)
     pairs = pd.DataFrame(pair_rows)
     retained = pairs[(pairs.responsive_scored > 0) & (pairs.no_response_scored > 0)].groupby("predictor").size()
     coverage = pairs.groupby("predictor")[["responsive_scored", "responsive_total", "no_response_scored",
@@ -394,12 +319,6 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     plot_recovery(recovery, precision, tools, plots)
     write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, tools=tools,
                  n_genes=len(universe), min_per_state=min_per_state, plots=plots)
-    (out / "summary.json").write_text(json.dumps({
-        "built": datetime.now(timezone.utc).isoformat(timespec="seconds"), "final_dir": str(final_dir),
-        "comparisons": int(len(comps)), "genes": int(len(universe)), "tools": list(preds),
-        "min_per_state": min_per_state, "bootstrap": bootstrap, "seed": seed,
-        "reference": REFERENCE, "state": "state_d05",
-        "decoys": "benchmark miRNAs (mirnas_tsv) with a different nt 2-8 seed"}, indent=2) + "\n")
     logger.info("wrote %s", out)
     return out
 

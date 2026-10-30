@@ -1,4 +1,3 @@
-import json
 import pathlib
 import tempfile
 import unittest
@@ -11,25 +10,6 @@ from sklearn.metrics import roc_auc_score
 from funmirbench import benchmark, plots, report_pdf
 
 MIR = "UAGCAGCACGUAAAUAUUGGCG"  # miR-16-5p, seed nt 2-8 AGCAGCA
-
-
-class SeedSiteTests(unittest.TestCase):
-    def test_site_hierarchy(self):
-        s6 = MIR[1:7].translate(benchmark.COMPLEMENT)[::-1]  # pairs with nt 2-7
-        m8 = MIR[7].translate(benchmark.COMPLEMENT)
-        self.assertEqual(benchmark.seed_site_counts("GG" + m8 + s6 + "AGG", MIR), (1, 0, 0, 0))
-        self.assertEqual(benchmark.seed_site_counts("GG" + m8 + s6 + "CGG", MIR), (0, 1, 0, 0))
-        self.assertEqual(benchmark.seed_site_counts("GGC" + s6 + "AGG", MIR), (0, 0, 1, 0))
-        self.assertEqual(benchmark.seed_site_counts("GGC" + s6 + "CGG", MIR), (0, 0, 0, 1))
-        self.assertEqual(benchmark.seed_site_counts("CCCCCCCC", MIR), (0, 0, 0, 0))
-
-    def test_seed_score_weights_and_missing_utr(self):
-        s6 = MIR[1:7].translate(benchmark.COMPLEMENT)[::-1]
-        m8 = MIR[7].translate(benchmark.COMPLEMENT)
-        utrs = {"G1": m8 + s6 + "A" + "CC" + "C" + s6 + "C"}
-        score = benchmark.seed_score(utrs, pd.Index(["G1", "G2"]), MIR)
-        self.assertEqual(score["G1"], 3.5)
-        self.assertEqual(score["G2"], 0.0)
 
 
 class MetricTests(unittest.TestCase):
@@ -108,7 +88,6 @@ class EndToEndTests(unittest.TestCase):
     def test_small_run(self):
         rng = np.random.default_rng(3)
         genes = [f"ENSG{i:011d}" for i in range(400)]
-        s6 = MIR[1:7].translate(benchmark.COMPLEMENT)[::-1]
         with tempfile.TemporaryDirectory() as tmp:
             tmp = pathlib.Path(tmp)
             final = tmp / "final"
@@ -127,12 +106,6 @@ class EndToEndTests(unittest.TestCase):
                           "cell_line": ["HeLa"] * 4, "perturbation": ["OE", "OE", "KO", "OE"],
                           "action": ["keep", "flag", "keep", "set_aside"], "flags": ["", "", "", "global_shift"],
                           "dependency_group": ["g1", "g2", "g3", "g4"]}).to_csv(final / "comparisons.tsv", sep="\t", index=False)
-            decoy_site = rng.random(400) < 0.2  # miR-1-3p sites, so the seed baselines have a decoy score
-            s6_decoy = "UGGAAUGUAAAGAAGUAUGUAU"[1:7].translate(benchmark.COMPLEMENT)[::-1]
-            with open(tmp / "utr.fa", "w") as fh:
-                for g, t, d in zip(genes, target, decoy_site):
-                    utr = "CCCC" + (s6 + "A" if t else "GGGGGGG") + "CCCC" + (s6_decoy + "A" if d else "")
-                    fh.write(f">{g}|transcript=T\n{utr}\n")
             pd.DataFrame({"mirna_name": ["hsa-miR-16-5p", "hsa-miR-15b-5p", "hsa-miR-1-3p"],
                           "mirna_sequence": [MIR, "UAGCAGCACAUCAUGGUUUACA", "UGGAAUGUAAAGAAGUAUGUAU"]}).to_csv(
                 tmp / "mirnas.tsv", sep="\t", index=False)
@@ -147,34 +120,27 @@ class EndToEndTests(unittest.TestCase):
                           "predictor_output_path": [str(pred_dir / "tool.tsv")]}).to_csv(
                 tmp / "predictions.tsv", sep="\t", index=False)
             (tmp / "benchmark.yaml").write_text(yaml.safe_dump({
-                "final_dir": "final", "utr_fasta": "utr.fa", "mirnas_tsv": "mirnas.tsv",
+                "input_dir": "final", "mirnas_tsv": "mirnas.tsv",
                 "predictions_tsv": "predictions.tsv", "evaluation": {"bootstrap": 100}, "out_dir": "results"}))
             with self.assertLogs("funmirbench.benchmark", "WARNING") as logs:
                 out = benchmark.run_benchmark(tmp / "benchmark.yaml")
             self.assertIn("skipping 1 others: E3", logs.output[0])
             self.assertEqual(out.parent, (tmp / "results").resolve())
             self.assertTrue((out / "benchmark_config.yaml").exists())
-            self.assertEqual(json.loads((out / "summary.json").read_text())["comparisons"], 2)
             per = pd.read_csv(out / "per_comparison.tsv", sep="\t")
-            decoy = pd.read_csv(out / "decoy.tsv", sep="\t")
             tool = per[per.predictor == "tool"].set_index("experiment_id")
             self.assertAlmostEqual(tool.loc["E1", "coverage"], 0.75)
-            seed = per[per.predictor == "seed_site"].set_index("experiment_id")
-            self.assertGreater(seed.loc["E1", "auroc_d05"], 0.8)
             # Unscored genes rank last, so a tool that covers 75% of the genes scores below full coverage.
             self.assertGreater(tool.loc["E1", "auroc_d05"], 0.6)
-            self.assertLess(tool.loc["E1", "auroc_d05"], seed.loc["E1", "auroc_d05"])
-            # miR-15b-5p shares the nt 2-8 seed, so it is not a decoy; only miR-1-3p is.
-            self.assertTrue((decoy.n_decoys == 1).all())
-            self.assertEqual(set(decoy.predictor), {"tool", "seed_site", "seed_plus_expression"})
-            self.assertIn("decoy_z_shrunk", per.columns)  # NaN here: a z needs at least two decoys
+            self.assertLess(tool.loc["E1", "auroc_d05"], 0.9)
+            # miR-15b-5p shares the nt 2-8 seed, so it is not a decoy; only miR-1-3p is, and a z needs two decoys.
+            self.assertTrue(per.decoy_z_shrunk.isna().all())
             summary = pd.read_csv(out / "summary.tsv", sep="\t")
             self.assertEqual(set(summary.subset), {"all", "unflagged"})
             spearman = summary[summary.metric == "spearman_shrunk"].set_index(["subset", "predictor"]).n_comparisons
             self.assertEqual(spearman["all", "tool"], 2)  # the KO comparison E3 is not scored
             self.assertEqual(spearman["unflagged", "tool"], 1)
             self.assertEqual(set(per.experiment_id), {"E1", "E2"})
-            self.assertTrue((out / "paired_vs_reference.tsv").exists())
             for stem in ("coverage", "oe_all_genes", "recovery"):
                 self.assertTrue((out / f"plots/{stem}.png").exists())
                 self.assertTrue((out / f"plots/{stem}.svg").exists())
@@ -183,6 +149,13 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(coverage.loc["tool", "genes_measured"], 400)
             self.assertEqual(coverage.loc["tool", "experiments_retained"], 2)
             self.assertEqual((out / "REPORT.pdf").read_bytes()[:4], b"%PDF")
+
+    def test_missing_final_tables_name_the_download_command(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = pathlib.Path(tmp) / "benchmark.yaml"
+            config.write_text(yaml.safe_dump({"input_dir": "final"}))
+            with self.assertRaisesRegex(FileNotFoundError, "funmirbench-download-data"):
+                benchmark.run_benchmark(config)
 
 
 if __name__ == "__main__":

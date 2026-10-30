@@ -281,8 +281,6 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
             ax,
             [["per_comparison.tsv", "Every metric per dataset and predictor"],
              ["summary.tsv", "Means over datasets with 95% intervals"],
-             ["paired_vs_reference.tsv", "Each predictor against seed + expression"],
-             ["decoy.tsv", "Each predictor's scores for unrelated miRNAs"],
              ["coverage.tsv, recovery.tsv", "Tables behind the plots"],
              ["precision_at_recall.tsv", "Table behind the recovery plot"]],
             columns=["Primary file", "Purpose"], col_widths=[0.50, 0.50],

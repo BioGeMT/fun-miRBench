@@ -3,13 +3,12 @@
 # All file paths are relative to this YAML file's directory.
 # Run: uv run funmirbench --config benchmark.yaml
 
-# The final per-gene tables of pipelines/final_data and the MANE Select 3'UTR of each gene.
-final_dir: results/final_data
-utr_fasta: data/common_resources/ensembl/Homo_sapiens.GRCh38.Ensembl115.MANE_Select_v1.4.3utr.fa
+# The final per-gene tables, from `uv run funmirbench-download-data` or pipelines/final_data.
+input_dir: results/final_data
 mirnas_tsv: metadata/benchmark_mirnas.tsv
 predictions_tsv: metadata/predictions_info.tsv
 
-# Filter experiments by any column of comparisons.tsv in final_dir; only OE experiments are scored.
+# Filter experiments by any column of comparisons.tsv in input_dir; only OE experiments are scored.
 # AND across columns, OR within each column's value list.
 experiments:
   # mirna_name: [hsa-miR-375-3p]
@@ -24,4 +23,4 @@ evaluation:
   bootstrap: 2000
   seed: 0
 
-out_dir: results/
+out_dir: results/benchmark_results

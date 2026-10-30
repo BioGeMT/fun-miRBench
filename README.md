@@ -47,8 +47,9 @@ Main directories:
 - `metadata/benchmark_mirnas.tsv`: miRNA sequences
 - `pipelines/experiments/`: experiment-ingestion backend files and example configs
 - `pipelines/standardized_predictors/`: predictor pipelines
-- `results/`: benchmark outputs
-- `final_outputs/`: plots and `REPORT.pdf` of the benchmark on the 21 OE test experiments
+- `results/final_data/`: the final per-gene tables, the benchmark's input
+- `results/benchmark_results/`: one folder per benchmark run
+- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
 
 ## Workflow
 
@@ -80,15 +81,16 @@ want to generate, then register the resulting standardized TSV in `metadata/pred
 
 ## Run The Benchmark
 
-`funmirbench` scores predictors on the overexpression (OE) comparisons of the final per-gene tables made by `pipelines/final_data/`, on all genes. Other comparisons in the tables, such as KOs, are not scored; a warning names them.
+`funmirbench` scores predictors on the overexpression (OE) comparisons of the final per-gene tables, on all genes. Other comparisons in the tables, such as KOs, are not scored; a warning names them.
 
 ```bash
-uv run funmirbench-download-data                       # published standardized predictors
-uv run python pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members
+uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`benchmark.yaml` sets the final tables (`final_dir`), the MANE Select 3'UTR FASTA (`utr_fasta`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config. To add your own predictor, register its standardized TSV in `metadata/predictions_info.tsv` and add it to `predictors`.
+`funmirbench-download-data` puts the final tables in `results/final_data/` (Zenodo [10.5281/zenodo.23824276](https://doi.org/10.5281/zenodo.23824276)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/final_data/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+
+`benchmark.yaml` sets the final tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config. To add your own predictor, register its standardized TSV in `metadata/predictions_info.tsv` and add it to `predictors`.
 
 - **Labels:** `state_d05`: responsive, no response above margin, or unresolved at d = 0.5, from the shrunken log2FC (FSOS s-value < 0.05 against d; whole shrunken 95% interval below d). Unresolved genes are never negatives.
 - **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
@@ -97,14 +99,11 @@ uv run funmirbench --config benchmark.yaml
   - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
 - **Reference rows:**
   - `random`;
-  - `expression_high` / `expression_low` (control expression);
-  - `seed_site`: 3 × 8mer + 2 × 7mer-m8 + 7mer-A1 + 0.5 × 6mer in the MANE 3′UTR;
-  - `seed_plus_expression`: seed score with expression breaking ties.
-- **Decoy check:** for each tool and the two seed baselines, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `decoy_z_shrunk` is the cognate miRNA against its decoys.
+  - `expression_high` / `expression_low` (control expression).
+- **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `decoy_z_shrunk` is the cognate miRNA against its decoys.
 - **Summaries:**
   - on all comparisons and on unflagged ones;
   - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
-  - `paired_vs_reference.tsv` compares each ranking with `seed_plus_expression` on the same comparisons.
 - **Predictors:** the default config runs the five published tools. TargetScan is `targetscan_family_expanded`, which gives every family member the family score; plain `targetscan` stays in the registry and can be selected instead.
 - **Plots**, in `plots/` as PNG and SVG:
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
@@ -112,7 +111,7 @@ uv run funmirbench --config benchmark.yaml
   - `recovery`: recall by prediction budget and each experiment's best precision at 50% recall relative to random, on the comparisons with at least 30 genes in each state.
 - **Report:** `REPORT.pdf`: run settings, key results, the mean coverage, AUROC and Spearman per tool, the experiments evaluated and skipped, and the plots.
 
-Outputs: `REPORT.pdf`, `per_comparison.tsv`, `decoy.tsv`, `summary.tsv`, `paired_vs_reference.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `summary.json`, `benchmark_config.yaml`, `plots/`.
+Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
 
 ## Commands
 
