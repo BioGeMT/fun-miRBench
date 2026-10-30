@@ -1,6 +1,6 @@
 # Metadata of the 21 OE test comparisons
 
-- **`benchmark_genes.tsv.gz`:** the fixed gene list. It has 19,226 Ensembl 115 protein-coding genes with a MANE Select transcript, built by `pipelines/final_data/src/build_gene_list.py` from the GTF alone.
+- **`benchmark_genes.tsv.gz`:** the fixed gene list. It has 19,226 Ensembl 115 protein-coding genes with a MANE Select transcript, built by `pipelines/benchmark_data/src/build_gene_list.py` from the GTF alone.
 - **`comparisons.tsv`:** one row per comparison.
   - design, sample numbers;
   - dependency group (comparisons that share controls or samples) and exact-seed group;
@@ -15,7 +15,7 @@
 
 ## Flags
 
-The same rules apply to every comparison. Metrics are computed on the final tables over listed genes with a control mean of at least 10 normalised reads. Flags drop nothing; scores should be reported with and without flagged comparisons.
+The same rules apply to every comparison. Metrics are computed on the benchmark tables over listed genes with a control mean of at least 10 normalised reads. Flags drop nothing; scores should be reported with and without flagged comparisons.
 
 | Flag | Rule |
 |---|---|

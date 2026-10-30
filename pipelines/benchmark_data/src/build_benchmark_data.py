@@ -1,4 +1,4 @@
-"""Build the final benchmark tables from saved DESeq2 analyses.
+"""Build the benchmark tables from saved DESeq2 analyses.
 
 For each comparison, label_states.R writes one row per gene of the benchmark gene list: statistics, shrunken
 log2FC, FSOS s-values and the three states for each d of the grid (from the shrunken log2FC), and the raw threshold
@@ -11,8 +11,8 @@ by pipelines/experiments/run_deseq2_counts.R).
 The comparison metadata (metadata/comparisons.tsv: groups, flags) is copied into the output.
 
 Usage:
-  uv run python pipelines/final_data/src/build_final_data.py --fits fits.tsv \
-      --genes metadata/benchmark_genes.tsv.gz --out <final_dir> [--rscript Rscript] [--workers 8]
+  uv run python pipelines/benchmark_data/src/build_benchmark_data.py --fits fits.tsv \
+      --genes metadata/benchmark_genes.tsv.gz --out <out_dir> [--rscript Rscript] [--workers 8]
 """
 import argparse
 import hashlib

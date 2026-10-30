@@ -48,8 +48,11 @@ pipelines/geo/runs/*
 # Experiments pipeline outputs
 pipelines/experiments/runs/*
 
-# Final data scripts: conda environment, logs and fit list
-pipelines/final_data/work/
+# Benchmark data scripts: conda environment, logs and fit list
+pipelines/benchmark_data/work/
+
+# Benchmark data tables
+data/benchmark_data/
 
 # Predictor pipeline generated data (downloads + intermediate tables)
 pipelines/standardized_predictors/*/data/

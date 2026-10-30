@@ -1,5 +1,5 @@
-# The tool versions of the reruns that built the final data; apeglm for label_states.R.
-name: funmirbench-final-data
+# The tool versions of the reruns that built the benchmark data; apeglm for label_states.R.
+name: funmirbench-benchmark-data
 channels:
   - conda-forge
   - bioconda

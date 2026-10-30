@@ -1,30 +1,30 @@
-# Final benchmark data
+# Benchmark data
 
-From reads to the final per-gene tables for the 21 FuNmiRBench OE test comparisons.
+From reads to the per-gene benchmark tables for the 21 FuNmiRBench OE test comparisons.
 
 ## Run
 
 ```bash
-pipelines/final_data/setup.sh
-pipelines/final_data/download.sh
-pipelines/final_data/run.sh
+pipelines/benchmark_data/setup.sh
+pipelines/benchmark_data/download.sh
+pipelines/benchmark_data/run.sh
 ```
 
-- `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/final_data/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
+- `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/benchmark_data/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
 - `download.sh` runs steps 1 and 2 and gets the miRBase names the pipeline checks configs against. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE124411`).
-- `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/final_data/work/fits.tsv` and runs step 5 into `results/final_data` (or `FINAL_DIR`). Its arguments limit the runs to those comparisons; the final tables need all 21.
+- `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/benchmark_data/work/fits.tsv` and runs step 5 into `data/benchmark_data` (or `BENCHMARK_DATA_DIR`). Its arguments limit the runs to those comparisons; the benchmark tables need all 21.
 
 ## Steps
 
-1. **Reads.** `pipelines/final_data/src/download_reads.py` downloads the 178 FASTQ files (317.7 GB) listed in `pipelines/final_data/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
+1. **Reads.** `pipelines/benchmark_data/src/download_reads.py` downloads the 178 FASTQ files (317.7 GB) listed in `pipelines/benchmark_data/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
 2. **References.** Download the soft-masked genome `Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz` (https://ftp.ensembl.org/pub/release-115/fasta/homo_sapiens/dna/) and `Homo_sapiens.GRCh38.115.gtf.gz` (https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/) into `data/experiments/raw/refs/ensembl_v115/`, decompress both, and save the genome as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the name the configs point to. This is the genome the reruns used, and the one `funmirbench-experiments-download-examples` fetches.
-3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/final_data/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks).
+3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/benchmark_data/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks).
 
    GSE210778 includes the unpaired reads of two samples. DESeq2 writes `complete_analysis.rds` with the fitted object.
 4. **Gene list.** `src/build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/benchmark_genes.tsv.gz`.
-5. **Final tables.** `src/build_final_data.py --fits fits.tsv --genes metadata/benchmark_genes.tsv.gz --out <dir>` runs `src/label_states.R` on every fit and copies `metadata/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id` and `fit_rds`.
+5. **Benchmark tables.** `src/build_benchmark_data.py --fits fits.tsv --genes metadata/benchmark_genes.tsv.gz --out <dir>` runs `src/label_states.R` on every fit and copies `metadata/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id` and `fit_rds`.
 
-## Final table (one per comparison, 19,226 rows)
+## Benchmark table (one per comparison, 19,226 rows)
 
 | Columns | Meaning |
 |---|---|

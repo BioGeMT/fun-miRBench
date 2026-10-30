@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Create the conda environment of pipelines/final_data/environment.yml and the Python environment, and check the tools.
+# Create the conda environment of pipelines/benchmark_data/environment.yml and the Python environment, and check the tools.
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-env_prefix="${ENV_PREFIX:-$repo/pipelines/final_data/work/env}"
-env_file="$repo/pipelines/final_data/environment.yml"
+env_prefix="${ENV_PREFIX:-$repo/pipelines/benchmark_data/work/env}"
+env_file="$repo/pipelines/benchmark_data/environment.yml"
 
 command -v conda >/dev/null || { echo "ERROR: conda is required" >&2; exit 1; }
 

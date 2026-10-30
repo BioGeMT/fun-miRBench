@@ -50,7 +50,7 @@ Tracked example configs:
 - `pipelines/experiments/configs/gse253003.count_matrix.example.yaml`
 - `pipelines/experiments/configs/gse129146.reads.example.yaml`
 
-The configs of the 30 test comparisons are in `pipelines/final_data/configs/`; `pipelines/final_data/README.md` runs them.
+The configs of the 21 OE test comparisons are in `pipelines/benchmark_data/configs/`; `pipelines/benchmark_data/README.md` runs them.
 
 Reads configs can either:
 

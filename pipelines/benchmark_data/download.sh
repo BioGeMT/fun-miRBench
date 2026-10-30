@@ -4,7 +4,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-env_prefix="${ENV_PREFIX:-$repo/pipelines/final_data/work/env}"
+env_prefix="${ENV_PREFIX:-$repo/pipelines/benchmark_data/work/env}"
 refs="$repo/data/experiments/raw/refs/ensembl_v115"
 ensembl="https://ftp.ensembl.org/pub/release-115"
 
@@ -35,4 +35,4 @@ cd "$repo"
 uv run --quiet funmirbench-experiments-download-examples --example mirbase-hsa-mature --log-level WARNING
 
 echo "[2/2] Reads..."
-uv run --quiet python pipelines/final_data/src/download_reads.py "$@"
+uv run --quiet python pipelines/benchmark_data/src/download_reads.py "$@"
