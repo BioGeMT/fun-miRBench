@@ -58,7 +58,7 @@ uv run funmirbench --config benchmark.yaml
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
   - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, decoy z-score and the experiments each tool wins, for every tool on all genes, with y axes that follow the values of the run;
   - `recovery`: recall by prediction budget and each experiment's best precision at 50% recall relative to random, on the comparisons with at least 30 genes in each state.
-- **Report:** `REPORT.pdf`: run settings, key results, the mean coverage, AUROC, Spearman and decoy z-score per tool, the experiments evaluated and skipped, and the plots.
+- **Report:** `REPORT.pdf`: run settings, key results, the output tables, the plots, one table per plot with its numbers, and the experiments evaluated and skipped.
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
 

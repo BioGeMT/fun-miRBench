@@ -46,6 +46,13 @@ def experiments_won(per: pd.DataFrame, tool_ids: list[str], metric: str) -> pd.S
     return wins.reindex(tool_ids, fill_value=0)
 
 
+def best_per_experiment(precision: pd.DataFrame, labels: dict[str, str]) -> pd.DataFrame:
+    """Each experiment's best tool at 50% recall: highest precision, then fewest false positives, then tool order."""
+    drawn = precision[precision.predictor.isin(labels)].assign(order=lambda d: d.predictor.map(list(labels).index))
+    return drawn.sort_values(["experiment_id", "precision", "false_positives_per_true_positive", "order"],
+                             ascending=[True, False, True, True]).groupby("experiment_id").head(1)
+
+
 def draw_box(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict, metric: str) -> None:
     values = [per.loc[per.predictor == t, metric].dropna().to_numpy(float) for t in tool_ids]
     positions = np.arange(1, len(tool_ids) + 1)
@@ -197,10 +204,7 @@ def plot_recovery(recovery: pd.DataFrame, precision: pd.DataFrame, tools: pd.Dat
     budget.set_ylabel("Mean recall of responsive genes", fontsize=SMALL, fontweight="bold")
     budget.set_title("Recovery by prediction budget", pad=14, fontsize=LARGE, fontweight="bold")
     budget.grid(axis="both", alpha=0.22, linewidth=0.8)
-    drawn = precision[precision.predictor.isin(labels)].assign(order=lambda d: d.predictor.map(list(labels).index))
-    top = drawn.sort_values(["experiment_id", "precision", "false_positives_per_true_positive", "order"],
-                            ascending=[True, False, True, True]).groupby("experiment_id").head(1)
-    top = top.sort_values("precision_over_random", ascending=False).reset_index(drop=True)
+    top = best_per_experiment(precision, labels).sort_values("precision_over_random", ascending=False).reset_index(drop=True)
     best.axhline(1.0, color="#1F2937", linewidth=1.0, linestyle=(0, (4, 3)))
     for tool, group in top.groupby("predictor"):
         best.scatter(group.index, group.precision_over_random, s=120, marker=markers[tool], color=colors[tool],

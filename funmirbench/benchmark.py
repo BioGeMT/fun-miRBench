@@ -307,7 +307,8 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     plot_coverage(coverage, tools, plots)
     plot_all_genes(per, tools, plots)
     plot_recovery(recovery, precision, tools, plots)
-    write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, tools=tools,
+    write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
+                 recovery=recovery, precision=precision, tools=tools,
                  n_genes=len(universe), min_per_state=min_per_state, plots=plots)
     logger.info("wrote %s", out)
     return out

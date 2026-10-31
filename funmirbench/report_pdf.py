@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
-from funmirbench.plots import drawn_tools
+from funmirbench.plots import best_per_experiment, drawn_tools, experiments_won
 
 REPORT_PAGE_SIZE = (8.27, 11.69)
 
@@ -21,9 +21,7 @@ REPORT_SECTION_SIZE = 13.4
 REPORT_BODY_SIZE = 11.2
 REPORT_TABLE_SIZE = 10.2
 INVENTORY_WRAP_SCALE = 75
-LOW_COVERAGE = 0.25
 INVENTORY_ROWS, ROW_HEIGHT = 24.0, 0.0345  # rows per page and their height, as a share of the page height
-TABLE_ROW_HEIGHT = 0.042  # the run settings and predictor summary tables
 MARGIN_INCHES, GAP_INCHES = 0.45, 0.3  # around every page, and between the blocks on a page
 LEFT = MARGIN_INCHES / REPORT_PAGE_SIZE[0]
 WIDTH = 1.0 - 2 * LEFT
@@ -31,8 +29,13 @@ TOP = 1.0 - MARGIN_INCHES / REPORT_PAGE_SIZE[1]
 BOTTOM = MARGIN_INCHES / REPORT_PAGE_SIZE[1]
 BLOCK_GAP = GAP_INCHES / REPORT_PAGE_SIZE[1]
 HEADER_RULE_DROP = 0.04  # from the top of the page title to the rule under it
-LINE_STEP, PARAGRAPH_STEP = 0.030, 0.007  # text lines of a block, and the extra space after each item
+TITLE_DROP, LINE_STEP, PARAGRAPH_STEP = 0.038, 0.030, 0.007  # block title to first line, lines, extra after each item
 PLOT_BORDER_PIXELS = 45  # the white border of the plot PNGs (0.15 inches at 300 dpi), cropped so that the margins hold
+OUTPUT_TABLES = ["per_comparison.tsv: every metric, for each experiment and tool.",
+                 "summary.tsv: means and 95% intervals, on all experiments and on unflagged ones.",
+                 "coverage.tsv: genes and pairs covered, and experiments retained, per tool.",
+                 "recovery.tsv: recall per experiment and tool, at each prediction budget.",
+                 "precision_at_recall.tsv: precision and false positives at 50% recall."]
 COVERAGE = ("coverage", "Coverage",
           ["Gene coverage: share of measured genes the tool scores in at least one experiment.",
            "Experiments retained: experiments where it scores responsive and no-response genes.",
@@ -45,7 +48,6 @@ PERFORMANCE = ("oe_all_genes", "Performance",
 RECOVERY = ("recovery", "Recovery",
           ["Recall: share of responsive genes among the top-ranked genes, mean over experiments.",
            "Best precision / random: best tool's precision at 50% recall over responsive share."])
-PLOT_PAGES = ((COVERAGE, RECOVERY), (PERFORMANCE,))
 
 
 def _format_summary_value(value, *, percent=False):
@@ -78,7 +80,7 @@ def _header(ax, title) -> float:
 def _bullet_block(ax, title, lines, *, y, body_size=REPORT_BODY_SIZE, title_size=REPORT_SECTION_SIZE) -> float:
     """Draw a titled list from y down; returns where the next block starts."""
     ax.text(LEFT, y, title, fontsize=title_size, fontweight="bold", color="#2F5D8C", va="top", ha="left", family="DejaVu Sans")
-    current_y = y - 0.038
+    current_y = y - TITLE_DROP
     wrap_width = int(WIDTH * 96)
     for line in lines:
         chunks = textwrap.wrap(str(line), width=wrap_width) or [""]
@@ -100,7 +102,7 @@ def _bullet_block(ax, title, lines, *, y, body_size=REPORT_BODY_SIZE, title_size
     return last_line_bottom - BLOCK_GAP
 
 def _wrap_table_cell(value, width_hint, *, wrap_scale):
-    max_chars = max(16, int(width_hint * wrap_scale))
+    max_chars = max(8, int(width_hint * wrap_scale))
     return "\n".join(
         textwrap.wrap(
             str(value),
@@ -178,32 +180,20 @@ def _draw_basic_table(ax, rows, *, columns, col_widths, bbox, font_size=REPORT_T
 
 
 def tool_means(summary: pd.DataFrame, tools: pd.DataFrame) -> pd.DataFrame:
-    """Mean coverage, AUROC, Spearman and decoy z-score over all comparisons; one row per drawn tool, indexed by its label."""
+    """Mean AUROC, Spearman and decoy z-score over all comparisons; one row per drawn tool, indexed by its label."""
     labels = drawn_tools(tools)
     rows = summary[(summary.subset == "all") & summary.predictor.isin(labels)]
     wide = rows.pivot(index="predictor", columns="metric", values="mean")
-    return wide.loc[list(labels), ["coverage", "auroc_d05", "spearman_shrunk", "decoy_z_shrunk"]].rename(index=labels)
+    return wide.loc[list(labels), ["auroc_d05", "spearman_shrunk", "decoy_z_shrunk"]].rename(index=labels)
 
 
-def key_results(means: pd.DataFrame) -> list[str]:
+def key_results(means: pd.DataFrame, responsive_pairs: pd.Series) -> list[str]:
     auroc, spearman = means.auroc_d05.idxmax(), means.spearman_shrunk.idxmax()
-    covered, sparse = means.coverage.idxmax(), means.coverage.idxmin()
+    covered, sparse = responsive_pairs.idxmax(), responsive_pairs.idxmin()
     return [f"Highest mean AUROC: {auroc} ({_format_summary_value(means.auroc_d05[auroc])}).",
             f"Highest mean Spearman: {spearman} ({_format_summary_value(means.spearman_shrunk[spearman])}).",
-            f"Highest coverage: {covered} ({_format_summary_value(means.coverage[covered], percent=True)}).",
-            f"Lowest coverage: {sparse} ({_format_summary_value(means.coverage[sparse], percent=True)})."]
-
-
-def coverage_notes(means: pd.DataFrame, n_auroc: int, n_comparisons: int, min_per_state: int) -> list[str]:
-    notes = ["Coverage is score availability; a gene a predictor does not score ranks last.",
-             f"AUROC on {n_auroc} of {n_comparisons} datasets (at least {min_per_state} responsive and "
-             f"{min_per_state} no-response genes).",
-             f"Spearman on all {n_comparisons} datasets."]
-    low = means[means.coverage < LOW_COVERAGE].coverage
-    if len(low):
-        notes.append(f"Low coverage (<{LOW_COVERAGE:.0%}): "
-                     + "; ".join(f"{t}: {_format_summary_value(v, percent=True)}" for t, v in low.items()) + ".")
-    return notes
+            f"Highest responsive pair coverage: {covered} ({_format_summary_value(responsive_pairs[covered], percent=True)}).",
+            f"Lowest responsive pair coverage: {sparse} ({_format_summary_value(responsive_pairs[sparse], percent=True)})."]
 
 
 def draw_inventory(pdf, rows: list[list[str]]) -> None:
@@ -211,7 +201,7 @@ def draw_inventory(pdf, rows: list[list[str]]) -> None:
     pages = _paginate_table_rows(rows, col_widths=widths, wrap_scale=INVENTORY_WRAP_SCALE, max_weight=INVENTORY_ROWS)
     for page_rows in pages:
         fig, ax = _new_page()
-        y = _header(ax, "Dataset Inventory")
+        y = _bullet_block(ax, "Experiment inventory", [], y=TOP)
         weight = 1 + sum(_table_row_weight(row, col_widths=widths, wrap_scale=INVENTORY_WRAP_SCALE) for row in page_rows)
         height = min(y - BOTTOM, ROW_HEIGHT * weight)
         _draw_basic_table(ax, page_rows, columns=["Experiment", "Experiment ID"], col_widths=widths,
@@ -220,27 +210,68 @@ def draw_inventory(pdf, rows: list[list[str]]) -> None:
         _save_page(pdf, fig)
 
 
-def draw_plots(pdf, plots: pathlib.Path) -> None:
-    """Each plot at full width, under its title and one line per metric, one page per entry of PLOT_PAGES."""
+def draw_plot(fig, page_ax, plots: pathlib.Path, stem: str, title: str, lines: list[str], y: float) -> float:
+    """Draw a plot at full width under its title and one line per metric; returns where the next block starts."""
     page_w, page_h = REPORT_PAGE_SIZE
-    for page in PLOT_PAGES:
-        fig, page_ax = _new_page()
-        y = TOP
-        for stem, title, lines in page:
-            y = _bullet_block(page_ax, title, lines, y=y)
-            border = PLOT_BORDER_PIXELS
-            image = plt.imread(plots / f"{stem}.png")[border:-border, border:-border]
-            height = image.shape[0] / image.shape[1] * WIDTH * page_w / page_h
-            ax = fig.add_axes([LEFT, y - height, WIDTH, height])
-            ax.imshow(image, interpolation="antialiased")
-            ax.axis("off")
-            y -= height + BLOCK_GAP
-        _save_page(pdf, fig)
+    y = _bullet_block(page_ax, title, lines, y=y)
+    border = PLOT_BORDER_PIXELS
+    image = plt.imread(plots / f"{stem}.png")[border:-border, border:-border]
+    height = image.shape[0] / image.shape[1] * WIDTH * page_w / page_h
+    ax = fig.add_axes([LEFT, y - height, WIDTH, height])
+    ax.imshow(image, interpolation="antialiased")
+    ax.axis("off")
+    return y - height - BLOCK_GAP
+
+
+def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFrame, precision: pd.DataFrame,
+                means: pd.DataFrame, tools: pd.DataFrame) -> list[tuple]:
+    """One (title, columns, column widths, rows) per plot, with the numbers that plot draws."""
+    labels = drawn_tools(tools)
+    tool_ids = list(labels)
+    pct = lambda value: _format_summary_value(value, percent=True)
+    c = coverage.set_index("predictor").loc[tool_ids]
+    won_auroc, won_spearman = experiments_won(per, tool_ids, "auroc_d05"), experiments_won(per, tool_ids, "spearman_shrunk")
+    budget = recovery.budget.max()
+    recall = recovery[recovery.budget == budget].groupby("predictor").recall.mean()
+    best = best_per_experiment(precision, labels).predictor.value_counts()
+    return [
+        ("Coverage", ["Predictor", "Gene coverage", "Experiments retained", "Responsive pairs", "No-response pairs"],
+         [0.24, 0.19, 0.19, 0.19, 0.19],
+         [[labels[t], pct(c.genes_covered[t] / c.genes_measured[t]), f"{c.experiments_retained[t]}/{c.experiments_total[t]}",
+           pct(c.responsive_scored[t] / c.responsive_total[t]), pct(c.no_response_scored[t] / c.no_response_total[t])]
+          for t in tool_ids]),
+        ("Performance", ["Predictor", "Mean AUROC", "Mean Spearman", "Mean decoy z-score", "Won, AUROC", "Won, Spearman"],
+         [0.22, 0.156, 0.156, 0.156, 0.156, 0.156],
+         [[labels[t], _format_summary_value(means.auroc_d05[labels[t]]), _format_summary_value(means.spearman_shrunk[labels[t]]),
+           _format_summary_value(means.decoy_z_shrunk[labels[t]]), str(won_auroc[t]), str(won_spearman[t])] for t in tool_ids]),
+        ("Recovery", ["Predictor", f"Mean recall at {budget:,} genes", "Experiments won at 50% recall"],
+         [0.24, 0.38, 0.38],
+         [[labels[t], _format_summary_value(recall[t]), str(best.get(t, 0))] for t in tool_ids]),
+    ]
+
+
+def draw_tables(pdf, tables: list[tuple]) -> None:
+    fig, ax = _new_page()
+    y = TOP
+    for title, columns, widths, rows in tables:
+        height = ROW_HEIGHT * (len(rows) + 1)
+        if y < TOP and y - 2 * BLOCK_GAP - height < BOTTOM:  # many tools: the title and table go to the next page
+            _save_page(pdf, fig)
+            fig, ax = _new_page()
+            y = TOP
+        y = _bullet_block(ax, title, [], y=y)
+        _draw_basic_table(ax, rows, columns=columns, col_widths=widths, bbox=[LEFT, y - height, WIDTH, height],
+                          font_size=REPORT_TABLE_SIZE, wrap_scale=70)
+        y -= height + BLOCK_GAP
+    _save_page(pdf, fig)
 
 
 def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataFrame, summary: pd.DataFrame,
+                 per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFrame, precision: pd.DataFrame,
                  tools: pd.DataFrame, n_genes: int, min_per_state: int, plots: pathlib.Path) -> None:
     means = tool_means(summary, tools)
+    pairs = coverage.set_index("predictor").loc[list(drawn_tools(tools))].rename(index=drawn_tools(tools))
+    responsive_pairs = pairs.responsive_scored / pairs.responsive_total
     auroc_rows = summary[(summary.subset == "all") & (summary.metric == "auroc_d05")]
     n_auroc = int(auroc_rows.n_comparisons.max())
     rows = [[f"{c.mirna_name} · {c.cell_line}", c.experiment_id] for c in comps.itertuples(index=False)]
@@ -249,41 +280,38 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
     with PdfPages(path) as pdf:
         fig, ax = _new_page()
         y = _header(ax, "fun-miRBench Benchmark Report")
-        settings = [["Datasets evaluated", str(len(comps))],
-                    ["Datasets skipped", str(len(set_aside))],
+        settings = [["Experiments evaluated", str(len(comps))],
+                    ["Experiments skipped", str(len(set_aside))],
                     ["Predictors evaluated", str(len(means))],
                     ["Responsive genes", "oriented shrunken log2FC > 0; FSOS s-value < 0.05 against d = 0.5"],
                     ["No-response genes", "whole shrunken 95% interval of the oriented change below d = 0.5"]]
-        settings_height = TABLE_ROW_HEIGHT * (len(settings) + 1)
+        settings_height = ROW_HEIGHT * (len(settings) + 1)
         _draw_basic_table(
             ax, settings,
-            columns=["Run setting", "Value"], col_widths=[0.25, 0.75], bbox=[LEFT, y - settings_height, WIDTH, settings_height],
+            columns=["Run setting", "Value"], col_widths=[0.27, 0.73], bbox=[LEFT, y - settings_height, WIDTH, settings_height],
             font_size=REPORT_TABLE_SIZE)
         y = _bullet_block(
             ax, "Evaluation design",
-            ["Higher aligned scores mean stronger predicted targeting.",
-             f"Every predictor is scored on the same {n_genes:,} genes; unscored genes rank last.",
+            [f"Every predictor is scored on the same {n_genes:,} genes; unscored genes rank last.",
              "Unresolved genes are left out of the AUROC.",
-             "Overexpression (OE) datasets only."],
+             f"AUROC on {n_auroc} of {len(comps)} experiments (at least {min_per_state} responsive and "
+             f"{min_per_state} no-response genes).",
+             f"Spearman on all {len(comps)} experiments."],
             y=y - settings_height - BLOCK_GAP)
-        _bullet_block(ax, "Key results", key_results(means), y=y)
+        y = _bullet_block(ax, "Key results", key_results(means, responsive_pairs), y=y)
+        _bullet_block(ax, "Output tables", OUTPUT_TABLES, y=y)
         _save_page(pdf, fig)
-
-        fig, ax = _new_page()
-        y = _header(ax, "Cross-Dataset Predictor Summary")
-        y = _bullet_block(ax, "Coverage notes", coverage_notes(means, n_auroc, len(comps), min_per_state), y=y)
-        _draw_basic_table(
-            ax,
-            [[tool, _format_summary_value(r.coverage, percent=True), _format_summary_value(r.auroc_d05),
-              _format_summary_value(r.spearman_shrunk), _format_summary_value(r.decoy_z_shrunk)]
-             for tool, r in means.iterrows()],
-            columns=["Predictor", "Coverage", "AUROC", "Spearman", "Decoy z-score"],
-            col_widths=[0.32, 0.17, 0.17, 0.17, 0.17],
-            bbox=[LEFT, y - TABLE_ROW_HEIGHT * (len(means) + 1), WIDTH, TABLE_ROW_HEIGHT * (len(means) + 1)],
-            font_size=REPORT_TABLE_SIZE)
-        _save_page(pdf, fig)
-
-        draw_inventory(pdf, rows)
 
         with plt.rc_context({"savefig.dpi": 300}):  # the plots are PNGs; the default would blur them in the PDF
-            draw_plots(pdf, plots)
+            fig, ax = _new_page()
+            y = draw_plot(fig, ax, plots, *COVERAGE, TOP)
+            draw_plot(fig, ax, plots, *RECOVERY, y)
+            _save_page(pdf, fig)
+
+            fig, ax = _new_page()
+            draw_plot(fig, ax, plots, *PERFORMANCE, TOP)
+            _save_page(pdf, fig)
+
+        draw_tables(pdf, plot_tables(per, coverage, recovery, precision, means, tools))
+
+        draw_inventory(pdf, rows)
