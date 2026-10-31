@@ -1,566 +1,326 @@
-"""Run the fun-miRBench benchmark from a single YAML config."""
+"""Run the fun-miRBench benchmark from a single YAML config: TSV outputs, plots and REPORT.pdf.
 
+For every overexpression (OE) comparison and every tool:
+  * all scores are on the same fixed gene list; a gene the tool does not score is ranked last;
+  * Spearman between the score and the oriented shrunken log2FC, over genes with a usable estimate, overall and
+    averaged within tenths of control expression;
+  * AUROC of responsive against no-response genes at d = 0.5 (unresolved left out), plain and within tenths of control
+    expression, only where each state has at least min_per_state genes;
+  * a decoy check: the same Spearman for the predictor's scores of unrelated
+    benchmark miRNAs (different nt 2-8 seed), giving a z-score of the cognate miRNA against its decoys.
+Comparisons are summarised on all comparisons and on unflagged ones, as the mean over comparisons with 95% intervals
+from a bootstrap over dependency groups.
+
+Usage:
+  uv run funmirbench --config benchmark.yaml
+"""
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import pathlib
 import shutil
 
+import numpy as np
+import pandas as pd
 import yaml
+from scipy.stats import rankdata, spearmanr
 
-import funmirbench.evaluate as evaluate_module
 from funmirbench.benchmark_config import (
     build_run_dir_name,
     filter_df,
-    load_experiments,
-    load_predictions,
+    resolve_predictor_output_path,
     validate_predictor_output_files,
 )
-from funmirbench.benchmark_reports import (
-    _init_run_layout,
-    write_run_readme,
-)
-from funmirbench.common_predictions import (
-    write_combined_common_prediction_summary,
-    write_common_prediction_summary,
-)
-from funmirbench.comparison_plots import write_common_comparison_plots
-from funmirbench.cross_dataset import write_cross_dataset_summaries, write_metric_tables
-from funmirbench.dataset_reports import write_predictor_reports
-from funmirbench.evaluate import (
-    REPORT_PAGE_SIZE,
-    evaluate_joined_dataframe,
-)
-from funmirbench.experiment_labels import format_experiment_label
-from funmirbench.join import build_joined, load_predictor_score_cache
+from funmirbench.gene_ids import strip_ensembl_version
 from funmirbench.logger import parse_log_level, setup_logging
-from funmirbench.predictor_combinations import write_predictor_combination_outputs
-from funmirbench.protein_coding import (
-    DEFAULT_CACHE_REL_PATH,
-    DEFAULT_GTF_REL_PATH,
-    ENSEMBL_RELEASE,
-    load_protein_coding_gene_ids,
-)
-from funmirbench.run_report import write_run_pdf_report
-from funmirbench.validate_experiments import (
-    format_validation_failure,
-    log_validation_summary,
-    validate_experiments,
-)
-
+from funmirbench.plots import plot_all_genes, plot_coverage, plot_recovery
+from funmirbench.report_pdf import write_report
 
 logger = logging.getLogger(__name__)
+BUDGETS = (10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
+RECALL_TARGET = 0.5
+TABLE_COLUMNS = ["gene_id", "eligible", "oriented_logFC_shrunk", "control_mean_normalized_count", "state_d05"]
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Run the fun-miRBench benchmark.")
-    parser.add_argument("--config", type=pathlib.Path, required=True)
-    parser.add_argument(
-        "--log-level",
-        default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-    )
-    return parser.parse_args()
+# ---------------------------------------------------------------- metrics
+def rank_last(score: pd.Series, genes: pd.Index) -> pd.Series:
+    """Scores on the universe, higher = stronger; unscored genes tie below every scored gene."""
+    s = score.reindex(genes)
+    floor = (s.min() - 1.0) if s.notna().any() else 0.0
+    return s.fillna(floor)
 
 
-def _optional_float(value, default=None):
-    if value is None:
-        return default
-    return float(value)
+def auroc(score: np.ndarray, positive: np.ndarray) -> float:
+    n_pos, n_neg = int(positive.sum()), int((~positive).sum())
+    if n_pos == 0 or n_neg == 0:
+        return np.nan
+    ranks = rankdata(score)
+    return (ranks[positive].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
 
 
-def _optional_bool(value, default=False):
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"1", "true", "yes", "y", "on"}:
-            return True
-        if normalized in {"0", "false", "no", "n", "off"}:
-            return False
-    raise ValueError(f"Expected a boolean value, got {value!r}")
+def binned_auroc(score: np.ndarray, positive: np.ndarray, bins: np.ndarray) -> float:
+    """Mann-Whitney AUROC over positive/negative pairs within the same bin (weights n_pos * n_neg)."""
+    num = den = 0.0
+    for b in np.unique(bins):
+        m = bins == b
+        p, n = int(positive[m].sum()), int((~positive[m]).sum())
+        if p and n:
+            num += auroc(score[m], positive[m]) * p * n
+            den += p * n
+    return num / den if den else np.nan
 
 
-def _positive_int(value, *, name):
-    parsed = int(value)
-    if parsed < 1:
-        raise ValueError(f"{name} must be >= 1, got {value!r}")
-    return parsed
+def spearman(x: np.ndarray, y: np.ndarray) -> float:
+    if len(x) < 3 or np.all(x == x[0]) or np.all(y == y[0]):
+        return np.nan
+    return float(spearmanr(x, y).statistic)
 
 
-def clear_dataset_outputs(dataset_id, plots_dir, reports_dir):
-    dataset_plots_dir = plots_dir / dataset_id
-    if dataset_plots_dir.exists():
-        shutil.rmtree(dataset_plots_dir)
-
-    for stale_report in reports_dir.glob(f"{dataset_id}__*"):
-        if stale_report.is_file():
-            stale_report.unlink()
-
-
-def _skipped_dataset_record(meta, *, reason, joined_tsv=None):
-    record = {
-        "dataset_id": meta.id,
-        "mirna": meta.miRNA,
-        "cell_line": meta.cell_line,
-        "perturbation": meta.perturbation,
-        "geo_accession": meta.geo_accession,
-        "display_label": format_experiment_label(
-            geo_accession=meta.geo_accession,
-            mirna=meta.miRNA,
-            cell_line=meta.cell_line,
-            perturbation=meta.perturbation,
-        ),
-        "reason": reason,
-    }
-    if joined_tsv is not None:
-        record["joined_tsv"] = str(joined_tsv)
-    return record
+def binned_spearman(x: np.ndarray, y: np.ndarray, bins: np.ndarray, min_size: int = 20) -> float:
+    vals, weights = [], []
+    for b in np.unique(bins):
+        m = bins == b
+        if m.sum() >= min_size:
+            r = spearman(x[m], y[m])
+            if not np.isnan(r):
+                vals.append(r)
+                weights.append(m.sum())
+    return float(np.average(vals, weights=weights)) if vals else np.nan
 
 
-def _finalize_run_bundle(
-    out_dir,
-    *,
-    out_root,
-    config_path,
-    config_snapshot_path,
-    tags,
-    dataset_outputs,
-    tool_ids,
-    metric_rows,
-    joined_frames,
-    common_prediction_summaries,
-    tool_labels,
-    fdr_threshold,
-    effect_threshold,
-    predictor_top_fraction,
-    protein_coding_filter,
-    skipped_datasets,
-):
-    layout = _init_run_layout(out_dir)
-    if metric_rows:
-        metric_tables = write_metric_tables(
-            metric_rows,
-            layout["per_experiment_tables_dir"],
-            logger=logger.info,
-        )
-        combined_outputs = write_cross_dataset_summaries(
-            metric_rows,
-            layout["combined_tables_dir"],
-            layout["combined_plots_dir"],
-            joined_frames=joined_frames,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            predictor_top_fraction=predictor_top_fraction,
-            tool_labels=tool_labels,
-            logger=logger.info,
-        )
-        common_summary_path = write_combined_common_prediction_summary(
-            common_prediction_summaries,
-            layout["combined_tables_dir"],
-        )
-        combined_outputs.setdefault("tables", {})["common_prediction_summary"] = str(common_summary_path)
-        combination_outputs = write_predictor_combination_outputs(
-            joined_frames,
-            layout["combined_tables_dir"],
-            layout["combined_plots_dir"],
-            tool_ids=tool_ids,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            predictor_top_fraction=predictor_top_fraction,
-            logger=logger.info,
-        )
-        combined_outputs.setdefault("tables", {}).update(combination_outputs.get("tables", {}))
-        combined_outputs.setdefault("plots", {}).update(combination_outputs.get("plots", {}))
+def expression_tenths(expression: pd.Series) -> pd.Series:
+    ranks = expression.rank(method="first")
+    return np.ceil(10 * ranks / len(ranks)).clip(1, 10).astype(int)
+
+
+def score_metrics(score: pd.Series, table: pd.DataFrame, *, min_per_state: int) -> dict:
+    """All metrics of one ranking on one comparison. table is indexed by gene_id (the universe)."""
+    s = score.reindex(table.index).to_numpy(float)
+    est = table.eligible.to_numpy(bool)
+    bins = table.expression_tenth.to_numpy()
+    shrunk = table.oriented_logFC_shrunk.to_numpy(float)[est]
+    rec = {"spearman_shrunk": spearman(s[est], shrunk),
+           "spearman_within_tenths_shrunk": binned_spearman(s[est], shrunk, bins[est])}
+    state = table.state_d05.to_numpy()
+    labelled = (state == "responsive") | (state == "no_response_above_margin")
+    pos = state[labelled] == "responsive"
+    n_pos, n_neg = int(pos.sum()), int((~pos).sum())
+    rec["n_responsive_d05"], rec["n_no_response_d05"] = n_pos, n_neg
+    if n_pos >= min_per_state and n_neg >= min_per_state:
+        rec["auroc_d05"] = auroc(s[labelled], pos)
+        rec["auroc_within_tenths_d05"] = binned_auroc(s[labelled], pos, bins[labelled])
+        rec["auroc_na_reason_d05"] = ""
     else:
-        metric_tables = {}
-        combined_outputs = {"tables": {}, "plots": {}}
-    readme_path = write_run_readme(
-        out_dir,
-        config_path=config_path,
-        dataset_outputs=dataset_outputs,
-        tool_ids=tool_ids,
-        metric_tables=metric_tables,
-        combined_outputs=combined_outputs,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        protein_coding_filter=protein_coding_filter,
-        skipped_datasets=skipped_datasets,
-    )
-    report_path = write_run_pdf_report(
-        out_dir,
-        config_path=config_path,
-        dataset_outputs=dataset_outputs,
-        tool_ids=tool_ids,
-        metric_tables=metric_tables,
-        combined_outputs=combined_outputs,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        skipped_datasets=skipped_datasets,
-    )
-    summary = {
-        "config": str(config_path),
-        "config_snapshot": str(config_snapshot_path),
-        "out_root": str(out_root),
-        "out_dir": str(out_dir),
-        "run_dir_name": out_dir.name,
-        "tags": tags or [],
-        "dataset_ids": [item["dataset_id"] for item in dataset_outputs],
-        "tool_ids": tool_ids,
-        "readme": str(readme_path),
-        "report_pdf": str(report_path),
-        "metric_tables": metric_tables,
-        "cross_dataset_outputs": combined_outputs,
-        "protein_coding_filter": protein_coding_filter,
-        "datasets": dataset_outputs,
-        "skipped_datasets": skipped_datasets,
-    }
-    summary_path = out_dir / "summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    logger.info(f"Wrote summary: {summary_path}")
-    return {
-        "metric_tables": metric_tables,
-        "combined_outputs": combined_outputs,
-        "readme_path": readme_path,
-        "report_path": report_path,
-        "summary": summary,
-        "summary_path": summary_path,
-    }
+        rec["auroc_d05"] = rec["auroc_within_tenths_d05"] = np.nan
+        rec["auroc_na_reason_d05"] = f"fewer than {min_per_state} genes in a state"
+    return rec
 
 
-def run_benchmark(config_path):
+def recall_at_budgets(score: np.ndarray, positive: np.ndarray, genes: np.ndarray) -> dict[int, float]:
+    """Share of the positives among the top genes for each budget; ties in gene order."""
+    found = np.cumsum(positive[np.lexsort((genes, -score))])
+    return {b: found[min(b, len(found)) - 1] / positive.sum() for b in BUDGETS}
+
+
+def precision_at_recall(score: np.ndarray, positive: np.ndarray, target: float = RECALL_TARGET) -> dict:
+    """Precision at the highest score whose genes reach the target recall; tied genes enter together."""
+    by_score = pd.DataFrame({"score": score, "positive": positive}).groupby("score").positive.agg(["size", "sum"])
+    by_score = by_score.sort_index(ascending=False).cumsum()
+    row = by_score[by_score["sum"] / positive.sum() >= target].iloc[0]
+    return {"precision": row["sum"] / row["size"], "random_precision": positive.mean(),
+            "precision_over_random": row["sum"] / row["size"] / positive.mean(),
+            "false_positives_per_true_positive": (row["size"] - row["sum"]) / row["sum"]}
+
+
+def decoy_z(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> float:
+    """z of the Spearman of the cognate scores with y against the Spearman of each decoy's scores; needs two decoys."""
+    dvals = np.array([v for v in (spearman(d, y) for d in decoys) if not np.isnan(v)])
+    return (spearman(cognate, y) - dvals.mean()) / dvals.std(ddof=1) if len(dvals) > 1 else np.nan
+
+
+# ---------------------------------------------------------------- inputs
+def load_predictions(path: pathlib.Path, direction: str, mirnas: set[str], genes: set[str]) -> dict[str, pd.Series]:
+    """miRNA -> gene score (higher = stronger) from a standardized predictor file, strongest score per gene."""
+    sign = -1.0 if direction == "lower_is_stronger" else 1.0
+    parts = []
+    for chunk in pd.read_csv(path, sep="\t", usecols=["Ensembl_ID", "miRNA_Name", "Score"], chunksize=2_000_000):
+        chunk = chunk[chunk.miRNA_Name.isin(mirnas)]
+        if len(chunk):
+            chunk = chunk.assign(gene_id=chunk.Ensembl_ID.astype(str).map(strip_ensembl_version),
+                                 score=sign * pd.to_numeric(chunk.Score, errors="coerce"))
+            parts.append(chunk.loc[chunk.gene_id.isin(genes) & chunk.score.notna(), ["miRNA_Name", "gene_id", "score"]])
+    if not parts:
+        return {}
+    allp = pd.concat(parts).groupby(["miRNA_Name", "gene_id"]).score.max()
+    return {m: allp.loc[m] for m in allp.index.get_level_values(0).unique()}
+
+
+def group_bootstrap(values: pd.Series, groups: pd.Series, *, n: int, rng: np.random.Generator) -> tuple[float, float]:
+    """95% percentile interval of the mean over comparisons, resampling dependency groups."""
+    ok = values.notna()
+    values, groups = values[ok], groups[ok]
+    labels = groups.unique()
+    if len(labels) < 2:
+        return np.nan, np.nan
+    by_group = {g: values[groups == g].to_numpy() for g in labels}
+    means = []
+    for _ in range(n):
+        pick = rng.choice(labels, size=len(labels), replace=True)
+        means.append(np.concatenate([by_group[g] for g in pick]).mean())
+    return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
+
+
+# ---------------------------------------------------------------- main
+def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     config_path = config_path.expanduser().resolve()
-    logger.info(f"Config: {config_path}")
-    logger.info("Loading benchmark config...")
-    with config_path.open("r", encoding="utf-8") as handle:
+    with config_path.open(encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
     root = config_path.parent
-    experiments_tsv = root / config["experiments_tsv"]
-    experiment_filters = config.get("experiments")
-    eval_cfg = config.get("evaluation", {})
-    raw_fdr_threshold = eval_cfg.get("fdr_threshold", 0.05)
-    fdr_threshold = None if raw_fdr_threshold is None else float(raw_fdr_threshold)
-    effect_threshold = float(eval_cfg.get("effect_threshold", 1.0))
-    predictor_top_fraction = float(eval_cfg.get("predictor_top_fraction", 0.10))
-    write_top_prediction_cdfs = _optional_bool(eval_cfg.get("write_top_prediction_cdfs"), True)
-    report_min_common_coverage = float(
-        eval_cfg.get("report_min_common_coverage", eval_cfg.get("publication_min_common_coverage", 0.10))
-    )
-    protein_coding_only = _optional_bool(eval_cfg.get("protein_coding_only"), True)
-    predictor_load_workers = _positive_int(
-        eval_cfg.get("predictor_load_workers", 1),
-        name="evaluation.predictor_load_workers",
-    )
+    input_dir = resolve_predictor_output_path(config["input_dir"], root)
+    if not (input_dir / "comparisons.tsv").is_file():
+        raise FileNotFoundError(f"no benchmark tables in {input_dir}; run `uv run funmirbench-download-data`")
+    evaluation = config.get("evaluation") or {}
+    min_per_state = int(evaluation.get("min_per_state", 30))
+    bootstrap = int(evaluation.get("bootstrap", 2000))
+    seed = int(evaluation.get("seed", 0))
+    comps = pd.read_csv(input_dir / "comparisons.tsv", sep="\t", keep_default_na=False)
+    skipped = comps.experiment_id[comps.perturbation != "OE"].tolist()
+    if skipped:
+        logger.warning("Only OE comparisons are scored; skipping %d others: %s", len(skipped), ", ".join(skipped))
+    comps = comps[comps.perturbation == "OE"]
+    if config.get("experiments"):
+        comps = filter_df(comps, config["experiments"])
+    set_aside = comps[comps.action == "set_aside"]
+    comps = comps[comps.action != "set_aside"]
+    mirnas = pd.read_csv(resolve_predictor_output_path(config["mirnas_tsv"], root), sep="\t").set_index("mirna_name")
+    tools = pd.read_csv(resolve_predictor_output_path(config["predictions_tsv"], root), sep="\t")
+    if config.get("predictors"):
+        tools = filter_df(tools, config["predictors"])
+    validate_predictor_output_files({r["tool_id"]: r for r in tools.to_dict("records")}, root)
+    out = resolve_predictor_output_path(config.get("out_dir", "results"), root) / build_run_dir_name(
+        experiments=None, tool_ids=None, eval_cfg=None)
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(config_path, out / "benchmark_config.yaml")
+    final = pd.read_csv(input_dir / "experiments.tsv", sep="\t").set_index("experiment_id")
+    missing = set(comps.experiment_id) - set(final.index)
+    if missing:
+        raise ValueError(f"comparisons without a benchmark table: {sorted(missing)}")
+    if (set(comps.mirna_name) - set(mirnas.index)):
+        raise ValueError("every comparison miRNA needs a sequence in mirnas_tsv")
 
-    logger.info("Loading predictors...")
-    predictions = load_predictions(
-        root / config["predictions_tsv"],
-        config.get("predictors"),
-    )
-    if not predictions:
-        raise ValueError("Predictor selection resolved to no predictors.")
+    tables = {}
+    for exp in comps.experiment_id:
+        t = pd.read_csv(input_dir / final.loc[exp, "table"], sep="\t", usecols=TABLE_COLUMNS).set_index("gene_id")
+        t["eligible"] = t.eligible.astype(bool)
+        t["expression_tenth"] = expression_tenths(t.control_mean_normalized_count.fillna(0.0))
+        tables[exp] = t
+    universe = next(iter(tables.values())).index
+    if any(not t.index.equals(universe) for t in tables.values()):
+        raise ValueError("benchmark tables must share the same gene list in the same order")
+    logger.info("%d comparisons, %d genes", len(tables), len(universe))
 
-    validate_predictor_output_files(predictions, root)
+    seeds = mirnas.mirna_sequence.str.upper().str.replace("T", "U").str[1:8]
+    preds = {}
+    for r in tools.itertuples(index=False):
+        path = resolve_predictor_output_path(r.predictor_output_path, root)
+        logger.info("loading %s", r.tool_id)
+        preds[r.tool_id] = load_predictions(path, r.score_direction, set(mirnas.index), set(universe))
 
-    logger.info("Validating selected experiments...")
-    validation_summary = validate_experiments(
-        experiments_tsv,
-        root=root,
-        filters=experiment_filters,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-    )
-    log_validation_summary(validation_summary)
-    if not validation_summary.ok:
-        message = format_validation_failure(validation_summary)
-        if any(issue.check == "de_table_file" for issue in validation_summary.issues):
-            message += (
-                "\n\nPrepare the selected experiment files with "
-                "`funmirbench-download-data`, generate them with the RNA-seq "
-                "pipeline, or update the registry to point at local DE tables."
-            )
-        raise ValueError(message)
+    rows, decoy_rows, pair_rows, recovery_rows, precision_rows = [], [], [], [], []
+    covered, measured = {tool: set() for tool in preds}, set()
+    for c in comps.itertuples(index=False):
+        t = tables[c.experiment_id]
+        rankings = {}
+        decoys = [m for m in mirnas.index if m != c.mirna_name and seeds[m] != seeds[c.mirna_name]]
+        decoy_scores = {}
+        for tool, by_mirna in preds.items():
+            scored = by_mirna.get(c.mirna_name, pd.Series(dtype=float))
+            rankings[tool] = rank_last(scored, universe)
+            decoy_scores[tool] = [rank_last(by_mirna[d], universe) for d in decoys if d in by_mirna]
+        est = t.eligible.to_numpy(bool)
+        y = t.oriented_logFC_shrunk.to_numpy(float)[est]
+        for name, scores in decoy_scores.items():
+            z = decoy_z(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
+            decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "decoy_z_shrunk": z})
+        for name, score in rankings.items():
+            rec = {"experiment_id": c.experiment_id, "action": c.action,
+                   "dependency_group": c.dependency_group, "predictor": name, "n_genes": len(universe),
+                   "coverage": float(preds[name].get(c.mirna_name, pd.Series(dtype=float)).size / len(universe))}
+            rec.update(score_metrics(score, t, min_per_state=min_per_state))
+            rows.append(rec)
+        state = t.state_d05.to_numpy()
+        responsive, no_response = state == "responsive", state == "no_response_above_margin"
+        labelled = responsive | no_response
+        enough = min(responsive.sum(), no_response.sum()) >= min_per_state
+        measured.update(universe[est])
+        for tool, by_mirna in preds.items():
+            scored = universe.isin(by_mirna.get(c.mirna_name, pd.Series(dtype=float)).index)
+            covered[tool].update(universe[scored & est])
+            pair_rows.append({"experiment_id": c.experiment_id, "predictor": tool,
+                              "responsive_scored": int((scored & responsive).sum()),
+                              "responsive_total": int(responsive.sum()),
+                              "no_response_scored": int((scored & no_response).sum()),
+                              "no_response_total": int(no_response.sum())})
+            if enough:
+                s = rankings[tool].to_numpy(float)[labelled]
+                recalls = recall_at_budgets(s, responsive[labelled], universe[labelled].to_numpy())
+                recovery_rows += [{"experiment_id": c.experiment_id, "predictor": tool, "budget": b, "recall": r}
+                                  for b, r in recalls.items()]
+                precision_rows.append({"experiment_id": c.experiment_id, "predictor": tool,
+                                       **precision_at_recall(s, responsive[labelled])})
+        logger.info("scored %s", c.experiment_id)
 
-    logger.info("Loading experiments...")
-    selected_experiments = load_experiments(
-        experiments_tsv,
-        root,
-        experiment_filters,
-    )
-    if not selected_experiments:
-        raise ValueError("Experiment selection resolved to no datasets.")
+    per = pd.DataFrame(rows).merge(pd.DataFrame(decoy_rows), on=["experiment_id", "predictor"], how="left")
+    per.to_csv(out / "per_comparison.tsv", sep="\t", index=False)
 
-    notices_by_dataset = {}
-    for notice in validation_summary.notices:
-        notices_by_dataset.setdefault(notice.dataset_id, []).append(notice.message)
-    skipped_datasets = [
-        _skipped_dataset_record(
-            experiment,
-            reason="; ".join(notices_by_dataset.get(experiment.id, []))
-            or "Excluded during experiment validation.",
-        )
-        for experiment in selected_experiments
-        if experiment.id in validation_summary.excluded_dataset_ids
-    ]
-    experiments = [
-        experiment
-        for experiment in selected_experiments
-        if experiment.id not in validation_summary.excluded_dataset_ids
-    ]
-
-    protein_coding_gene_ids = None
-    protein_coding_filter = {
-        "enabled": protein_coding_only,
-        "applied": False,
-        "ensembl_release": ENSEMBL_RELEASE,
-        "gtf_path": str(eval_cfg.get("protein_coding_gtf") or DEFAULT_GTF_REL_PATH),
-        "gene_cache": str(eval_cfg.get("protein_coding_gene_cache") or DEFAULT_CACHE_REL_PATH),
-        "gene_count": None,
-    }
-    if protein_coding_only and experiments:
-        logger.info("Protein-coding-only evaluation filter is enabled.")
-        protein_coding_gene_ids = load_protein_coding_gene_ids(
-            root=root,
-            gtf_path=eval_cfg.get("protein_coding_gtf"),
-            cache_path=eval_cfg.get("protein_coding_gene_cache"),
-        )
-        protein_coding_filter["gene_count"] = len(protein_coding_gene_ids)
-        protein_coding_filter["applied"] = True
-        logger.info("Protein-coding gene set contains %d genes.", len(protein_coding_gene_ids))
-    elif protein_coding_only:
-        logger.info(
-            "No validation-ready experiments; skipping the protein-coding gene-set load."
-        )
-
-    evaluate_module.FIGURE_DPI = int(eval_cfg.get("figure_dpi", eval_cfg.get("publication_figure_dpi", 450)))
-    out_root = (root / config.get("out_dir", "results")).resolve()
-    out_root.mkdir(parents=True, exist_ok=True)
-    run_dir_name = build_run_dir_name(
-        experiments=experiments,
-        tool_ids=list(predictions),
-        eval_cfg=eval_cfg,
-        tags=config.get("tags"),
-    )
-    out_dir = out_root / run_dir_name
-    suffix = 2
-    while out_dir.exists():
-        out_dir = out_root / f"{run_dir_name}__r{suffix}"
-        suffix += 1
-    logger.info(f"Results root: {out_root}")
-    logger.info(f"Run output dir: {out_dir}")
-    main_layout = _init_run_layout(out_dir)
-    config_snapshot_path = out_dir / "benchmark_config.yaml"
-    shutil.copy2(config_path, config_snapshot_path)
-    logger.info(f"Wrote benchmark config snapshot: {config_snapshot_path}")
-
-    tool_ids = list(predictions)
-    tool_labels = {
-        str(tool_id): str(meta.get("official_name") or tool_id)
-        for tool_id, meta in predictions.items()
-    }
-    metric_rows = []
-    dataset_outputs = []
-    joined_frames = []
-    common_prediction_summaries = []
-    logger.info(f"Experiments: {len(experiments)}")
-    logger.info(f"Predictors:  {tool_ids}")
-    predictor_cache = {}
-    if experiments:
-        logger.info("Loading predictor score files once for this run with %d worker(s)...", predictor_load_workers)
-        predictor_cache = load_predictor_score_cache(
-            tool_ids,
-            predictions,
-            root,
-            max_workers=predictor_load_workers,
-            logger=logger.info,
-        )
-    else:
-        logger.info("No validation-ready experiments; skipping predictor score loading.")
-
-    for meta in experiments:
-        experiment_label = format_experiment_label(
-            geo_accession=meta.geo_accession,
-            mirna=meta.miRNA,
-            cell_line=meta.cell_line,
-            perturbation=meta.perturbation,
-        )
-        logger.info(f"Dataset: {meta.id} | {experiment_label}")
-        dataset_dir = main_layout["datasets_dir"] / meta.id
-        if dataset_dir.exists():
-            shutil.rmtree(dataset_dir)
-        (dataset_dir / "plots").mkdir(parents=True, exist_ok=True)
-        (dataset_dir / "reports").mkdir(parents=True, exist_ok=True)
-        logger.info(f"  Joining predictions for {meta.id}...")
-        joined, predictor_output_paths = build_joined(
-            meta,
-            tool_ids,
-            predictions,
-            root,
-            protein_coding_gene_ids=protein_coding_gene_ids,
-            predictor_cache=predictor_cache,
-            logger=logger.info,
-        )
-        joined_path = dataset_dir / "joined.tsv"
-        joined.to_csv(joined_path, sep="\t", index=False)
-        logger.info(f"  Wrote joined table: {joined_path}")
-
-        score_columns = [
-            f"score_{tool_id}"
-            for tool_id in tool_ids
-            if f"score_{tool_id}" in joined.columns
-        ]
-        if not score_columns or not joined[score_columns].notna().any().any():
-            reason = (
-                "No predictor-scored rows remained after joining predictions "
-                "to this experiment."
-            )
-            logger.info("  Skipping %s: %s", meta.id, reason)
-            skipped_datasets.append(
-                _skipped_dataset_record(
-                    meta,
-                    reason=reason,
-                    joined_tsv=joined_path,
-                )
-            )
-            continue
-
-        logger.info(f"  Evaluating metrics and plots for {meta.id}...")
-        evaluation = evaluate_joined_dataframe(
-            joined,
-            plots_dir=dataset_dir / "plots",
-            reports_dir=dataset_dir / "reports",
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            predictor_top_fraction=predictor_top_fraction,
-            dataset_id=meta.id,
-            mirna=meta.miRNA,
-            cell_line=meta.cell_line,
-            perturbation=meta.perturbation,
-            geo_accession=meta.geo_accession,
-            de_table_path=str(meta.full_path),
-            joined_tsv=joined_path,
-            predictor_output_paths=predictor_output_paths,
-            dataset_label=experiment_label,
-            tool_labels=tool_labels,
-            write_top_prediction_cdfs=write_top_prediction_cdfs,
-            logger=logger.info,
-        )
-        if evaluation.get("dataset_skip_reason"):
-            reason = evaluation["dataset_skip_reason"]
-            logger.info("  Skipping %s: %s", meta.id, reason)
-            skipped_datasets.append(
-                _skipped_dataset_record(
-                    meta,
-                    reason=reason,
-                    joined_tsv=joined_path,
-                )
-            )
-            continue
-
-        write_common_comparison_plots(
-            joined,
-            evaluation=evaluation,
-            dataset_metric_rows=evaluation["metric_rows"],
-            plots_dir=dataset_dir / "plots",
-            dataset_id=meta.id,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            perturbation=meta.perturbation,
-            min_common_coverage=report_min_common_coverage,
-            logger=logger.info,
-        )
-        common_summary_path, common_prediction_summary = write_common_prediction_summary(
-            joined,
-            dataset_dir / "reports",
-            dataset_id=meta.id,
-            tool_ids=tool_ids,
-            report_min_common_coverage=report_min_common_coverage,
-        )
-        common_prediction_summaries.append(common_prediction_summary)
-        write_predictor_reports(
-            reports_dir=dataset_dir / "reports",
-            plots_dir=dataset_dir / "plots",
-            dataset_id=meta.id,
-            mirna=meta.miRNA,
-            cell_line=meta.cell_line,
-            perturbation=meta.perturbation,
-            geo_accession=meta.geo_accession,
-            de_table_path=str(meta.full_path),
-            predictor_output_paths=predictor_output_paths,
-            metric_rows=evaluation["metric_rows"],
-            skipped_tool_rows=evaluation.get("skipped_tool_rows", []),
-            tool_labels=tool_labels,
-            fdr_threshold=fdr_threshold,
-            effect_threshold=effect_threshold,
-            common_prediction_summary=common_prediction_summary,
-        )
-        joined_frames.append(joined.copy())
-        metric_rows.extend(evaluation["metric_rows"])
-        dataset_outputs.append(
-            {
-                "dataset_id": meta.id,
-                "mirna": meta.miRNA,
-                "cell_line": meta.cell_line,
-                "perturbation": meta.perturbation,
-                "geo_accession": meta.geo_accession,
-                "display_label": experiment_label,
-                "de_table_path": str(meta.full_path),
-                "joined_tsv": str(joined_path),
-                "dataset_dir": str(dataset_dir),
-                "predictor_output_paths": predictor_output_paths,
-                "plots": evaluation["plots"],
-                "common_prediction_summary_tsv": str(common_summary_path),
-            }
-        )
-        logger.info(f"  Finished {meta.id}")
-
-    logger.info(
-        "Evaluation complete: %d dataset(s) evaluated, %d skipped.",
-        len(dataset_outputs),
-        len(skipped_datasets),
-    )
-    for item in skipped_datasets:
-        logger.info(
-            "  Skipped dataset: %s | %s | %s",
-            item["dataset_id"],
-            item["mirna"],
-            item["reason"],
-        )
-
-    logger.info("Writing metric tables...")
-    logger.info("Writing cross-dataset summaries...")
-    _finalize_run_bundle(
-        out_dir,
-        out_root=out_root,
-        config_path=config_path,
-        config_snapshot_path=config_snapshot_path,
-        tags=config.get("tags"),
-        dataset_outputs=dataset_outputs,
-        tool_ids=tool_ids,
-        metric_rows=metric_rows,
-        joined_frames=joined_frames,
-        common_prediction_summaries=common_prediction_summaries,
-        tool_labels=tool_labels,
-        fdr_threshold=fdr_threshold,
-        effect_threshold=effect_threshold,
-        predictor_top_fraction=predictor_top_fraction,
-        protein_coding_filter=protein_coding_filter,
-        skipped_datasets=skipped_datasets,
-    )
-    return out_dir
+    metrics = ["spearman_shrunk", "spearman_within_tenths_shrunk", "auroc_d05", "auroc_within_tenths_d05",
+               "decoy_z_shrunk", "coverage"]
+    summary = []
+    boot_rng = np.random.default_rng(seed + 1)
+    for subset, sub in (("all", per), ("unflagged", per[per.action == "keep"])):
+        for name, g in sub.groupby("predictor"):
+            gi = g.set_index("experiment_id")
+            for metric in metrics:
+                v = gi[metric]
+                lo, hi = group_bootstrap(v, gi.dependency_group, n=bootstrap, rng=boot_rng)
+                summary.append({"subset": subset, "predictor": name, "metric": metric,
+                                "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
+                                "n_comparisons": int(v.notna().sum()),
+                                "n_groups": int(gi.dependency_group[v.notna()].nunique())})
+    summary = pd.DataFrame(summary)
+    summary.to_csv(out / "summary.tsv", sep="\t", index=False)
+    pairs = pd.DataFrame(pair_rows)
+    retained = pairs[(pairs.responsive_scored > 0) & (pairs.no_response_scored > 0)].groupby("predictor").size()
+    coverage = pairs.groupby("predictor")[["responsive_scored", "responsive_total", "no_response_scored",
+                                           "no_response_total"]].sum()
+    coverage.insert(0, "genes_covered", pd.Series({tool: len(genes) for tool, genes in covered.items()}))
+    coverage.insert(1, "genes_measured", len(measured))
+    coverage.insert(2, "experiments_retained", retained.reindex(coverage.index, fill_value=0))
+    coverage.insert(3, "experiments_total", len(comps))
+    coverage = coverage.reset_index()
+    recovery, precision = pd.DataFrame(recovery_rows), pd.DataFrame(precision_rows)
+    coverage.to_csv(out / "coverage.tsv", sep="\t", index=False)
+    recovery.to_csv(out / "recovery.tsv", sep="\t", index=False)
+    precision.to_csv(out / "precision_at_recall.tsv", sep="\t", index=False)
+    plots = out / "plots"
+    plot_coverage(coverage, tools, plots)
+    plot_all_genes(per, tools, plots)
+    plot_recovery(recovery, precision, tools, plots)
+    write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
+                 recovery=recovery, precision=precision, tools=tools,
+                 n_genes=len(universe), min_per_state=min_per_state, plots=plots)
+    logger.info("wrote %s", out)
+    return out
 
 
-def main():
-    args = parse_args()
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run the fun-miRBench benchmark.")
+    parser.add_argument("--config", type=pathlib.Path, required=True)
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+    args = parser.parse_args()
     setup_logging(parse_log_level(args.log_level))
-    out_dir = run_benchmark(args.config)
-    logger.info(f"Done. Results in {out_dir}")
+    run_benchmark(args.config)
 
 
 if __name__ == "__main__":

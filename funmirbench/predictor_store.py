@@ -71,10 +71,10 @@ def _format_bytes(value: int) -> str:
 
 def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> pathlib.Path:
     directory.mkdir(parents=True, exist_ok=True)
-    filename = str(meta.get("filename") or "standardized predictor archive")
+    filename = str(meta.get("filename") or "archive")
     expected_size = int(meta.get("size", 0) or 0)
     size_label = _format_bytes(expected_size) if expected_size else "unknown size"
-    logger.info("Downloading predictor archive: %s (%s)", filename, size_label)
+    logger.info("Downloading %s (%s)", filename, size_label)
 
     response = requests.get(str(meta["url"]), stream=True, timeout=timeout)
     response.raise_for_status()
@@ -101,7 +101,7 @@ def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> p
                     progress = int(downloaded * 100 / expected_size)
                     if progress >= next_progress:
                         logger.info(
-                            "Predictor archive download: %d%% (%s / %s)",
+                            "Download: %d%% (%s / %s)",
                             min(progress, 100),
                             _format_bytes(downloaded),
                             _format_bytes(expected_size),
@@ -109,18 +109,18 @@ def _download_archive(meta: dict, *, directory: pathlib.Path, timeout: int) -> p
                         while next_progress <= progress:
                             next_progress += 10
 
-        logger.info("Predictor archive download complete: %s", _format_bytes(downloaded))
+        logger.info("Download complete: %s", _format_bytes(downloaded))
 
         checksum_value = str(meta.get("checksum", "") or "")
         if checksum_value:
             algorithm, expected_digest = parse_checksum(checksum_value)
             if algorithm != "md5":
                 raise ValueError(f"Unsupported checksum algorithm: {algorithm}")
-            logger.info("Verifying predictor archive checksum...")
+            logger.info("Verifying checksum...")
             actual_digest = compute_md5(archive_path)
             if actual_digest != expected_digest:
                 raise ValueError(
-                    "Checksum mismatch for standardized predictor archive: "
+                    f"Checksum mismatch for {filename}: "
                     f"expected {expected_digest}, got {actual_digest}."
                 )
         return archive_path

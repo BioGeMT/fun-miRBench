@@ -11,48 +11,15 @@ miniconda3/
 # VS Code / editor settings
 .vscode/
 
-# Local data outputs (NOT tracked)
-data/experiments/processed/*
-data/experiments/raw/*
-data/predictions/*
-!data/predictions/random/
-data/predictions/random/*
-!data/predictions/cheating/
-data/predictions/cheating/*
-!data/predictions/perfect/
-data/predictions/perfect/*
-data/joined/
-data/plots/
-data/experiments/raw/refs/*
-# Legacy local cache path
-data/resources/
-data/common_resources/*
-!data/common_resources/README.md
-
-# Benchmark results
+# Data and results (NOT tracked)
+data/
 results/
 
-# Figure 2 generated manuscript assets
-manuscript_assets/figure2/*
-!manuscript_assets/figure2/figure2_combined.png
-!manuscript_assets/figure2/figure2_combined.svg
-manuscript_assets/tables/figure2F_utr_conservation_raw.tsv
-manuscript_assets/tables/figure2_gene_set_overlap.tsv
-
-# GEO pipeline outputs
-pipelines/geo/configs/*
-!pipelines/geo/configs/*.example.yaml
-pipelines/geo/runs/*
-
-# Experiments pipeline outputs
-pipelines/experiments/runs/*
+# Processing environment, logs and runs
+pipelines/processing/work/
 
 # Predictor pipeline generated data (downloads + intermediate tables)
 pipelines/standardized_predictors/*/data/
 pipelines/standardized_predictors/*/resources/
 
-# Ignore logs globally, but track standardized predictor pipeline logs alongside outputs
 *.log
-!data/predictions/*/
-data/predictions/*/*
-!data/predictions/*/*_pipeline.log

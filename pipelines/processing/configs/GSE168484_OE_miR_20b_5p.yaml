@@ -1,0 +1,43 @@
+dataset_id: GSE168484_OE_miR_20b_5p
+gse: GSE168484
+mirna_name: hsa-miR-20b-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM5144628
+    reads_1: data/experiments/raw/GSE168484/GSM5144628/SRR13893189_1.fastq.gz
+    reads_2: data/experiments/raw/GSE168484/GSM5144628/SRR13893189_2.fastq.gz
+  - sample_id: GSM5144629
+    reads_1: data/experiments/raw/GSE168484/GSM5144629/SRR13893190_1.fastq.gz
+    reads_2: data/experiments/raw/GSE168484/GSM5144629/SRR13893190_2.fastq.gz
+  - sample_id: GSM5144630
+    reads_1: data/experiments/raw/GSE168484/GSM5144630/SRR13893191_1.fastq.gz
+    reads_2: data/experiments/raw/GSE168484/GSM5144630/SRR13893191_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM5144631
+    reads_1: data/experiments/raw/GSE168484/GSM5144631/SRR13893192_1.fastq.gz
+    reads_2: data/experiments/raw/GSE168484/GSM5144631/SRR13893192_2.fastq.gz
+  - sample_id: GSM5144632
+    reads_1: data/experiments/raw/GSE168484/GSM5144632/SRR13893193_1.fastq.gz
+    reads_2: data/experiments/raw/GSE168484/GSM5144632/SRR13893193_2.fastq.gz
+  - sample_id: GSM5144633
+    reads_1: data/experiments/raw/GSE168484/GSM5144633/SRR13893194_1.fastq.gz
+    reads_2: data/experiments/raw/GSE168484/GSM5144633/SRR13893194_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Hep G2
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-20b-5p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task.

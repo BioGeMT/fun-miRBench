@@ -8,15 +8,6 @@ import pathlib
 
 import pandas as pd
 
-from funmirbench import DatasetMeta
-
-
-def clean_optional_string(value, default=""):
-    if value is None or pd.isna(value):
-        return default
-    text = str(value).strip()
-    return text if text else default
-
 
 def build_run_dir_name(
     *,
@@ -45,39 +36,6 @@ def filter_df(df, filters):
             values = [values]
         df = df[df[col].isin(values)]
     return df
-
-
-def load_experiments(tsv_path, root, filters):
-    df = pd.read_csv(tsv_path, sep="\t")
-    if filters:
-        df = filter_df(df, filters)
-
-    metas = []
-    for _, row in df.iterrows():
-        geo = clean_optional_string(row.get("geo_accession"), default="")
-        metas.append(
-            DatasetMeta(
-                id=str(row["id"]),
-                miRNA=str(row["mirna_name"]),
-                cell_line=clean_optional_string(row.get("tested_cell_line")),
-                tissue=clean_optional_string(row.get("tissue")),
-                perturbation=clean_optional_string(row.get("experiment_type")),
-                organism=clean_optional_string(row.get("organism")),
-                geo_accession=geo,
-                data_path=str(row["de_table_path"]),
-                root=root,
-            )
-        )
-    return metas
-
-
-def load_predictions(tsv_path, filters):
-    df = pd.read_csv(tsv_path, sep="\t")
-    if filters:
-        df = filter_df(df, filters)
-    if df["tool_id"].duplicated().any():
-        raise ValueError("Duplicate tool_id values found after predictor filtering.")
-    return {row["tool_id"]: row.to_dict() for _, row in df.iterrows()}
 
 
 def resolve_predictor_output_path(predictor_output_path, root):

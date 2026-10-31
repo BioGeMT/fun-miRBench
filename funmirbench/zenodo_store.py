@@ -10,7 +10,8 @@ import requests
 
 
 ZENODO_RECORD = "21671476"
-ZENODO_API_RECORD_URL = f"https://zenodo.org/api/records/{ZENODO_RECORD}"
+BENCHMARK_DATA_RECORD = "23824917"
+ZENODO_API_RECORDS_URL = "https://zenodo.org/api/records"
 
 
 def compute_md5(path: str | pathlib.Path, *, chunk_size: int = 1024 * 1024) -> str:
@@ -29,16 +30,17 @@ def parse_checksum(value: str) -> tuple[str, str]:
     return algorithm.lower(), digest.lower()
 
 
-def zenodo_download_url(filename: str) -> str:
-    return f"{ZENODO_API_RECORD_URL}/files/{quote(str(filename), safe='')}/content"
+def zenodo_download_url(filename: str, *, record: str = ZENODO_RECORD) -> str:
+    return f"{ZENODO_API_RECORDS_URL}/{record}/files/{quote(str(filename), safe='')}/content"
 
 
 def fetch_zenodo_file_registry(
     *,
+    record: str = ZENODO_RECORD,
     token: str | None = None,
     timeout: int = 120,
 ) -> dict[str, dict]:
-    url = ZENODO_API_RECORD_URL
+    url = f"{ZENODO_API_RECORDS_URL}/{record}"
     if token:
         url = f"{url}?token={token}"
 
@@ -53,6 +55,6 @@ def fetch_zenodo_file_registry(
             "filename": key,
             "size": int(item.get("size", 0) or 0),
             "checksum": str(item.get("checksum", "")),
-            "url": item.get("links", {}).get("content") or zenodo_download_url(key),
+            "url": item.get("links", {}).get("content") or zenodo_download_url(key, record=record),
         }
     return registry

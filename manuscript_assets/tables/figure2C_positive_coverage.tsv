@@ -1,6 +1,0 @@
-tool_id	predictor	positive_pairs_scored	positive_pairs_total	positive_coverage
-targetscan	TargetScan v8	1550	12713	0.12192244159521749
-mirdb_mirtarget	miRDB	2632	12713	0.20703217179265318
-microt_cnn	microT-CNN	11746	12713	0.923936128372532
-mirbind2	miRBind2-3UTR	12614	12713	0.9922126956658539
-miraw	miRAW	12094	12713	0.9513096830016519

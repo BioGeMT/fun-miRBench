@@ -1,39 +1,26 @@
-# FuNmiRBench benchmark configuration.
+# fun-miRBench benchmark configuration.
 #
 # All file paths are relative to this YAML file's directory.
 # Run: uv run funmirbench --config benchmark.yaml
 
-experiments_tsv: metadata/mirna_experiment_info.tsv
+# The per-gene benchmark tables, from `uv run funmirbench-download-data` or pipelines/processing.
+input_dir: data/benchmark_data
+mirnas_tsv: metadata/benchmark_mirnas.tsv
 predictions_tsv: metadata/predictions_info.tsv
 
-# Filter experiments by any column in the experiments TSV.
+# Filter experiments by any column of comparisons.tsv in input_dir; only OE experiments are scored.
 # AND across columns, OR within each column's value list.
-# The default repo config ships with a small 2-dataset demo selection.
-# Edit or comment these active rows to benchmark other subsets.
 experiments:
-  id: [GSE169128_KO_miR_3662, GSE124411_OE_miR_150_5p_1]
   # mirna_name: [hsa-miR-375-3p]
-  # tested_cell_line: [HUV-EC-C]
-  # tissue: [Cervix]
-  # method: [RNA-seq]
-  # experiment_type: [Overexpression, Knockdown]
+  # cell_line: [HUV-EC-C]
 
-# The default repo config compares TargetScan, miRDB, microT-CNN, miRBind2, and miRAW.
+# Add your own predictor to predictions_tsv and to this list.
 predictors:
-  tool_id: [targetscan, mirdb_mirtarget, microt_cnn, mirbind2, miraw]
+  tool_id: [targetscan_family_expanded, mirdb_mirtarget, microt_cnn, mirbind2, miraw]
 
 evaluation:
-  predictor_load_workers: 2
-  fdr_threshold: 0.05
-  effect_threshold: 1.0
-  predictor_top_fraction: 0.10
-  write_top_prediction_cdfs: true
-  report_min_common_coverage: 0.10
-  # Primary benchmark universe: Ensembl protein-coding genes only.
-  # The first run downloads/reuses the Ensembl v115 GTF and caches the gene set.
-  protein_coding_only: true
-  protein_coding_gtf: data/common_resources/ensembl/Homo_sapiens.GRCh38.115.gtf.gz
-  protein_coding_gene_cache: data/common_resources/ensembl/protein_coding_gene_ids.txt
-  figure_dpi: 600
+  min_per_state: 30  # AUROC only where each state has at least this many genes
+  bootstrap: 2000
+  seed: 0
 
 out_dir: results/

@@ -1,0 +1,6 @@
+predictor	genes_covered	genes_measured	experiments_retained	experiments_total	responsive_scored	responsive_total	no_response_scored	no_response_total
+microt_cnn	18557	18653	21	21	14138	15041	248957	270001
+miraw	17968	18653	21	21	14403	15041	255674	270001
+mirbind2	18475	18653	21	21	15027	15041	269239	270001
+mirdb_mirtarget	12252	18653	20	21	3238	15041	39801	270001
+targetscan_family_expanded	12802	18653	20	21	3659	15041	47790	270001
