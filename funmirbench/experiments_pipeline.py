@@ -15,7 +15,6 @@ import sys
 from datetime import datetime, timezone
 
 import pandas as pd
-import requests
 import yaml
 
 
@@ -72,20 +71,6 @@ def resolve_path(value: str, *, root: pathlib.Path, repo: pathlib.Path | None = 
     if relative_to_config.exists() or not relative_to_repo.exists():
         return relative_to_config
     return relative_to_repo
-
-
-def download_bytes(url: str) -> bytes:
-    response = requests.get(url, timeout=120)
-    response.raise_for_status()
-    return response.content
-
-
-def cached_download(url: str, dest: pathlib.Path, *, force: bool) -> pathlib.Path:
-    if dest.exists() and not force:
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(download_bytes(url))
-    return dest
 
 
 def read_table_auto(path: pathlib.Path) -> pd.DataFrame:
@@ -152,28 +137,6 @@ def validate_mirna_name(config: dict, *, repo: pathlib.Path) -> None:
 
         raise ValueError(message)
 
-def open_text_auto(path: pathlib.Path):
-    if path.suffix == ".gz":
-        return gzip.open(path, "rt", encoding="utf-8")
-    return path.open("r", encoding="utf-8")
-
-
-def load_local_source_table(
-    source_cfg: dict,
-    *,
-    path_key: str,
-    config_path: pathlib.Path,
-    repo: pathlib.Path,
-) -> tuple[pd.DataFrame, pathlib.Path]:
-    path_value = normalize_space(source_cfg.get(path_key, ""))
-    if not path_value:
-        raise ValueError(f"Config source.{path_key} is required.")
-    source_path = resolve_path(path_value, root=config_path.parent, repo=repo)
-    if not source_path.exists():
-        raise ValueError(f"Config source.{path_key} does not exist: {source_path}")
-    return read_table_auto(source_path), source_path
-
-
 def _normalize_pubmed_id(value) -> str:
     text = normalize_space(value)
     if not text or text.upper() == "NA" or text.rstrip("/").upper().endswith("/NA"):
@@ -228,29 +191,6 @@ def write_candidate_metadata(config: dict, out_path: pathlib.Path, *, de_table_r
     )
 
 
-def validate_explicit_columns(df: pd.DataFrame, columns: list[str], *, key_name: str) -> list[str]:
-    if not columns:
-        raise ValueError(f"Config comparison.{key_name} is empty.")
-    missing = [column for column in columns if column not in df.columns]
-    if missing:
-        raise ValueError(f"Config comparison.{key_name} references missing columns: {missing}")
-    if len(set(columns)) != len(columns):
-        raise ValueError(f"Config comparison.{key_name} contains duplicates: {columns}")
-    return columns
-
-
-def sample_entries_from_columns(columns: list[str], *, group_name: str) -> list[dict]:
-    return [
-        {
-            "accession": column,
-            "title": column,
-            "group_label": group_name,
-            "count_matrix_column": column,
-        }
-        for column in columns
-    ]
-
-
 def sample_column_mapping_rows(group_name: str, sample_entries: list[dict], columns: list[str]) -> list[dict]:
     rows = []
     for sample, column in zip(sample_entries, columns, strict=True):
@@ -264,17 +204,6 @@ def sample_column_mapping_rows(group_name: str, sample_entries: list[dict], colu
             }
         )
     return rows
-
-
-def resolve_gene_id_column(source_cfg: dict, counts_df: pd.DataFrame) -> str:
-    configured_gene_id = normalize_space(source_cfg.get("gene_id_column", ""))
-    if not configured_gene_id:
-        raise ValueError("Config source.gene_id_column is required for count-based modes.")
-    if configured_gene_id not in counts_df.columns:
-        raise ValueError(
-            f"Configured source.gene_id_column {configured_gene_id!r} was not found in the count matrix."
-        )
-    return configured_gene_id
 
 
 def require_local_binary(name: str) -> None:
@@ -372,15 +301,13 @@ def run_de_from_counts(
     treated_cols: list[str],
     control_samples: list[dict],
     treated_samples: list[dict],
-    gene_id_column_override: str | None = None,
     extra_manifest: dict | None = None,
 ) -> dict:
     overlap = sorted(set(control_cols) & set(treated_cols))
     if overlap:
         raise ValueError(f"Control and treated groups overlap: {overlap}")
 
-    source_cfg = config.get("source", {})
-    gene_id_col = gene_id_column_override or resolve_gene_id_column(source_cfg, counts_df)
+    gene_id_col = "gene_id"
     mapping_rows = sample_column_mapping_rows("control", control_samples, control_cols) + sample_column_mapping_rows(
         "treated", treated_samples, treated_cols
     )
@@ -670,26 +597,6 @@ def write_reads_sample_sheet(run_dir: pathlib.Path, control_samples: list[dict],
     pd.DataFrame(control_samples + treated_samples).to_csv(sample_sheet_path, sep="\t", index=False)
     return sample_sheet_path
 
-
-def previous_run_dirs_for_dataset(
-    *, repo: pathlib.Path, dataset_id: str, current_run_dir: pathlib.Path
-) -> list[pathlib.Path]:
-    runs_root = repo / "pipelines" / "processing" / "work" / "runs"
-    if not runs_root.exists():
-        return []
-    pattern = f"*_{dataset_id}"
-    candidates = [path for path in runs_root.glob(pattern) if path.is_dir() and path.resolve() != current_run_dir.resolve()]
-    return sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)
-
-
-def find_reusable_star_index(
-    *, repo: pathlib.Path, dataset_id: str, current_run_dir: pathlib.Path
-) -> pathlib.Path | None:
-    for run_dir in previous_run_dirs_for_dataset(repo=repo, dataset_id=dataset_id, current_run_dir=current_run_dir):
-        star_index = run_dir / "reference" / "star_index"
-        if star_index.exists() and any(star_index.iterdir()):
-            return star_index
-    return None
 
 def star_index_exists(path: pathlib.Path) -> bool:
     required = ["Genome", "SA", "SAindex", "genomeParameters.txt"]
@@ -1108,52 +1015,6 @@ def combine_count_matrices(
     return out_path
 
 
-def run_count_matrix_mode(
-    config: dict,
-    *,
-    config_path: pathlib.Path,
-    repo: pathlib.Path,
-    run_dir: pathlib.Path,
-    force: bool,
-) -> dict:
-    logger.info("Mode: count_matrix (%s)", config["dataset_id"])
-    source_cfg = config.get("source", {})
-    logger.info("Loading count matrix...")
-    counts_df, counts_source = load_local_source_table(
-        source_cfg,
-        path_key="count_matrix_path",
-        config_path=config_path,
-        repo=repo,
-    )
-
-    comparison_cfg = config.get("comparison", {})
-    control_cols = validate_explicit_columns(
-        counts_df,
-        [normalize_space(value) for value in comparison_cfg.get("control_columns", []) if str(value).strip()],
-        key_name="control_columns",
-    )
-    treated_cols = validate_explicit_columns(
-        counts_df,
-        [normalize_space(value) for value in comparison_cfg.get("treated_columns", []) if str(value).strip()],
-        key_name="treated_columns",
-    )
-    control_samples = sample_entries_from_columns(control_cols, group_name="control")
-    treated_samples = sample_entries_from_columns(treated_cols, group_name="treated")
-    return run_de_from_counts(
-        config=config,
-        config_path=config_path,
-        repo=repo,
-        run_dir=run_dir,
-        counts_df=counts_df,
-        counts_source=counts_source,
-        source_mode="count_matrix",
-        control_cols=control_cols,
-        treated_cols=treated_cols,
-        control_samples=control_samples,
-        treated_samples=treated_samples,
-    )
-
-
 def run_reads_mode(
     config: dict,
     *,
@@ -1346,7 +1207,6 @@ def run_reads_mode(
         treated_cols=treated_cols,
         control_samples=biological_control_samples,
         treated_samples=biological_treated_samples,
-        gene_id_column_override="gene_id",
         extra_manifest={
             "reads_sample_sheet": str(sample_sheet),
             "library_layout": library_layout,
@@ -1402,8 +1262,6 @@ def run_ingestion_config(config_path: pathlib.Path, repo: pathlib.Path | None = 
     mode = normalize_space(source_cfg.get("mode", ""))
     if not mode:
         raise ValueError("Config source.mode is required.")
-    if mode == "count_matrix":
-        return run_count_matrix_mode(config, config_path=config_path, repo=repo, run_dir=run_dir, force=force)
     if mode == "reads":
         return run_reads_mode(config, config_path=config_path, repo=repo, run_dir=run_dir, force=force)
     raise NotImplementedError(f"Unsupported source.mode {mode!r}.")

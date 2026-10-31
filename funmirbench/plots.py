@@ -20,9 +20,8 @@ CURVE_COLORS = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#17BECF"
 
 METRICS = (("auroc_d05", "AUROC"), ("spearman_shrunk", "Spearman rho"))
 DECOY = ("decoy_z_shrunk", "Decoy z-score")
-SLOT, BOX_HEIGHT, MIN_SLOTS = 0.75, 2.6, 5  # inches per box, panel height, boxes a panel has room for at least
-GAP, ROW_GAP = 0.95, 1.0  # inches between the columns and between the rows of panels
-LEFT, RIGHT, TOP, BOTTOM, LEGEND_GAP = 1.35, 0.2, 1.05, 0.95, 0.3  # inches around the panels
+SLOT, ROW_GAP = 0.75, 1.0  # inches per box at least, and between the rows of panels
+RIGHT, TOP, BOTTOM, LEGEND_GAP = 0.2, 1.05, 0.95, 0.3  # inches around the panels
 SMALL, LARGE = 17, 22  # font sizes: ticks and counts; panel titles and legend
 BAR_HEIGHT, BAR_LABEL_SPACE = 0.45, 0.4  # experiments-won bars, in units of the distance between the two bars
 BAR_ALPHA = 0.58
@@ -90,18 +89,20 @@ def plot_all_genes(per: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) ->
     labels = drawn_tools(tools)
     tool_ids = list(labels)
     colors = tool_colors(tool_ids)
-    width = SLOT * max(len(tool_ids), MIN_SLOTS)
-    span = width * 2 + GAP
-    fig_w, fig_h = LEFT + span + RIGHT, TOP + BOX_HEIGHT * 2 + ROW_GAP + BOTTOM
+    # the panels and fonts of the two-panel plots, so that the text comes out the same size in the report
+    width = max((PAIR_SIZE[0] - PAIR_LEFT - PAIR_GAP - RIGHT) / 2, SLOT * len(tool_ids))
+    box_height = PAIR_SIZE[1] - PAIR_TOP - PAIR_BOTTOM
+    span = width * 2 + PAIR_GAP
+    fig_w, fig_h = PAIR_LEFT + span + RIGHT, TOP + box_height * 2 + ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(fig_w, fig_h))
-    right_column, top_row = LEFT + width + GAP, BOTTOM + BOX_HEIGHT + ROW_GAP
+    right_column, top_row = PAIR_LEFT + width + PAIR_GAP, BOTTOM + box_height + ROW_GAP
 
     def panel(left: float, bottom: float, title: str):
-        ax = fig.add_axes([left / fig_w, bottom / fig_h, width / fig_w, BOX_HEIGHT / fig_h])
+        ax = fig.add_axes([left / fig_w, bottom / fig_h, width / fig_w, box_height / fig_h])
         ax.set_title(title, pad=14, fontsize=LARGE, fontweight="bold")
         return ax
 
-    corners = ((LEFT, top_row), (right_column, top_row), (LEFT, BOTTOM))
+    corners = ((PAIR_LEFT, top_row), (right_column, top_row), (PAIR_LEFT, BOTTOM))
     for (left, bottom), (metric, label) in zip(corners, (*METRICS, DECOY)):
         ax = panel(left, bottom, label)
         draw_box(ax, per, tool_ids, colors, metric)
@@ -109,10 +110,9 @@ def plot_all_genes(per: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) ->
             ax.axhline(0.0, color="#9CA3AF", linewidth=1.0, zorder=0)
     draw_won(panel(right_column, BOTTOM, "Experiments won"), per, tool_ids, colors)
     handles = [plt.Rectangle((0, 0), 1, 1, color=colors[t], alpha=BAR_ALPHA) for t in tool_ids]
-    # as wide as the panels; compact handles, as the names at this size take most of it
     fig.legend(handles, labels.values(), loc="upper center", frameon=False, borderaxespad=0.0, borderpad=0.0,
-               fontsize=SMALL, handlelength=0.8, handleheight=1.0, handletextpad=0.3, mode="expand", ncol=len(handles),
-               bbox_to_anchor=(LEFT / fig_w, 0.0, span / fig_w, (BOTTOM - LEGEND_GAP) / fig_h))
+               fontsize=SMALL, handlelength=1.6, mode="expand", ncol=len(handles),
+               bbox_to_anchor=(PAIR_LEFT / fig_w, 0.0, span / fig_w, (BOTTOM - LEGEND_GAP) / fig_h))
     save(fig, out, "oe_all_genes")
 
 

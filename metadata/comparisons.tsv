@@ -1,22 +1,22 @@
-experiment_id	study	mirna_name	perturbation	cell_line	split	design	n_control	n_treated	dependency_group	seed_group	geo_submitter	median_counts_per_sample	n_expressed_genes	median_log2FC	share_changed_FDR05	gc_rho	qc_flagged_samples	action	flags	seed_signal_audit
-GSE112859_OE_miR_574_5p	GSE112859	hsa-miR-574-5p	OE	MGC-803	test	~ condition	2	2	group_fd4683b833bb	group_fd4683b833bb	Xu jia yue	18666932	12134	0.064	0.464	0.061		keep		uninformative
-GSE115646_OE_miR-101-3p_HepG2	GSE115646	hsa-miR-101-3p	OE	HepG2	test	~ batch + condition	6	4	group_98818c45cd54	group_a7eeffe090b3	Daehyun Baek	7906461	10453	-0.003	0.103	0.288	GSM3788547;GSM3788548;GSM3788551;GSM3788555;GSM3788579;GSM3788580;GSM3788581;GSM3788582	flag	qc_samples_8_of_10	informative
-GSE115646_OE_miR-133a-3p_HepG2	GSE115646	hsa-miR-133a-3p	OE	HepG2	test	~ batch + condition	6	4	group_98818c45cd54	group_a7eeffe090b3	Daehyun Baek	7644242	10377	-0.026	0.084	0.134	GSM3788547;GSM3788548;GSM3788551;GSM3788555;GSM3788575;GSM3788576;GSM3788577;GSM3788578	flag	qc_samples_8_of_10	informative
-GSE115646_OE_miR-140-3p_HepG2	GSE115646	hsa-miR-140-3p	OE	HepG2	test	~ batch + condition	5	3	group_98818c45cd54	group_a7eeffe090b3	Daehyun Baek	7393463	10512	0.005	0.003	-0.116	GSM3788547;GSM3788548;GSM3788551;GSM3788553;GSM3788583;GSM3788585	flag	qc_samples_6_of_8	informative
-GSE115646_OE_miR-140-5p_HepG2	GSE115646	hsa-miR-140-5p	OE	HepG2	test	~ batch + condition	5	3	group_98818c45cd54	group_a7eeffe090b3	Daehyun Baek	7377967	10478	-0.017	0.111	0.358	GSM3788547;GSM3788548;GSM3788551;GSM3788553;GSM3788572;GSM3788573;GSM3788574	flag	gc_shift;qc_samples_7_of_8	nonspecific_shift
-GSE115646_OE_miR-18a-5p_HepG2	GSE115646	hsa-miR-18a-5p	OE	HepG2	test	~ batch + condition	7	5	group_98818c45cd54	group_a7eeffe090b3	Daehyun Baek	7633422	10424	0.023	0.058	0.084	GSM3788547;GSM3788548;GSM3788551;GSM3788553;GSM3788555;GSM3788562;GSM3788563;GSM3788564;GSM3788565	flag	qc_samples_9_of_12	informative
-GSE115646_OE_miR-211-5p_HepG2	GSE115646	hsa-miR-211-5p	OE	HepG2	test	~ batch + condition	6	4	group_98818c45cd54	group_a7eeffe090b3	Daehyun Baek	8002212	10507	-0.022	0.029	0.023	GSM3788547;GSM3788548;GSM3788551;GSM3788555;GSM3788558;GSM3788560;GSM3788561	flag	qc_samples_7_of_10	informative
-GSE124411_OE_miR_150_5p_1	GSE124411	hsa-miR-150-5p	OE	LX-2	test	~ condition	2	2	group_3b2be30d4cf4	group_3b2be30d4cf4	Wei Chen	20039821	12687	-0.03	0.022	-0.429		flag	gc_shift	nonspecific_shift
-GSE129076_OE_miR_450a_5p_1	GSE129076	hsa-miR-450a-5p	OE	A2780	test	~ condition	3	3	group_b61e55166ae3	group_b61e55166ae3	Markus Hafner	17674112	12786	-0.074	0.607	0.05	GSM3692987;GSM3692989;GSM3692991	flag	qc_samples_3_of_6	nonspecific_shift
-GSE129076_OE_miR_450a_5p_2	GSE129076	hsa-miR-450a-5p	OE	SKOV-3	test	~ condition	3	3	group_b61e55166ae3	group_b61e55166ae3	Markus Hafner	11858041	12807	-0.047	0.004	-0.325	GSM3692993;GSM3692994;GSM3692996;GSM3692998	flag	gc_shift;qc_samples_4_of_6	nonspecific_shift
-GSE148827_OE_miR_1271_5p	GSE148827	hsa-miR-1271-5p	OE	SH-SY5Y	test	~ condition	4	4	group_824543c377f9	group_824543c377f9	Dylan Kiltschewskij	40110601	13553	-0.011	0.528	0.628		flag	gc_shift	nonspecific_shift
-GSE154968_OE_miR_21_3p	GSE154968	hsa-miR-21-3p	OE	HaCaT	test	~ condition	3	3	group_7f7df5eec01a	group_7f7df5eec01a	Chantal Pichon	35656697	13208	0.016	0.144	-0.134		keep		nonspecific_shift
-GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	OE	HepG2	test	~ condition	3	3	group_543aabc66d1a	group_543aabc66d1a	Sounkou Kim	19563926	12641	-0.245	0.801	-0.257		flag	global_shift;most_genes_changed	seed_reversed
-GSE175729_OE_miR-100-3p_Kelly	GSE175729	hsa-miR-100-3p	OE	Kelly	test	~ condition	4	4	group_019ec7350dd7	group_eecc1dda7da2	Niantao Deng	12376829	12272	0.016	0.064	-0.265		keep		informative
-GSE175729_OE_miR-1915-3p_Kelly	GSE175729	hsa-miR-1915-3p	OE	Kelly	test	~ condition	4	4	group_019ec7350dd7	group_eecc1dda7da2	Niantao Deng	12773517	12326	0.006	0.012	-0.158		keep		informative
-GSE175729_OE_miR-380-3p_Kelly	GSE175729	hsa-miR-380-3p	OE	Kelly	test	~ condition	4	4	group_019ec7350dd7	group_eecc1dda7da2	Niantao Deng	12793204	12283	-0.0	0.14	-0.234		keep		uninformative
-GSE175729_OE_miR-485-3p_Kelly	GSE175729	hsa-miR-485-3p	OE	Kelly	test	~ condition	4	4	group_019ec7350dd7	group_eecc1dda7da2	Niantao Deng	12376829	12265	0.046	0.186	0.02		keep		informative
-GSE175729_OE_miR-99b-5p_Kelly	GSE175729	hsa-miR-99b-5p	OE	Kelly	test	~ condition	4	4	group_019ec7350dd7	group_eecc1dda7da2	Niantao Deng	13613436	12330	0.004	0.221	-0.325		flag	gc_shift	informative
-GSE202135_OE_miR_130a_3p	GSE202135	hsa-miR-130a-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	3	3	group_49b966b28e24	group_49b966b28e24	Qiancheng Xiao	23101504	13691	0.007	0.303	-0.06		keep		informative
-GSE202135_OE_miR_130b_3p	GSE202135	hsa-miR-130b-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	3	3	group_49b966b28e24	group_49b966b28e24	Qiancheng Xiao	23634362	13721	0.008	0.274	-0.126		keep		nonspecific_shift
-GSE210778_OE_miR_375_3p	GSE210778	hsa-miR-375-3p	OE	HUV-EC-C	test	~ condition	5	5	group_67cd69a310a6	group_67cd69a310a6	Mark Feinberg	39055122	12775	-0.014	0.589	0.205		keep		informative
+experiment_id	study	mirna_name	perturbation	cell_line	split	design	dependency_group	action	flags
+GSE112859_OE_miR_574_5p	GSE112859	hsa-miR-574-5p	OE	MGC-803	test	~ condition	group_fd4683b833bb	keep	
+GSE115646_OE_miR-101-3p_HepG2	GSE115646	hsa-miR-101-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_8_of_10
+GSE115646_OE_miR-133a-3p_HepG2	GSE115646	hsa-miR-133a-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_8_of_10
+GSE115646_OE_miR-140-3p_HepG2	GSE115646	hsa-miR-140-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_6_of_8
+GSE115646_OE_miR-140-5p_HepG2	GSE115646	hsa-miR-140-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	gc_shift;qc_samples_7_of_8
+GSE115646_OE_miR-18a-5p_HepG2	GSE115646	hsa-miR-18a-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_9_of_12
+GSE115646_OE_miR-211-5p_HepG2	GSE115646	hsa-miR-211-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_7_of_10
+GSE124411_OE_miR_150_5p_1	GSE124411	hsa-miR-150-5p	OE	LX-2	test	~ condition	group_3b2be30d4cf4	flag	gc_shift
+GSE129076_OE_miR_450a_5p_1	GSE129076	hsa-miR-450a-5p	OE	A2780	test	~ condition	group_b61e55166ae3	flag	qc_samples_3_of_6
+GSE129076_OE_miR_450a_5p_2	GSE129076	hsa-miR-450a-5p	OE	SKOV-3	test	~ condition	group_b61e55166ae3	flag	gc_shift;qc_samples_4_of_6
+GSE148827_OE_miR_1271_5p	GSE148827	hsa-miR-1271-5p	OE	SH-SY5Y	test	~ condition	group_824543c377f9	flag	gc_shift
+GSE154968_OE_miR_21_3p	GSE154968	hsa-miR-21-3p	OE	HaCaT	test	~ condition	group_7f7df5eec01a	keep	
+GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	OE	HepG2	test	~ condition	group_543aabc66d1a	flag	global_shift;most_genes_changed
+GSE175729_OE_miR-100-3p_Kelly	GSE175729	hsa-miR-100-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-1915-3p_Kelly	GSE175729	hsa-miR-1915-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-380-3p_Kelly	GSE175729	hsa-miR-380-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-485-3p_Kelly	GSE175729	hsa-miR-485-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-99b-5p_Kelly	GSE175729	hsa-miR-99b-5p	OE	Kelly	test	~ condition	group_019ec7350dd7	flag	gc_shift
+GSE202135_OE_miR_130a_3p	GSE202135	hsa-miR-130a-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	group_49b966b28e24	keep	
+GSE202135_OE_miR_130b_3p	GSE202135	hsa-miR-130b-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	group_49b966b28e24	keep	
+GSE210778_OE_miR_375_3p	GSE210778	hsa-miR-375-3p	OE	HUV-EC-C	test	~ condition	group_67cd69a310a6	keep	

@@ -39,7 +39,7 @@ FAMILY_EXPANDED_STEM = "targetscan_family_expanded"
 
 
 def parse_args(root: Path, argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Standardize TargetScan predictions for FuNmiRBench.")
+    parser = argparse.ArgumentParser(description="Standardize TargetScan predictions for fun-miRBench.")
     add_standard_pipeline_args(
         parser,
         tool_id="targetscan",

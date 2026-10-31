@@ -1,4 +1,4 @@
-"""Centralized logging configuration for FuNmiRBench."""
+"""Centralized logging configuration for fun-miRBench."""
 
 from __future__ import annotations
 
@@ -57,8 +57,3 @@ def setup_logging(level: int | str = DEFAULT_LOG_LEVEL) -> None:
     )
 
     root_logger.addHandler(handler)
-
-
-def get_logger(name: str) -> logging.Logger:
-    """Small helper for consistent logger creation."""
-    return logging.getLogger(name)
