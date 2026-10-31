@@ -3,7 +3,7 @@
 # All file paths are relative to this YAML file's directory.
 # Run: uv run funmirbench --config benchmark.yaml
 
-# The per-gene benchmark tables, from `uv run funmirbench-download-data` or pipelines/benchmark_data.
+# The per-gene benchmark tables, from `uv run funmirbench-download-data` or pipelines/processing.
 input_dir: data/benchmark_data
 mirnas_tsv: metadata/benchmark_mirnas.tsv
 predictions_tsv: metadata/predictions_info.tsv
@@ -23,4 +23,4 @@ evaluation:
   bootstrap: 2000
   seed: 0
 
-out_dir: results/benchmark_results
+out_dir: results/

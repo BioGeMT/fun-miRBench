@@ -32,7 +32,10 @@ fetch_reference "$ensembl/fasta/homo_sapiens/dna" Homo_sapiens.GRCh38.dna_sm.pri
   Homo_sapiens.GRCh38.dna.primary_assembly.fa
 fetch_reference "$ensembl/gtf/homo_sapiens" Homo_sapiens.GRCh38.115.gtf Homo_sapiens.GRCh38.115.gtf
 cd "$repo"
-uv run --quiet funmirbench-experiments-download-examples --example mirbase-hsa-mature --log-level WARNING
+mirbase="$repo/data/experiments/raw/refs/mirbase"
+mkdir -p "$mirbase"
+[[ -f "$mirbase/mature.fa" ]] || curl -fsSL -o "$mirbase/mature.fa" https://mirbase.org/download_version_files/22.1/mature.fa
+awk '/^>hsa-/ {sub(/^>/, ""); print $1}' "$mirbase/mature.fa" | LC_ALL=C sort -u >"$mirbase/hsa_mature_mirnas.txt"
 
 echo "[2/2] Reads..."
 uv run --quiet python pipelines/processing/src/download_reads.py "$@"

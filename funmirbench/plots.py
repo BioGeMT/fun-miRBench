@@ -15,7 +15,7 @@ import pandas as pd
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter, NullLocator
 
-from funmirbench.evaluate_common import CURVE_COLORS
+CURVE_COLORS = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#17BECF", "#E377C2", "#BCBD22", "#8C564B"]
 
 METRICS = (("auroc_d05", "AUROC", (0.2, 1.0), (0.2, 0.4, 0.6, 0.8, 1.0)),
            ("spearman_shrunk", "Spearman rho", (-0.5, 0.5), (-0.5, -0.25, 0.0, 0.25, 0.5)))

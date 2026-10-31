@@ -281,7 +281,7 @@ def require_local_binary(name: str) -> None:
     if shutil.which(name) is None:
         raise RuntimeError(
             f"Required executable {name!r} was not found on PATH. "
-            "Install and activate the experiments environment from pipelines/processing/environment.yml."
+            "Run `pipelines/processing/setup.sh` first."
         )
 
 

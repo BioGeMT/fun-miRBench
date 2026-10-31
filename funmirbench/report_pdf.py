@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
-from funmirbench.evaluate_common import REPORT_PAGE_SIZE
 from funmirbench.plots import drawn_tools
+
+REPORT_PAGE_SIZE = (8.27, 11.69)
 
 PUBLICATION_BLUE = "#17324D"
 PUBLICATION_MUTED = "#5B6577"

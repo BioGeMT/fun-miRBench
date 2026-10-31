@@ -4,49 +4,32 @@ Benchmark functional miRNA target predictors on miRNA overexpression (OE) experi
 
 ## Install
 
-Requirements:
-
-- Python 3.10+
-- `uv`
-- `conda` for the experiments pipeline environment
-
-Install `uv` on your machine first:
+You need Python 3.10+ and `uv`.
 
 ```bash
 python -m pip install uv
-```
-
-Then clone the repo and install the Python package environment:
-
-```bash
 git clone git@github.com:BioGeMT/FuNmiRBench.git
 cd FuNmiRBench
 uv sync
 ```
 
-If you want to use the experiments pipeline, create and activate the extra local environment after entering the repo:
-
-```bash
-conda env create -f pipelines/experiments/environment.yml
-conda activate funmirbench-experiments
-```
-
-That environment also includes `uv`, so `uv run ...` keeps working after activation.
-
 ## Repo Layout
-
-Main directories:
 
 - `benchmark.yaml`: the benchmark config
 - `funmirbench/`: the code
-- `metadata/`: lists of experiments, predictors and miRNA sequences
-- `pipelines/`: pipelines that make experiment DE tables and predictor scores
+- `metadata/`: the comparisons, gene list, sample sheets, predictor list and miRNA sequences
+- `pipelines/processing/`: from reads to the per-gene benchmark tables
+- `pipelines/standardized_predictors/`: one pipeline per predictor
+- `tests/`: the tests
+- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
+
+Not tracked by git:
+
 - `data/benchmark_data/`: the per-gene benchmark tables, the benchmark's input
 - `data/predictions/`: predictor scores, the benchmark's input
 - `data/common_resources/`: downloaded miRBase and Ensembl annotation
-- `data/experiments/`: raw experiment inputs and DE tables of `pipelines/experiments/`
-- `results/benchmark_results/`: one folder per benchmark run
-- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
+- `data/experiments/`: reads, references and DE tables of `pipelines/processing/`
+- `results/<date_time>/`: one folder per benchmark run
 
 ## Run The Benchmark
 
@@ -57,7 +40,7 @@ uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23824917](https://doi.org/10.5281/zenodo.23824917)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/benchmark_data/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23824917](https://doi.org/10.5281/zenodo.23824917)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
 
 `benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config.
 
@@ -82,21 +65,21 @@ uv run funmirbench --config benchmark.yaml
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
 
-## Add Your Own Data
+## Predictors
 
-- **Predictors:** put a standardized score TSV under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and add it to `predictors` in `benchmark.yaml`. `pipelines/standardized_predictors/` holds the pipelines of the five published tools.
-- **Experiments:** [`pipelines/experiments/`](pipelines/experiments/README.md) runs DESeq2 from a YAML config and syncs the result into `metadata/mirna_experiment_info.tsv`.
+A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `miRNA_ID`, `miRNA_Name` and `Score`, on Ensembl 115 (GRCh38) and miRBase 22.1. To add your own predictor, put its file under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and add it to `predictors` in `benchmark.yaml`.
 
-## Commands
+`funmirbench-download-data` fetches the scores of the five published tools. To rebuild one, run `uv run python pipelines/standardized_predictors/<tool>/pipeline.py`; downloads are cached under `data/common_resources/` and the tool's folder.
 
-```bash
-uv run funmirbench --config benchmark.yaml
-uv run funmirbench-experiments-store
-uv run funmirbench-validate-experiments --experiments-tsv metadata/mirna_experiment_info.tsv
-uv run funmirbench-experiments-download-examples
-uv run funmirbench-experiments --config config.yaml
-uv run funmirbench-sync-metadata
-```
+- **`targetscan`:** TargetScan v8 `Summary_Counts.all_predictions.txt`, human rows on representative transcripts that agree with Ensembl 115. `Score` is the cumulative weighted context++ score; lower is stronger. `--expand-family-members` gives each family score to every member miRNA without recomputing it, which writes the `targetscan_family_expanded` file used in the benchmark.
+- **`mirdb_mirtarget`:** miRDB v6.0 (MirTarget v4.0) all-score file, mapped to genes through the NCBI gene ID, then the RefSeq ID, with BioMart. Higher is stronger.
+- **`microt_cnn`:** microT-CNN all-score file from Zenodo, with transcripts mapped to genes through Ensembl 115. Higher is stronger.
+- **`mirbind2`:** miRBind2-3UTR predictions from Zenodo record 20609975. The score is a signed repression prediction; lower is stronger.
+- **`miraw`:** miRAW site-level predictions from Figshare (10.6084/m9.figshare.32982218), keeping the highest score per miRNA and gene. Higher is stronger.
+
+## Build The Benchmark Tables
+
+`pipelines/processing/` goes from reads to the tables, for anyone who wants to rebuild them or add a comparison. It needs `conda` for the aligners and R; see its [README](pipelines/processing/README.md).
 
 ## Tests
 
