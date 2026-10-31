@@ -29,7 +29,7 @@ LOW_COVERAGE = 0.25
 INVENTORY_TOP, INVENTORY_ROWS, ROW_HEIGHT = 0.87, 24.0, 0.0345  # rows per page and their height, as shares of a page
 PAGE_TOP, PAGE_BOTTOM, BLOCK_TITLE = 0.975, 0.02, 0.05  # plot page, as shares of the page height
 PLOTS = (("coverage", "Coverage", "Genes each tool scores and the responsive and no-response pairs it covers."),
-         ("oe_all_genes", "All Genes", "AUROC, Spearman with the shrunken log2FC, and the experiments each tool wins."),
+         ("oe_all_genes", "All Genes", "AUROC, Spearman with the shrunken log2FC, decoy z-score, and the experiments each tool wins."),
          ("recovery", "Recovery", "Recall by prediction budget and each experiment's best precision at 50% recall."))
 
 
@@ -226,19 +226,21 @@ def draw_inventory(pdf, rows: list[list[str]], label: str) -> None:
 
 
 def draw_plots(pdf, plots: pathlib.Path) -> None:
-    """All plots on one page at full width, the spare height shared between them."""
+    """All plots on one page at one scale, so that their fonts match, the spare height shared between them."""
     fig, _ = _new_page()
     page_w, page_h = fig.get_size_inches()
-    width = 0.92
     images = [plt.imread(plots / f"{stem}.png") for stem, _, _ in PLOTS]
-    heights = [image.shape[0] / image.shape[1] * width * page_w / page_h for image in images]
-    spare = PAGE_TOP - PAGE_BOTTOM - sum(heights) - BLOCK_TITLE * len(PLOTS)
+    room = PAGE_TOP - PAGE_BOTTOM - BLOCK_TITLE * len(PLOTS)
+    inches_per_pixel = min(0.92 * page_w / max(image.shape[1] for image in images),
+                           room * page_h / sum(image.shape[0] for image in images))
+    heights = [image.shape[0] * inches_per_pixel / page_h for image in images]
+    spare = room - sum(heights)
     gap = max(0.0, spare) / (len(PLOTS) - 1)
     y = PAGE_TOP
     for (_, title, caption), image, height in zip(PLOTS, images, heights):
         _plot_panel_title(fig, title=title, subtitle=caption, title_y=y, subtitle_y=y - 0.023)
         y -= BLOCK_TITLE
-        ax = fig.add_axes([0.04, y - height, width, height])
+        ax = fig.add_axes([0.04, y - height, image.shape[1] * inches_per_pixel / page_w, height])
         ax.imshow(image, interpolation="antialiased")
         ax.axis("off")
         y -= height + gap

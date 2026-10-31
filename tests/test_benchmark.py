@@ -77,7 +77,7 @@ class ReportTests(unittest.TestCase):
         summary = pd.DataFrame([
             {"subset": subset, "predictor": tool, "metric": metric, "mean": value}
             for subset, value in (("all", 0.5), ("unflagged", 0.9))
-            for tool in ("targetscan_family_expanded", "miraw", "random")
+            for tool in ("targetscan_family_expanded", "miraw", "targetscan")
             for metric in ("coverage", "auroc_d05", "spearman_shrunk")])
         means = report_pdf.tool_means(summary, tools)
         self.assertEqual(list(means.index), ["TargetScan v8", "miRAW"])

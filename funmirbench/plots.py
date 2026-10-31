@@ -1,8 +1,9 @@
 """Plots of the benchmark, OE comparisons, written by funmirbench to plots/ as PNG and SVG.
 
 coverage: genes each tool scores and the responsive and no-response pairs it covers.
-oe_all_genes: AUROC of responsive against no-response genes at d = 0.5, Spearman with the shrunken log2FC and the
-experiments each tool wins, every tool on all genes (a gene a tool does not score ranks last).
+oe_all_genes: AUROC of responsive against no-response genes at d = 0.5, Spearman with the shrunken log2FC, the decoy
+z-score and the experiments each tool wins, every tool on all genes (a gene a tool does not score ranks last). The y
+axes follow the values of the run.
 recovery: recall by prediction budget and each experiment's best precision at 50% recall, relative to random.
 """
 from __future__ import annotations
@@ -17,10 +18,10 @@ from matplotlib.ticker import FuncFormatter, NullLocator
 
 CURVE_COLORS = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#17BECF", "#E377C2", "#BCBD22", "#8C564B"]
 
-METRICS = (("auroc_d05", "AUROC", (0.2, 1.0), (0.2, 0.4, 0.6, 0.8, 1.0)),
-           ("spearman_shrunk", "Spearman rho", (-0.5, 0.5), (-0.5, -0.25, 0.0, 0.25, 0.5)))
-SLOT, BOX_HEIGHT, WON_WIDTH = 0.75, 2.6, 6.0  # inches per box, boxplot height, width of the experiments-won panel
-GAP, WON_GAP = 0.95, 0.3  # inches between the boxplots, and before the experiments-won panel
+METRICS = (("auroc_d05", "AUROC"), ("spearman_shrunk", "Spearman rho"))
+DECOY = ("decoy_z_shrunk", "Decoy z-score")
+SLOT, BOX_HEIGHT, MIN_SLOTS = 0.75, 2.6, 5  # inches per box, panel height, boxes a panel has room for at least
+GAP, ROW_GAP = 0.95, 1.0  # inches between the columns and between the rows of panels
 LEFT, RIGHT, TOP, BOTTOM, LEGEND_GAP = 1.35, 0.2, 1.05, 0.95, 0.3  # inches around the panels
 SMALL, LARGE = 17, 22  # font sizes: ticks and counts; panel titles and legend
 BAR_HEIGHT, BAR_LABEL_SPACE = 0.45, 0.4  # experiments-won bars, in units of the distance between the two bars
@@ -67,7 +68,7 @@ def draw_box(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict, metric: s
 
 
 def draw_won(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict) -> None:
-    for y, (metric, label, _, _) in enumerate(METRICS):
+    for y, (metric, label) in enumerate(METRICS):
         counts = experiments_won(per, tool_ids, metric)
         left, total = 0.0, counts.sum()
         for tool, count in counts.items():
@@ -89,29 +90,29 @@ def plot_all_genes(per: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) ->
     labels = drawn_tools(tools)
     tool_ids = list(labels)
     colors = tool_colors(tool_ids)
-    box_width = SLOT * len(tool_ids)
-    widths = [box_width, box_width, WON_WIDTH]
-    gaps = [GAP, WON_GAP]
-    fig_w, fig_h = LEFT + sum(widths) + sum(gaps) + RIGHT, TOP + BOX_HEIGHT + BOTTOM
+    width = SLOT * max(len(tool_ids), MIN_SLOTS)
+    span = width * 2 + GAP
+    fig_w, fig_h = LEFT + span + RIGHT, TOP + BOX_HEIGHT * 2 + ROW_GAP + BOTTOM
     fig = plt.figure(figsize=(fig_w, fig_h))
-    axes, left = [], LEFT
-    for i, width in enumerate(widths):
-        axes.append(fig.add_axes([left / fig_w, BOTTOM / fig_h, width / fig_w, BOX_HEIGHT / fig_h]))
-        left += width + (gaps[i] if i < len(gaps) else 0)
-    for ax, (metric, label, ylim, ticks) in zip(axes, METRICS):
+    right_column, top_row = LEFT + width + GAP, BOTTOM + BOX_HEIGHT + ROW_GAP
+
+    def panel(left: float, bottom: float, title: str):
+        ax = fig.add_axes([left / fig_w, bottom / fig_h, width / fig_w, BOX_HEIGHT / fig_h])
+        ax.set_title(title, pad=14, fontsize=LARGE, fontweight="bold")
+        return ax
+
+    corners = ((LEFT, top_row), (right_column, top_row), (LEFT, BOTTOM))
+    for (left, bottom), (metric, label) in zip(corners, (*METRICS, DECOY)):
+        ax = panel(left, bottom, label)
         draw_box(ax, per, tool_ids, colors, metric)
-        drawn = per.loc[per.predictor.isin(tool_ids), metric]
-        ax.set_ylim(min(ylim[0], drawn.min()), max(ylim[1], drawn.max()))  # no value falls outside the panel
-        ax.set_yticks(ticks)
-        ax.set_title(label, pad=14, fontsize=LARGE, fontweight="bold")
-    draw_won(axes[2], per, tool_ids, colors)
-    axes[2].set_title("Experiments won", pad=14, fontsize=LARGE, fontweight="bold")
-    fig.text(0.3 / fig_w, (BOTTOM + BOX_HEIGHT / 2) / fig_h, "OE", rotation=90, ha="center", va="center",
-             fontsize=LARGE, fontweight="bold")
+        if (metric, label) == DECOY:
+            ax.axhline(0.0, color="#9CA3AF", linewidth=1.0, zorder=0)
+    draw_won(panel(right_column, BOTTOM, "Experiments won"), per, tool_ids, colors)
     handles = [plt.Rectangle((0, 0), 1, 1, color=colors[t], alpha=BAR_ALPHA) for t in tool_ids]
-    fig.legend(handles, labels.values(), loc="upper center", frameon=False, borderaxespad=0.0, fontsize=LARGE,
-               handlelength=1.6, handleheight=1.0, mode="expand", ncol=len(handles),
-               bbox_to_anchor=(LEFT / fig_w, 0.0, (sum(widths) + sum(gaps)) / fig_w, (BOTTOM - LEGEND_GAP) / fig_h))
+    # as wide as the panels; compact handles, as the names at this size take most of it
+    fig.legend(handles, labels.values(), loc="upper center", frameon=False, borderaxespad=0.0, borderpad=0.0,
+               fontsize=SMALL, handlelength=0.8, handleheight=1.0, handletextpad=0.3, mode="expand", ncol=len(handles),
+               bbox_to_anchor=(LEFT / fig_w, 0.0, span / fig_w, (BOTTOM - LEGEND_GAP) / fig_h))
     save(fig, out, "oe_all_genes")
 
 

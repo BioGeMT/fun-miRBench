@@ -49,9 +49,6 @@ uv run funmirbench --config benchmark.yaml
 - **Scores per comparison:**
   - Spearman between the score and the oriented shrunken log2FC, overall and within tenths of control expression;
   - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
-- **Reference rows:**
-  - `random`;
-  - `expression_high` / `expression_low` (control expression).
 - **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `decoy_z_shrunk` is the cognate miRNA against its decoys.
 - **Summaries:**
   - on all comparisons and on unflagged ones;
@@ -59,7 +56,7 @@ uv run funmirbench --config benchmark.yaml
 - **Predictors:** the default config runs the five published tools. TargetScan is `targetscan_family_expanded`, which gives every family member the family score; plain `targetscan` stays in the registry and can be selected instead.
 - **Plots**, in `plots/` as PNG and SVG:
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
-  - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC and the experiments each tool wins, for every tool on all genes;
+  - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, decoy z-score and the experiments each tool wins, for every tool on all genes, with y axes that follow the values of the run;
   - `recovery`: recall by prediction budget and each experiment's best precision at 50% recall relative to random, on the comparisons with at least 30 genes in each state.
 - **Report:** `REPORT.pdf`: run settings, key results, the mean coverage, AUROC and Spearman per tool, the experiments evaluated and skipped, and the plots.
 

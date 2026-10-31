@@ -1,12 +1,12 @@
 """Run the fun-miRBench benchmark from a single YAML config: TSV outputs, plots and REPORT.pdf.
 
-For every overexpression (OE) comparison and every tool or reference baseline:
+For every overexpression (OE) comparison and every tool:
   * all scores are on the same fixed gene list; a gene the tool does not score is ranked last;
   * Spearman between the score and the oriented shrunken log2FC, over genes with a usable estimate, overall and
     averaged within tenths of control expression;
   * AUROC of responsive against no-response genes at d = 0.5 (unresolved left out), plain and within tenths of control
     expression, only where each state has at least min_per_state genes;
-  * for tools, a decoy check: the same Spearman for the predictor's scores of unrelated
+  * a decoy check: the same Spearman for the predictor's scores of unrelated
     benchmark miRNAs (different nt 2-8 seed), giving a z-score of the cognate miRNA against its decoys.
 Comparisons are summarised on all comparisons and on unflagged ones, as the mean over comparisons with 95% intervals
 from a bootstrap over dependency groups.
@@ -227,24 +227,16 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         logger.info("loading %s", r.tool_id)
         preds[r.tool_id] = load_predictions(path, r.score_direction, set(mirnas.index), set(universe))
 
-    rng = np.random.default_rng(seed)
     rows, decoy_rows, pair_rows, recovery_rows, precision_rows = [], [], [], [], []
     covered, measured = {tool: set() for tool in preds}, set()
     for c in comps.itertuples(index=False):
         t = tables[c.experiment_id]
-        expr = t.control_mean_normalized_count.fillna(0.0)
-        rankings = {
-            "random": pd.Series(rng.random(len(universe)), index=universe),
-            "expression_high": expr,
-            "expression_low": -expr,
-        }
-        kinds = {k: "reference" for k in rankings}
+        rankings = {}
         decoys = [m for m in mirnas.index if m != c.mirna_name and seeds[m] != seeds[c.mirna_name]]
         decoy_scores = {}
         for tool, by_mirna in preds.items():
             scored = by_mirna.get(c.mirna_name, pd.Series(dtype=float))
             rankings[tool] = rank_last(scored, universe)
-            kinds[tool] = "tool"
             decoy_scores[tool] = [rank_last(by_mirna[d], universe) for d in decoys if d in by_mirna]
         est = t.eligible.to_numpy(bool)
         y = t.oriented_logFC_shrunk.to_numpy(float)[est]
@@ -253,10 +245,8 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
             decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "decoy_z_shrunk": z})
         for name, score in rankings.items():
             rec = {"experiment_id": c.experiment_id, "action": c.action,
-                   "dependency_group": c.dependency_group, "predictor": name, "kind": kinds[name],
-                   "n_genes": len(universe),
-                   "coverage": float(preds[name].get(c.mirna_name, pd.Series(dtype=float)).size / len(universe))
-                   if name in preds else 1.0}
+                   "dependency_group": c.dependency_group, "predictor": name, "n_genes": len(universe),
+                   "coverage": float(preds[name].get(c.mirna_name, pd.Series(dtype=float)).size / len(universe))}
             rec.update(score_metrics(score, t, min_per_state=min_per_state))
             rows.append(rec)
         state = t.state_d05.to_numpy()
@@ -294,8 +284,8 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
             for metric in metrics:
                 v = gi[metric]
                 lo, hi = group_bootstrap(v, gi.dependency_group, n=bootstrap, rng=boot_rng)
-                summary.append({"subset": subset, "predictor": name, "kind": gi.kind.iloc[0],
-                                "metric": metric, "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
+                summary.append({"subset": subset, "predictor": name, "metric": metric,
+                                "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
                                 "n_comparisons": int(v.notna().sum()),
                                 "n_groups": int(gi.dependency_group[v.notna()].nunique())})
     summary = pd.DataFrame(summary)
