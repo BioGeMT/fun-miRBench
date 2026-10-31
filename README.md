@@ -40,11 +40,11 @@ uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23824917](https://doi.org/10.5281/zenodo.23824917)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23839843](https://doi.org/10.5281/zenodo.23839843)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
 
 `benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config.
 
-- **Labels:** `state_d05`: responsive, no response above margin, or unresolved at d = 0.5, from the shrunken log2FC (FSOS s-value < 0.05 against d; whole shrunken 95% interval below d). Unresolved genes are never negatives.
+- **Labels:** `state_d05`: responsive, no response above margin, or unresolved at d = 0.5, from the shrunken log2FC (FSOS s-value < 0.05 against d, in the direction of repression; whole shrunken 95% interval below d). Unresolved genes are never negatives.
 - **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
 - **Scores per comparison:**
   - Spearman between the score and the oriented shrunken log2FC, overall and within tenths of control expression;
@@ -57,7 +57,7 @@ uv run funmirbench --config benchmark.yaml
 - **Plots**, in `plots/` as PNG:
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
   - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, decoy z-score and the experiments each tool wins, for every tool on all genes, with y axes that follow the values of the run;
-  - `recovery`: recall by prediction budget and each experiment's best precision at 50% recall relative to random, on the comparisons with at least 30 genes in each state.
+  - `recovery`: recall by prediction budget, counting every gene in the ranking, and each experiment's best precision at 50% recall relative to random, among responsive and no-response genes, on the comparisons with at least 30 genes in each state.
 - **Report:** `REPORT.pdf`: run settings, key results, the output tables, the plots, one table per plot with its numbers, and the experiments evaluated and skipped.
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.

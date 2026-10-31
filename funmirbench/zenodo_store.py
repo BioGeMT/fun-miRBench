@@ -10,7 +10,7 @@ import requests
 
 
 ZENODO_RECORD = "21671476"
-BENCHMARK_DATA_RECORD = "23824917"
+BENCHMARK_DATA_RECORD = "23839843"
 ZENODO_API_RECORDS_URL = "https://zenodo.org/api/records"
 
 

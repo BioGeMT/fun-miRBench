@@ -83,7 +83,7 @@ def draw_won(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict) -> None:
                         edgecolor="white", linewidth=2.0)
                 ax.text(left + count / total / 2, y, str(count), ha="center", va="center", fontsize=SMALL,
                         fontweight="bold", color="#111111")
-            left += count / total
+            left += count / total if total else 0.0
         ax.text(0.0, y - BAR_HEIGHT / 2 - 0.06, label, ha="left", va="bottom", fontsize=SMALL)
     ax.set_ylim(len(METRICS) - 1 + BAR_HEIGHT / 2, -BAR_HEIGHT / 2 - BAR_LABEL_SPACE)
     ax.set_xlim(0, 1)

@@ -149,6 +149,43 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(coverage.loc["tool", "experiments_retained"], 2)
             self.assertEqual((out / "REPORT.pdf").read_bytes()[:4], b"%PDF")
 
+    def test_unresolved_genes_use_up_the_budget_and_too_few_genes_leave_out_recovery(self):
+        genes = [f"ENSG{i:011d}" for i in range(200)]
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = pathlib.Path(tmp)
+            (tmp / "final/genes").mkdir(parents=True)
+            rows = []
+            for exp, n_responsive in (("E1", 40), ("E2", 3)):
+                state = ["unresolved"] * 10 + ["responsive"] * n_responsive + ["no_response_above_margin"] * (190 - n_responsive)
+                pd.DataFrame({"gene_id": genes, "eligible": True, "oriented_logFC_shrunk": np.linspace(2, -2, 200),
+                              "control_mean_normalized_count": np.arange(200.0) + 1, "state_d05": state}).to_csv(
+                    tmp / "final/genes" / f"{exp}.tsv.gz", sep="\t", index=False)
+                rows.append({"experiment_id": exp, "table": f"genes/{exp}.tsv.gz"})
+            pd.DataFrame(rows).to_csv(tmp / "final/experiments.tsv", sep="\t", index=False)
+            pd.DataFrame({"experiment_id": ["E1", "E2"], "mirna_name": ["hsa-miR-16-5p"] * 2, "cell_line": ["HeLa"] * 2,
+                          "perturbation": ["OE"] * 2, "action": ["keep"] * 2, "flags": [""] * 2,
+                          "dependency_group": ["g1", "g2"]}).to_csv(tmp / "final/comparisons.tsv", sep="\t", index=False)
+            pd.DataFrame({"mirna_name": ["hsa-miR-16-5p"], "mirna_sequence": [MIR]}).to_csv(tmp / "mirnas.tsv", sep="\t", index=False)
+            # the tool ranks genes in table order, so its top 10 genes are the unresolved ones
+            (tmp / "tool.tsv").write_text("Ensembl_ID\tmiRNA_Name\tScore\n" + "".join(
+                f"{g}\thsa-miR-16-5p\t{200 - i}\n" for i, g in enumerate(genes)))
+            pd.DataFrame({"tool_id": ["tool"], "official_name": ["Tool"], "score_direction": ["higher_is_stronger"],
+                          "predictor_output_path": [str(tmp / "tool.tsv")]}).to_csv(tmp / "predictions.tsv", sep="\t", index=False)
+
+            def run(experiments):
+                (tmp / "benchmark.yaml").write_text(yaml.safe_dump({
+                    "input_dir": "final", "mirnas_tsv": "mirnas.tsv", "predictions_tsv": "predictions.tsv",
+                    "experiments": {"experiment_id": experiments}, "evaluation": {"bootstrap": 10}, "out_dir": "results"}))
+                return benchmark.run_benchmark(tmp / "benchmark.yaml")
+
+            recovery = pd.read_csv(run(["E1"]) / "recovery.tsv", sep="\t").set_index("budget").recall
+            self.assertEqual(recovery[10], 0.0)
+            self.assertEqual(recovery[25], 15 / 40)
+            out = run(["E2"])
+            self.assertEqual(len(pd.read_csv(out / "recovery.tsv", sep="\t")), 0)
+            self.assertFalse((out / "plots/recovery.png").exists())
+            self.assertEqual((out / "REPORT.pdf").read_bytes()[:4], b"%PDF")
+
     def test_missing_benchmark_tables_name_the_download_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             config = pathlib.Path(tmp) / "benchmark.yaml"

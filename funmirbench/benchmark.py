@@ -263,12 +263,12 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
                               "no_response_scored": int((scored & no_response).sum()),
                               "no_response_total": int(no_response.sum())})
             if enough:
-                s = rankings[tool].to_numpy(float)[labelled]
-                recalls = recall_at_budgets(s, responsive[labelled], universe[labelled].to_numpy())
+                s = rankings[tool].to_numpy(float)
+                recalls = recall_at_budgets(s, responsive, universe.to_numpy())  # budgets count every gene
                 recovery_rows += [{"experiment_id": c.experiment_id, "predictor": tool, "budget": b, "recall": r}
                                   for b, r in recalls.items()]
                 precision_rows.append({"experiment_id": c.experiment_id, "predictor": tool,
-                                       **precision_at_recall(s, responsive[labelled])})
+                                       **precision_at_recall(s[labelled], responsive[labelled])})
         logger.info("scored %s", c.experiment_id)
 
     per = pd.DataFrame(rows).merge(pd.DataFrame(decoy_rows), on=["experiment_id", "predictor"], how="left")
@@ -299,14 +299,17 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     coverage.insert(2, "experiments_retained", retained.reindex(coverage.index, fill_value=0))
     coverage.insert(3, "experiments_total", len(comps))
     coverage = coverage.reset_index()
-    recovery, precision = pd.DataFrame(recovery_rows), pd.DataFrame(precision_rows)
+    recovery = pd.DataFrame(recovery_rows, columns=["experiment_id", "predictor", "budget", "recall"])
+    precision = pd.DataFrame(precision_rows, columns=["experiment_id", "predictor", "precision", "random_precision",
+                                                      "precision_over_random", "false_positives_per_true_positive"])
     coverage.to_csv(out / "coverage.tsv", sep="\t", index=False)
     recovery.to_csv(out / "recovery.tsv", sep="\t", index=False)
     precision.to_csv(out / "precision_at_recall.tsv", sep="\t", index=False)
     plots = out / "plots"
     plot_coverage(coverage, tools, plots)
     plot_all_genes(per, tools, plots)
-    plot_recovery(recovery, precision, tools, plots)
+    if len(recovery):  # otherwise no selected comparison has enough genes in each state
+        plot_recovery(recovery, precision, tools, plots)
     write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
                  recovery=recovery, precision=precision, tools=tools,
                  n_genes=len(universe), min_per_state=min_per_state, plots=plots)

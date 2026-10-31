@@ -46,7 +46,7 @@ PERFORMANCE = ("oe_all_genes", "Performance",
            "Decoy z-score: Spearman for the tested miRNA against different-seed miRNAs, in SDs.",
            "Experiments won: experiments where the tool has the highest AUROC or Spearman rho."])
 RECOVERY = ("recovery", "Recovery",
-          ["Recall: share of responsive genes among the top-ranked genes, mean over experiments.",
+          ["Recall: share of responsive genes in the top genes of the full ranking, mean over experiments.",
            "Best precision / random: best tool's precision at 50% recall over responsive share."])
 
 
@@ -188,9 +188,11 @@ def tool_means(summary: pd.DataFrame, tools: pd.DataFrame) -> pd.DataFrame:
 
 
 def key_results(means: pd.DataFrame, responsive_pairs: pd.Series) -> list[str]:
-    auroc, spearman = means.auroc_d05.idxmax(), means.spearman_shrunk.idxmax()
+    spearman = means.spearman_shrunk.idxmax()
     covered, sparse = responsive_pairs.idxmax(), responsive_pairs.idxmin()
-    return [f"Highest mean AUROC: {auroc} ({_format_summary_value(means.auroc_d05[auroc])}).",
+    lines = [f"Highest mean AUROC: {means.auroc_d05.idxmax()} ({_format_summary_value(means.auroc_d05.max())})."] \
+        if means.auroc_d05.notna().any() else []
+    return [*lines,
             f"Highest mean Spearman: {spearman} ({_format_summary_value(means.spearman_shrunk[spearman])}).",
             f"Highest responsive pair coverage: {covered} ({_format_summary_value(responsive_pairs[covered], percent=True)}).",
             f"Lowest responsive pair coverage: {sparse} ({_format_summary_value(responsive_pairs[sparse], percent=True)})."]
@@ -231,10 +233,7 @@ def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFram
     pct = lambda value: _format_summary_value(value, percent=True)
     c = coverage.set_index("predictor").loc[tool_ids]
     won_auroc, won_spearman = experiments_won(per, tool_ids, "auroc_d05"), experiments_won(per, tool_ids, "spearman_shrunk")
-    budget = recovery.budget.max()
-    recall = recovery[recovery.budget == budget].groupby("predictor").recall.mean()
-    best = best_per_experiment(precision, labels).predictor.value_counts()
-    return [
+    tables = [
         ("Coverage", ["Predictor", "Gene coverage", "Experiments retained", "Responsive pairs", "No-response pairs"],
          [0.24, 0.19, 0.19, 0.19, 0.19],
          [[labels[t], pct(c.genes_covered[t] / c.genes_measured[t]), f"{c.experiments_retained[t]}/{c.experiments_total[t]}",
@@ -244,10 +243,15 @@ def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFram
          [0.22, 0.156, 0.156, 0.156, 0.156, 0.156],
          [[labels[t], _format_summary_value(means.auroc_d05[labels[t]]), _format_summary_value(means.spearman_shrunk[labels[t]]),
            _format_summary_value(means.decoy_z_shrunk[labels[t]]), str(won_auroc[t]), str(won_spearman[t])] for t in tool_ids]),
-        ("Recovery", ["Predictor", f"Mean recall at {budget:,} genes", "Experiments won at 50% recall"],
-         [0.24, 0.38, 0.38],
-         [[labels[t], _format_summary_value(recall[t]), str(best.get(t, 0))] for t in tool_ids]),
     ]
+    if len(recovery):
+        budget = recovery.budget.max()
+        recall = recovery[recovery.budget == budget].groupby("predictor").recall.mean()
+        best = best_per_experiment(precision, labels).predictor.value_counts()
+        tables.append(("Recovery", ["Predictor", f"Mean recall at {budget:,} genes", "Experiments won at 50% recall"],
+                       [0.24, 0.38, 0.38],
+                       [[labels[t], _format_summary_value(recall[t]), str(best.get(t, 0))] for t in tool_ids]))
+    return tables
 
 
 def draw_tables(pdf, tables: list[tuple]) -> None:
@@ -283,7 +287,7 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
         settings = [["Experiments evaluated", str(len(comps))],
                     ["Experiments skipped", str(len(set_aside))],
                     ["Predictors evaluated", str(len(means))],
-                    ["Responsive genes", "oriented shrunken log2FC > 0; FSOS s-value < 0.05 against d = 0.5"],
+                    ["Responsive genes", "oriented shrunken log2FC > 0; repression FSOS s-value < 0.05 against d = 0.5"],
                     ["No-response genes", "whole shrunken 95% interval of the oriented change below d = 0.5"]]
         settings_height = ROW_HEIGHT * (len(settings) + 1)
         _draw_basic_table(
@@ -305,7 +309,8 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
         with plt.rc_context({"savefig.dpi": 300}):  # the plots are PNGs; the default would blur them in the PDF
             fig, ax = _new_page()
             y = draw_plot(fig, ax, plots, *COVERAGE, TOP)
-            draw_plot(fig, ax, plots, *RECOVERY, y)
+            if len(recovery):
+                draw_plot(fig, ax, plots, *RECOVERY, y)
             _save_page(pdf, fig)
 
             fig, ax = _new_page()
