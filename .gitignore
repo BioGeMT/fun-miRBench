@@ -40,16 +40,9 @@ manuscript_assets/figure2/*
 manuscript_assets/tables/figure2F_utr_conservation_raw.tsv
 manuscript_assets/tables/figure2_gene_set_overlap.tsv
 
-# GEO pipeline outputs
-pipelines/geo/configs/*
-!pipelines/geo/configs/*.example.yaml
-pipelines/geo/runs/*
-
-# Experiments pipeline outputs
-pipelines/experiments/runs/*
 
 # Benchmark data scripts: conda environment, logs and fit list
-pipelines/benchmark_data/work/
+pipelines/processing/work/
 
 # Benchmark data tables
 data/benchmark_data/

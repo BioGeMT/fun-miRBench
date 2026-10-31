@@ -107,7 +107,7 @@ def load_hsa_mature_mirna_names(repo: pathlib.Path) -> set[str]:
     if not path.exists():
         raise ValueError(
             f"miRBase hsa mature miRNA list does not exist: {path}. "
-            "Run `uv run funmirbench-experiments-download-examples --example mirbase-hsa-mature` first."
+            "Run `pipelines/processing/download.sh` first."
         )
 
     names = {
@@ -281,7 +281,7 @@ def require_local_binary(name: str) -> None:
     if shutil.which(name) is None:
         raise RuntimeError(
             f"Required executable {name!r} was not found on PATH. "
-            "Install and activate the experiments environment from pipelines/experiments/environment.yml."
+            "Install and activate the experiments environment from pipelines/processing/environment.yml."
         )
 
 
@@ -328,7 +328,7 @@ def run_deseq2_from_counts(
 ) -> tuple[list[str], pathlib.Path, pathlib.Path]:
     require_local_binary("Rscript")
     logger.info("Running DESeq2 from count matrix...")
-    r_script = repo / "pipelines" / "experiments" / "run_deseq2_counts.R"
+    r_script = repo / "pipelines" / "processing" / "src" / "run_deseq2_counts.R"
     command = [
         "Rscript",
         str(r_script),
@@ -674,7 +674,7 @@ def write_reads_sample_sheet(run_dir: pathlib.Path, control_samples: list[dict],
 def previous_run_dirs_for_dataset(
     *, repo: pathlib.Path, dataset_id: str, current_run_dir: pathlib.Path
 ) -> list[pathlib.Path]:
-    runs_root = repo / "pipelines" / "experiments" / "runs"
+    runs_root = repo / "pipelines" / "processing" / "work" / "runs"
     if not runs_root.exists():
         return []
     pattern = f"*_{dataset_id}"
@@ -1393,7 +1393,7 @@ def run_ingestion_config(config_path: pathlib.Path, repo: pathlib.Path | None = 
     validate_mirna_name(config, repo=repo)
 
     dataset_id = config["dataset_id"]
-    run_dir = repo / "pipelines" / "experiments" / "runs" / f"{utc_now_stamp()}_{dataset_id}"
+    run_dir = repo / "pipelines" / "processing" / "work" / "runs" / f"{utc_now_stamp()}_{dataset_id}"
     ensure_clean_dir(run_dir, force=force)
     shutil.copy2(config_path, run_dir / "config.yaml")
     logger.info("Run dir: %s", run_dir)

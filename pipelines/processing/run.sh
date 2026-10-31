@@ -5,10 +5,10 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-env_prefix="${ENV_PREFIX:-$repo/pipelines/benchmark_data/work/env}"
+env_prefix="${ENV_PREFIX:-$repo/pipelines/processing/work/env}"
 workers="${RUN_WORKERS:-2}"
 out_dir="${BENCHMARK_DATA_DIR:-$repo/data/benchmark_data}"
-work="$repo/pipelines/benchmark_data/work"
+work="$repo/pipelines/processing/work"
 
 [[ -x "$env_prefix/bin/uv" ]] || { echo "ERROR: run setup.sh first" >&2; exit 1; }
 export PATH="$env_prefix/bin:$PATH" work
@@ -18,7 +18,7 @@ mkdir -p "$work/logs"
 # The newest run of a comparison that wrote its fitted DESeq2 object.
 latest_fit() {
   local dir fit=""
-  for dir in pipelines/experiments/runs/????????_??????_"$1"; do
+  for dir in pipelines/processing/work/runs/????????_??????_"$1"; do
     if [[ -f "$dir/complete_analysis.rds" ]]; then fit="$dir/complete_analysis.rds"; fi
   done
   echo "$fit"
@@ -27,7 +27,7 @@ latest_fit() {
 run_one() {
   if [[ -n "$(latest_fit "$1")" ]]; then echo "done    $1"; return; fi
   echo "running $1"
-  uv run --quiet funmirbench-experiments --config "pipelines/benchmark_data/configs/$1.yaml" >"$work/logs/$1.log" 2>&1 \
+  uv run --quiet funmirbench-experiments --config "pipelines/processing/configs/$1.yaml" >"$work/logs/$1.log" 2>&1 \
     || { echo "FAILED  $1 (log: $work/logs/$1.log)" >&2; return 1; }
   echo "ran     $1"
 }
@@ -37,7 +37,7 @@ mapfile -t all_ids < <(awk -F'\t' 'NR > 1 {print $1}' metadata/comparisons.tsv)
 ids=("$@")
 if (( ${#ids[@]} == 0 )); then ids=("${all_ids[@]}"); fi
 for id in "${ids[@]}"; do
-  [[ -f "pipelines/benchmark_data/configs/$id.yaml" ]] || { echo "ERROR: no config for $id" >&2; exit 1; }
+  [[ -f "pipelines/processing/configs/$id.yaml" ]] || { echo "ERROR: no config for $id" >&2; exit 1; }
 done
 
 echo "[1/3] Pipeline runs, $workers at a time..."
@@ -61,5 +61,5 @@ fi
 
 echo "[3/3] Benchmark tables in $out_dir..."
 [[ ! -e "$out_dir" ]] || { echo "ERROR: $out_dir exists; move it or set BENCHMARK_DATA_DIR" >&2; exit 1; }
-uv run --quiet python pipelines/benchmark_data/src/build_benchmark_data.py --fits "$fits" \
+uv run --quiet python pipelines/processing/src/build_benchmark_data.py --fits "$fits" \
   --genes metadata/benchmark_genes.tsv.gz --out "$out_dir" --rscript "$env_prefix/bin/Rscript"

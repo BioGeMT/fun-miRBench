@@ -6,12 +6,12 @@ tests and raw states at d = 0.5 and 1.0 as a check. This driver runs it for ever
 table and a manifest with SHA-256 hashes.
 
 Input --fits is a TSV with columns: experiment_id, fit_rds (complete_analysis.rds written
-by pipelines/experiments/run_deseq2_counts.R).
+by pipelines/processing/src/run_deseq2_counts.R).
 
 The comparison metadata (metadata/comparisons.tsv: groups, flags) is copied into the output.
 
 Usage:
-  uv run python pipelines/benchmark_data/src/build_benchmark_data.py --fits fits.tsv \
+  uv run python pipelines/processing/src/build_benchmark_data.py --fits fits.tsv \
       --genes metadata/benchmark_genes.tsv.gz --out <out_dir> [--rscript Rscript] [--workers 8]
 """
 import argparse

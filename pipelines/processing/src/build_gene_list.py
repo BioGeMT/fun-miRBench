@@ -4,7 +4,7 @@ The list depends only on the annotation, never on a comparison's counts, so ever
 same genes.
 
 Usage:
-  uv run python pipelines/benchmark_data/src/build_gene_list.py \
+  uv run python pipelines/processing/src/build_gene_list.py \
       --gtf data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf.gz \
       --out metadata/benchmark_genes.tsv.gz
 """

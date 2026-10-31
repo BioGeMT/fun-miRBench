@@ -1,10 +1,10 @@
 """Download the FASTQ files of the 21 OE test comparisons.
 
-Reads pipelines/benchmark_data/configs/fastq_manifest.tsv: every file is downloaded from ENA to its repository path
+Reads pipelines/processing/configs/fastq_manifest.tsv: every file is downloaded from ENA to its repository path
 and checked against the manifest md5 and size. Existing files that already match their md5 are kept.
 
 Usage:
-  uv run python pipelines/benchmark_data/src/download_reads.py [--study GSE115646 ...] [--workers 4] [--dry-run]
+  uv run python pipelines/processing/src/download_reads.py [--study GSE115646 ...] [--workers 4] [--dry-run]
 """
 import argparse
 import hashlib
@@ -15,7 +15,7 @@ import pandas as pd
 import requests
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-MANIFEST = REPO / "pipelines/benchmark_data/configs/fastq_manifest.tsv"
+MANIFEST = REPO / "pipelines/processing/configs/fastq_manifest.tsv"
 
 
 def md5(path: pathlib.Path) -> str:
