@@ -14,6 +14,7 @@ miniconda3/
 # Local data outputs (NOT tracked)
 data/experiments/processed/*
 data/experiments/raw/*
+data/experiments/prepared/*
 data/predictions/*
 !data/predictions/random/
 data/predictions/random/*
@@ -39,13 +40,12 @@ manuscript_assets/figure2/*
 manuscript_assets/tables/figure2F_utr_conservation_raw.tsv
 manuscript_assets/tables/figure2_gene_set_overlap.tsv
 
-# GEO pipeline outputs
-pipelines/geo/configs/*
-!pipelines/geo/configs/*.example.yaml
-pipelines/geo/runs/*
 
-# Experiments pipeline outputs
-pipelines/experiments/runs/*
+# Benchmark data scripts: conda environment, logs and fit list
+pipelines/processing/work/
+
+# Benchmark data tables
+data/benchmark_data/
 
 # Predictor pipeline generated data (downloads + intermediate tables)
 pipelines/standardized_predictors/*/data/
