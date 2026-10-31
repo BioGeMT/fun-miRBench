@@ -19,6 +19,7 @@ dev = ["scikit-learn>=1.5"]
 [project.scripts]
 funmirbench = "funmirbench.benchmark:main"
 funmirbench-experiments = "funmirbench.experiments_pipeline:main"
+funmirbench-add = "funmirbench.add_experiment:main"
 funmirbench-download-data = "funmirbench.published_data:main"
 
 [build-system]

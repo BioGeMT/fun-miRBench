@@ -1,0 +1,130 @@
+"""Add one OE experiment, from raw reads or a count matrix, to the benchmark tables.
+
+Both routes reach the same DESeq2 fit and the same labels as the published experiments. The table goes to
+<benchmark data>/genes/, with its rows in experiments.tsv, comparisons.tsv and the manifest. A miRNA new to the benchmark
+gets its miRBase sequence added to metadata/benchmark_mirnas.tsv.
+
+Usage:
+  uv run funmirbench-add --config my_experiment.yaml
+"""
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import pathlib
+import shutil
+import sys
+
+import pandas as pd
+
+from funmirbench.experiments_pipeline import load_yaml, repo_root, run_ingestion_config, write_json
+from funmirbench.logger import parse_log_level, setup_logging
+
+sys.path.insert(0, str(repo_root() / "pipelines/processing/src"))  # the labelling step is shared with the full rebuild
+from build_benchmark_data import run_one, sha256  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+GENES = pathlib.Path("metadata/benchmark_genes.tsv.gz")
+MIRNAS = pathlib.Path("metadata/benchmark_mirnas.tsv")
+MATURE_FASTA = pathlib.Path("data/experiments/raw/refs/mirbase/mature.fa")
+MIN_REPLICATES = 2
+
+
+def check_config(config: dict) -> None:
+    if config.get("experiment_type") != "Overexpression":
+        raise ValueError("Only overexpression experiments can be added: set experiment_type: Overexpression.")
+    if not (config.get("metadata") or {}).get("tested_cell_line"):
+        raise ValueError("Config metadata.tested_cell_line is required.")
+    comparison = config.get("comparison") or {}
+    for side in ("control", "treated"):
+        n = len(comparison.get(f"{side}_samples") or comparison.get(f"{side}_columns") or [])
+        if n < MIN_REPLICATES:
+            raise ValueError(f"DESeq2 needs at least {MIN_REPLICATES} {side} samples; the config has {n}.")
+
+
+def mirbase_sequence(name: str, mature_fasta: pathlib.Path) -> str:
+    lines = mature_fasta.read_text(encoding="utf-8").splitlines()
+    for header, sequence in zip(lines, lines[1:]):
+        if header.startswith(">") and header[1:].split()[0] == name:
+            return sequence.strip()
+    raise ValueError(f"{name} has no sequence in {mature_fasta}")
+
+
+def add_mirna(name: str, mirnas_path: pathlib.Path, mature_fasta: pathlib.Path) -> None:
+    mirnas = pd.read_csv(mirnas_path, sep="\t", keep_default_na=False)
+    if name in set(mirnas.mirna_name):
+        return
+    sequence = mirbase_sequence(name, mature_fasta)
+    row = {"mirna_name": name, "mirna_sequence": sequence, "seed_2_8": sequence[1:8], "seed_family": ""}
+    pd.concat([mirnas, pd.DataFrame([row])], ignore_index=True).to_csv(mirnas_path, sep="\t", index=False)
+    logger.info("Added %s to %s", name, mirnas_path)
+
+
+def comparison_row(config: dict) -> dict:
+    dataset_id = config["dataset_id"]
+    return {"experiment_id": dataset_id, "study": config.get("gse") or dataset_id, "mirna_name": config["mirna_name"],
+            "perturbation": "OE", "cell_line": config["metadata"]["tested_cell_line"], "split": "test",
+            "design": "~ batch + condition" if config["comparison"].get("batch_by_sample") else "~ condition",
+            "dependency_group": config.get("dependency_group") or f"group_{dataset_id}", "action": "keep", "flags": "",
+            "source_mode": config["source"]["mode"]}
+
+
+def append_row(path: pathlib.Path, row: dict) -> None:
+    table = pd.read_csv(path, sep="\t", keep_default_na=False)
+    pd.concat([table, pd.DataFrame([row])], ignore_index=True).fillna("").to_csv(path, sep="\t", index=False)
+
+
+def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo: pathlib.Path | None = None) -> pathlib.Path:
+    repo = (repo or repo_root()).resolve()
+    config = load_yaml(config_path)
+    check_config(config)
+    dataset_id = config["dataset_id"]
+    if not (benchmark_data / "comparisons.tsv").is_file():
+        raise FileNotFoundError(f"no benchmark tables in {benchmark_data}; run `uv run funmirbench-download-data`")
+    if dataset_id in set(pd.read_csv(benchmark_data / "comparisons.tsv", sep="\t").experiment_id):
+        raise ValueError(f"{dataset_id} is already in {benchmark_data}; choose another dataset_id.")
+    env_bin = pathlib.Path(os.environ.get("ENV_PREFIX", repo / "pipelines/processing/work/env")) / "bin"
+    os.environ["PATH"] = f"{env_bin}{os.pathsep}{os.environ['PATH']}"
+    rscript = shutil.which("Rscript")
+    if rscript is None:
+        raise RuntimeError("Rscript was not found; run `pipelines/processing/setup.sh` first.")
+
+    run_dir = pathlib.Path(run_ingestion_config(config_path, repo)["run_dir"])
+    (benchmark_data / "genes").mkdir(exist_ok=True)
+    (benchmark_data / "logs").mkdir(exist_ok=True)
+    fit = pd.DataFrame([{"experiment_id": dataset_id, "fit_rds": str(run_dir / "complete_analysis.rds")}])
+    row = run_one(next(fit.itertuples(index=False)), genes=repo / GENES, out=benchmark_data, rscript=rscript)
+    if row["n_eligible"] == 0:
+        (benchmark_data / row["table"]).unlink()
+        raise ValueError("No gene of the benchmark gene list has a usable estimate. Counts need Ensembl gene IDs without "
+                         "version suffixes, such as ENSG00000141510.")
+
+    add_mirna(config["mirna_name"], repo / MIRNAS, repo / MATURE_FASTA)
+    append_row(benchmark_data / "experiments.tsv", row)
+    append_row(benchmark_data / "comparisons.tsv", comparison_row(config))
+    manifest_path = benchmark_data / "manifest.json"
+    if manifest_path.is_file():
+        manifest = pd.read_json(manifest_path, typ="series").to_dict()
+        manifest["experiments"] = int(manifest["experiments"]) + 1
+        manifest["comparisons_sha256"] = sha256(benchmark_data / "comparisons.tsv")
+        manifest["tables"] = {**manifest["tables"], dataset_id: row["table_sha256"]}
+        write_json(manifest, manifest_path)
+    logger.info("%s: %d responsive, %d no response, %d unresolved at d = 0.5", dataset_id, row["d05_responsive"],
+                row["d05_no_response_above_margin"], row["d05_unresolved"])
+    return benchmark_data / row["table"]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Add one OE experiment to the benchmark tables.")
+    parser.add_argument("--config", type=pathlib.Path, required=True)
+    parser.add_argument("--benchmark-data", type=pathlib.Path, default=pathlib.Path("data/benchmark_data"))
+    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+    args = parser.parse_args()
+    setup_logging(parse_log_level(args.log_level))
+    logger.info("Wrote %s", add_experiment(args.config.expanduser().resolve(), args.benchmark_data.expanduser().resolve()))
+
+
+if __name__ == "__main__":
+    main()

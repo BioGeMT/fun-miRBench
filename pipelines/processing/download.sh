@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Download the Ensembl 115 genome and GTF and the FASTQ files of the 21 OE test comparisons. Complete files are kept,
-# so the script can be rerun after an interruption. Arguments go to download_reads.py (for example --study GSE124411).
+# so the script can be rerun after an interruption. --references-only stops after the genome and GTF; other arguments go
+# to download_reads.py (for example --study GSE124411).
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -25,17 +26,14 @@ fetch_reference() {
   echo "fetched $name"
 }
 
-echo "[1/2] References and the miRBase names the pipeline checks configs against..."
+echo "[1/2] References..."
 mkdir -p "$refs"
 # The reruns used the soft-masked genome under the name the configs point to.
 fetch_reference "$ensembl/fasta/homo_sapiens/dna" Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa \
   Homo_sapiens.GRCh38.dna.primary_assembly.fa
 fetch_reference "$ensembl/gtf/homo_sapiens" Homo_sapiens.GRCh38.115.gtf Homo_sapiens.GRCh38.115.gtf
+[[ "${1:-}" != "--references-only" ]] || exit 0
 cd "$repo"
-mirbase="$repo/data/experiments/raw/refs/mirbase"
-mkdir -p "$mirbase"
-[[ -f "$mirbase/mature.fa" ]] || curl -fsSL -o "$mirbase/mature.fa" https://mirbase.org/download_version_files/22.1/mature.fa
-awk '/^>hsa-/ {sub(/^>/, ""); print $1}' "$mirbase/mature.fa" | LC_ALL=C sort -u >"$mirbase/hsa_mature_mirnas.txt"
 
 echo "[2/2] Reads..."
 uv run --quiet python pipelines/processing/src/download_reads.py "$@"
