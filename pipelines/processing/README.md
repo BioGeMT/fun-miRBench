@@ -1,6 +1,6 @@
 # Processing
 
-From reads to the per-gene benchmark tables for the 21 FuNmiRBench OE test comparisons.
+From reads to the per-gene benchmark tables for the 21 fun-miRBench OE test comparisons.
 
 ## Run
 
@@ -35,8 +35,6 @@ Step 3 writes each run to `pipelines/processing/work/runs/<timestamp>_<id>/`, wi
 - `comparison`: the control and treated samples, with `sample_id`, `reads_1`, optional `reads_2` and a batch where the design needs one;
 - `metadata`: organism, cell line, treatment and method.
 
-`funmirbench-experiments` also accepts `mode: count_matrix`, with `count_matrix_path`, `gene_id_column`, `control_columns` and `treated_columns`, to skip alignment.
-
 ## Benchmark table (one per comparison, 19,226 rows)
 
 | Columns | Meaning |
@@ -66,13 +64,9 @@ These files are in `metadata/`.
 
 - **`benchmark_genes.tsv.gz`:** the fixed gene list of step 4, built from the GTF alone.
 - **`comparisons.tsv`:** one row per comparison.
-  - design, sample numbers;
-  - dependency group (comparisons that share controls or samples) and exact-seed group;
-  - QC metrics, `action` (keep or flag) and `flags`.
-- **`sample_sheets/<GSE>.tsv`:** one row per sample per comparison.
-  - role, design, batch, donor, clone, dose and source block;
-  - read files (repository paths) and GEO title and characteristics;
-  - the number of comparisons sharing the sample.
+  - design;
+  - dependency group (comparisons that share controls or samples);
+  - `action` (keep or flag) and `flags`.
 
   Human RNA-seq samples of the study that no comparison uses are listed with role `not_used`.
 - **`mirna_experiment_info.tsv`, `predictions_info.tsv`:** the experiment and predictor lists that the evaluation (`benchmark.yaml`) reads.
@@ -96,4 +90,4 @@ Result: 9 comparisons are kept and 12 flagged.
 
 ## Provenance
 
-The tables were built on 2026-10-17 from the fresh reruns of 2026-10-11 and the input QC review. `seed_signal_audit` is the October 2026 audit's seed-response category; it is descriptive and was computed on the old labels.
+The tables were built on 2026-10-17 from the fresh reruns of 2026-10-11 and the input QC review.
