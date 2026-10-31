@@ -83,6 +83,11 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(list(means.index), ["TargetScan v8", "miRAW"])
         self.assertTrue((means == 0.5).all(axis=None))
 
+    def test_key_results_leave_out_what_no_comparison_has(self):
+        means = pd.DataFrame({"auroc_d05": [np.nan], "spearman_shrunk": [0.1], "decoy_z_shrunk": [1.0]}, index=["Tool"])
+        lines = report_pdf.key_results(means, pd.Series([np.nan], index=["Tool"]))
+        self.assertEqual(lines, ["Highest mean Spearman: Tool (0.100)."])
+
 
 class EndToEndTests(unittest.TestCase):
     def test_small_run(self):

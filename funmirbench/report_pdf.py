@@ -47,7 +47,8 @@ PERFORMANCE = ("oe_all_genes", "Performance",
            "Experiments won: experiments where the tool has the highest AUROC or Spearman rho."])
 RECOVERY = ("recovery", "Recovery",
           ["Recall: share of responsive genes in the top genes of the full ranking, mean over experiments.",
-           "Best precision / random: best tool's precision at 50% recall over responsive share."])
+           "Best precision / random: best tool's precision at 50% recall over responsive share.",
+           "Precision counts responsive and no-response genes only."])
 
 
 def _format_summary_value(value, *, percent=False):
@@ -187,15 +188,21 @@ def tool_means(summary: pd.DataFrame, tools: pd.DataFrame) -> pd.DataFrame:
     return wide.loc[list(labels), ["auroc_d05", "spearman_shrunk", "decoy_z_shrunk"]].rename(index=labels)
 
 
+def coverage_lines(responsive_pairs: pd.Series) -> list[str]:
+    if responsive_pairs.notna().sum() == 0:  # no selected comparison has a responsive gene
+        return []
+    covered, sparse = responsive_pairs.idxmax(), responsive_pairs.idxmin()
+    return [f"Highest responsive pair coverage: {covered} ({_format_summary_value(responsive_pairs[covered], percent=True)}).",
+            f"Lowest responsive pair coverage: {sparse} ({_format_summary_value(responsive_pairs[sparse], percent=True)})."]
+
+
 def key_results(means: pd.DataFrame, responsive_pairs: pd.Series) -> list[str]:
     spearman = means.spearman_shrunk.idxmax()
-    covered, sparse = responsive_pairs.idxmax(), responsive_pairs.idxmin()
     lines = [f"Highest mean AUROC: {means.auroc_d05.idxmax()} ({_format_summary_value(means.auroc_d05.max())})."] \
         if means.auroc_d05.notna().any() else []
     return [*lines,
             f"Highest mean Spearman: {spearman} ({_format_summary_value(means.spearman_shrunk[spearman])}).",
-            f"Highest responsive pair coverage: {covered} ({_format_summary_value(responsive_pairs[covered], percent=True)}).",
-            f"Lowest responsive pair coverage: {sparse} ({_format_summary_value(responsive_pairs[sparse], percent=True)})."]
+            *coverage_lines(responsive_pairs)]
 
 
 def draw_inventory(pdf, rows: list[list[str]]) -> None:

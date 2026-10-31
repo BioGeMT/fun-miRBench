@@ -40,7 +40,7 @@ uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23839843](https://doi.org/10.5281/zenodo.23839843)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23839843](https://doi.org/10.5281/zenodo.23839843)) and the predictor scores in `data/predictions/`, and keeps files that are already there; `--force` replaces them with the current Zenodo version. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
 
 `benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config.
 
