@@ -76,7 +76,11 @@ A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `
 
 ## Build The Benchmark Tables
 
-`pipelines/processing/` goes from reads to the tables, for anyone who wants to rebuild them or add a comparison. It needs `conda` for the aligners and R; see its [README](pipelines/processing/README.md).
+`pipelines/processing/` goes from reads to the tables, for anyone who wants to rebuild them. It needs `conda` for the aligners and R; see its [README](pipelines/processing/README.md).
+
+## Add Your Own Experiment
+
+`funmirbench-add` adds one OE experiment, from raw reads or a count matrix, to the benchmark tables. It needs `conda` for the aligners and R; see its [README](pipelines/processing/ADD_EXPERIMENT.md).
 
 ## Tests
 
