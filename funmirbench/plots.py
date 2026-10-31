@@ -1,4 +1,4 @@
-"""Plots of the benchmark, OE comparisons, written by funmirbench to plots/ as PNG and SVG.
+"""Plots of the benchmark, OE comparisons, written by funmirbench to plots/ as PNG.
 
 coverage: genes each tool scores and the responsive and no-response pairs it covers.
 oe_all_genes: AUROC of responsive against no-response genes at d = 0.5, Spearman with the shrunken log2FC, the decoy
@@ -118,8 +118,7 @@ def plot_all_genes(per: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) ->
 
 def save(fig, out: pathlib.Path, stem: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
-    for ext in ("png", "svg"):
-        fig.savefig(out / f"{stem}.{ext}", dpi=300, facecolor="white", bbox_inches="tight", pad_inches=0.15)
+    fig.savefig(out / f"{stem}.png", dpi=300, facecolor="white", bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
 
 

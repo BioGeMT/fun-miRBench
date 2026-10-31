@@ -143,7 +143,6 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(set(per.experiment_id), {"E1", "E2"})
             for stem in ("coverage", "oe_all_genes", "recovery"):
                 self.assertTrue((out / f"plots/{stem}.png").exists())
-                self.assertTrue((out / f"plots/{stem}.svg").exists())
             coverage = pd.read_csv(out / "coverage.tsv", sep="\t").set_index("predictor")
             self.assertEqual(coverage.loc["tool", "genes_covered"], 300)
             self.assertEqual(coverage.loc["tool", "genes_measured"], 400)

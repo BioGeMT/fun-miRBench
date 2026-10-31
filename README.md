@@ -54,7 +54,7 @@ uv run funmirbench --config benchmark.yaml
   - on all comparisons and on unflagged ones;
   - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
 - **Predictors:** the default config runs the five published tools. TargetScan is `targetscan_family_expanded`, which gives every family member the family score; plain `targetscan` stays in the registry and can be selected instead.
-- **Plots**, in `plots/` as PNG and SVG:
+- **Plots**, in `plots/` as PNG:
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
   - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, decoy z-score and the experiments each tool wins, for every tool on all genes, with y axes that follow the values of the run;
   - `recovery`: recall by prediction budget and each experiment's best precision at 50% recall relative to random, on the comparisons with at least 30 genes in each state.
