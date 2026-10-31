@@ -53,13 +53,19 @@ def mirbase_sequence(name: str, mature_fasta: pathlib.Path) -> str:
     raise ValueError(f"{name} has no sequence in {mature_fasta}")
 
 
+def replace_table(table: pd.DataFrame, path: pathlib.Path) -> None:
+    partial = path.with_name(f"{path.name}.part")
+    table.to_csv(partial, sep="\t", index=False)
+    os.replace(partial, path)
+
+
 def add_mirna(name: str, mirnas_path: pathlib.Path, mature_fasta: pathlib.Path) -> None:
     mirnas = pd.read_csv(mirnas_path, sep="\t", keep_default_na=False)
     if name in set(mirnas.mirna_name):
         return
     sequence = mirbase_sequence(name, mature_fasta)
     row = {"mirna_name": name, "mirna_sequence": sequence, "seed_2_8": sequence[1:8], "seed_family": ""}
-    pd.concat([mirnas, pd.DataFrame([row])], ignore_index=True).to_csv(mirnas_path, sep="\t", index=False)
+    replace_table(pd.concat([mirnas, pd.DataFrame([row])], ignore_index=True), mirnas_path)
     logger.info("Added %s to %s", name, mirnas_path)
 
 
@@ -72,13 +78,11 @@ def comparison_row(config: dict) -> dict:
             "source_mode": config["source"]["mode"]}
 
 
-def append_row(path: pathlib.Path, row: dict) -> None:
-    """Replace the file in one step; a row left by an interrupted earlier try is dropped."""
+def with_row(path: pathlib.Path, row: dict) -> pd.DataFrame:
+    """The table with this row; a row left by an interrupted earlier try is dropped."""
     table = pd.read_csv(path, sep="\t", keep_default_na=False) if path.is_file() else pd.DataFrame(columns=list(row))
     table = pd.concat([table[table.experiment_id != row["experiment_id"]], pd.DataFrame([row])], ignore_index=True)
-    partial = path.with_name(f"{path.name}.part")
-    table.fillna("").to_csv(partial, sep="\t", index=False)
-    os.replace(partial, path)
+    return table.fillna("")
 
 
 def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo: pathlib.Path | None = None) -> pathlib.Path:
@@ -106,15 +110,20 @@ def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo
                          "version suffixes, such as ENSG00000141510.")
 
     add_mirna(config["mirna_name"], repo / MIRNAS, repo / MATURE_FASTA)
-    append_row(benchmark_data / "experiments.tsv", row)
-    append_row(comparisons, comparison_row(config))  # last: an experiment counts as added once it is listed here
+    replace_table(with_row(benchmark_data / "experiments.tsv", row), benchmark_data / "experiments.tsv")
+    # comparisons.tsv goes last: an experiment counts as added once it is listed there, so anything before can be retried
+    partial = comparisons.with_name(f"{comparisons.name}.part")
+    with_row(comparisons, comparison_row(config)).to_csv(partial, sep="\t", index=False)
     manifest_path = benchmark_data / "manifest.json"
     if manifest_path.is_file():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["tables"][dataset_id] = row["table_sha256"]
         manifest["experiments"] = len(manifest["tables"])
-        manifest["comparisons_sha256"] = sha256(comparisons)
-        write_json(manifest, manifest_path)
+        manifest["comparisons_sha256"] = sha256(partial)
+        manifest_partial = manifest_path.with_name(f"{manifest_path.name}.part")
+        write_json(manifest, manifest_partial)
+        os.replace(manifest_partial, manifest_path)
+    os.replace(partial, comparisons)
     logger.info("%s: %d responsive, %d no response, %d unresolved at d = 0.5", dataset_id, row["d05_responsive"],
                 row["d05_no_response_above_margin"], row["d05_unresolved"])
     return benchmark_data / row["table"]

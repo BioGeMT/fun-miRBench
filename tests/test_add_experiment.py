@@ -1,3 +1,4 @@
+import json
 import pathlib
 import tempfile
 import unittest
@@ -29,6 +30,7 @@ class AddExperimentTests(unittest.TestCase):
         fasta.parent.mkdir(parents=True)
         fasta.write_text(">hsa-miR-new-5p MIMAT1 Homo sapiens miR-new-5p\nUGGAAUGUAAAGAAGUAUGUAU\n")
         (self.root / add.GENES).touch()
+        (self.data / "manifest.json").write_text(json.dumps({"experiments": 1, "tables": {"E1": "x"}}))
 
     def run_add(self, config=CONFIG, eligible=7):
         def label(row, *, genes, out, rscript):
@@ -63,23 +65,31 @@ class AddExperimentTests(unittest.TestCase):
         self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1"])
         self.assertFalse((self.data / "genes/my_experiment.tsv.gz").exists())
 
-    def test_a_failed_write_can_be_retried_without_a_duplicate(self):
-        real = add.append_row
+    def fail_replacing(self, name):
+        real = add.os.replace
 
-        def fail_on_comparisons(path, row):
-            if path.name == "comparisons.tsv":
+        def fail(src, dst):
+            if pathlib.Path(dst).name == name:
                 raise OSError("disk full")
-            real(path, row)
+            real(src, dst)
 
-        with patch.object(add, "append_row", side_effect=fail_on_comparisons), self.assertRaises(OSError):
-            self.run_add()
-        self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1"])
+        return patch.object(add.os, "replace", side_effect=fail)
+
+    def test_a_failed_write_can_be_retried_without_a_duplicate(self):
+        for name in ("metadata", "experiments.tsv", "manifest.json", "comparisons.tsv"):
+            target = {"metadata": add.MIRNAS.name}.get(name, name)
+            with self.subTest(name), self.fail_replacing(target), self.assertRaises(OSError):
+                self.run_add()
+            self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1"])
+        self.assertIn("hsa-miR-16-5p", set(pd.read_csv(self.root / add.MIRNAS, sep="\t").mirna_name))
+        json.loads((self.data / "manifest.json").read_text())  # still valid after the failed writes
         self.run_add()
         self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
         self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
+        self.assertEqual(sorted(json.loads((self.data / "manifest.json").read_text())["tables"]), ["E1", "my_experiment"])
 
     def test_without_published_tables_a_new_folder_is_started(self):
-        for name in ("experiments.tsv", "comparisons.tsv"):
+        for name in ("experiments.tsv", "comparisons.tsv", "manifest.json"):
             (self.data / name).unlink()
         self.data.rmdir()
         self.run_add()
