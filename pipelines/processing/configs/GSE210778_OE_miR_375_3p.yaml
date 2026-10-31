@@ -1,0 +1,58 @@
+dataset_id: GSE210778_OE_miR_375_3p
+gse: GSE210778
+mirna_name: hsa-miR-375-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM6437108
+    reads_1: data/experiments/raw/GSE210778/GSM6437108/SRR20966763_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437108/SRR20966763_2.fastq.gz
+  - sample_id: GSM6437109
+    reads_1: data/experiments/raw/GSE210778/GSM6437109/SRR20966762_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437109/SRR20966762_2.fastq.gz
+  - sample_id: GSM6437110
+    reads_1: data/experiments/raw/GSE210778/GSM6437110/SRR20966761_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437110/SRR20966761_2.fastq.gz
+  - sample_id: GSM6437111
+    reads_1: data/experiments/raw/GSE210778/GSM6437111/SRR20966760_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437111/SRR20966760_2.fastq.gz
+  - sample_id: GSM6437112
+    reads_1: data/experiments/raw/GSE210778/GSM6437112/SRR20966759_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437112/SRR20966759_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM6437113
+    reads_1: data/experiments/raw/GSE210778/GSM6437113/SRR20966758_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437113/SRR20966758_2.fastq.gz
+  - sample_id: GSM6437114
+    reads_1: data/experiments/raw/GSE210778/GSM6437114/SRR20966757_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437114/SRR20966757_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE210778/GSM6437114/SRR20966757.fastq.gz
+  - sample_id: GSM6437115
+    reads_1: data/experiments/raw/GSE210778/GSM6437115/SRR20966756_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437115/SRR20966756_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE210778/GSM6437115/SRR20966756.fastq.gz
+  - sample_id: GSM6437116
+    reads_1: data/experiments/raw/GSE210778/GSM6437116/SRR20966755_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437116/SRR20966755_2.fastq.gz
+  - sample_id: GSM6437117
+    reads_1: data/experiments/raw/GSE210778/GSM6437117/SRR20966754_1.fastq.gz
+    reads_2: data/experiments/raw/GSE210778/GSM6437117/SRR20966754_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: primary HUVEC
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-375-3p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task. GEO describes primary HUVECs;
+    the old registry's HUV-EC-C cell-line label is not used.

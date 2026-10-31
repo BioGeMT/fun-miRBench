@@ -1,0 +1,64 @@
+dataset_id: GSE115646_OE_miR-18a-5p_HepG2
+gse: GSE115646
+mirna_name: hsa-miR-18a-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3788547
+    reads_1: data/experiments/raw/GSE115646/GSM3788547/SRR9103028.fastq.gz
+  - sample_id: GSM3788548
+    reads_1: data/experiments/raw/GSE115646/GSM3788548/SRR9103029.fastq.gz
+  - sample_id: GSM3788551
+    reads_1: data/experiments/raw/GSE115646/GSM3788551/SRR9103032.fastq.gz
+  - sample_id: GSM3788552
+    reads_1: data/experiments/raw/GSE115646/GSM3788552/SRR9103033.fastq.gz
+  - sample_id: GSM3788553
+    reads_1: data/experiments/raw/GSE115646/GSM3788553/SRR9103034.fastq.gz
+  - sample_id: GSM3788554
+    reads_1: data/experiments/raw/GSE115646/GSM3788554/SRR9103035.fastq.gz
+  - sample_id: GSM3788555
+    reads_1: data/experiments/raw/GSE115646/GSM3788555/SRR9103036.fastq.gz
+  treated_samples:
+  - sample_id: GSM3788562
+    reads_1: data/experiments/raw/GSE115646/GSM3788562/SRR9103043.fastq.gz
+  - sample_id: GSM3788563
+    reads_1: data/experiments/raw/GSE115646/GSM3788563/SRR9103044.fastq.gz
+  - sample_id: GSM3788564
+    reads_1: data/experiments/raw/GSE115646/GSM3788564/SRR9103045.fastq.gz
+  - sample_id: GSM3788565
+    reads_1: data/experiments/raw/GSE115646/GSM3788565/SRR9103046.fastq.gz
+  - sample_id: GSM3788566
+    reads_1: data/experiments/raw/GSE115646/GSM3788566/SRR9103047.fastq.gz
+  batch_by_sample:
+    GSM3788547: TR0057
+    GSM3788548: TR0057
+    GSM3788551: TR0064
+    GSM3788552: TR0064
+    GSM3788553: TR0067
+    GSM3788554: TR0070
+    GSM3788555: TR0070
+    GSM3788562: TR0057
+    GSM3788563: TR0064
+    GSM3788564: TR0067
+    GSM3788565: TR0070
+    GSM3788566: TR0070
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HepG2
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-18a-5p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics; source TR filename blocks from the GEO supplementary
+    quantification archive
+  interpretation_limit: TR blocks are inferred processing/experimental blocks from source filenames; physical plate identity
+    is not documented.

@@ -1,0 +1,49 @@
+dataset_id: GSE175729_OE_miR-1915-3p_Kelly
+gse: GSE175729
+mirna_name: hsa-miR-1915-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM5345121
+    reads_1: data/experiments/raw/GSE175729/GSM5345121/SRR14676123_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345121/SRR14676123_2.fastq.gz
+  - sample_id: GSM5345131
+    reads_1: data/experiments/raw/GSE175729/GSM5345131/SRR14676133_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345131/SRR14676133_2.fastq.gz
+  - sample_id: GSM5345135
+    reads_1: data/experiments/raw/GSE175729/GSM5345135/SRR14676137_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345135/SRR14676137_2.fastq.gz
+  - sample_id: GSM5345142
+    reads_1: data/experiments/raw/GSE175729/GSM5345142/SRR14676144_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345142/SRR14676144_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM5345125
+    reads_1: data/experiments/raw/GSE175729/GSM5345125/SRR14676127_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345125/SRR14676127_2.fastq.gz
+  - sample_id: GSM5345126
+    reads_1: data/experiments/raw/GSE175729/GSM5345126/SRR14676128_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345126/SRR14676128_2.fastq.gz
+  - sample_id: GSM5345134
+    reads_1: data/experiments/raw/GSE175729/GSM5345134/SRR14676136_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345134/SRR14676136_2.fastq.gz
+  - sample_id: GSM5345146
+    reads_1: data/experiments/raw/GSE175729/GSM5345146/SRR14676148_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345146/SRR14676148_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Kelly
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-1915-3p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task.
