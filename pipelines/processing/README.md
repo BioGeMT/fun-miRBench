@@ -10,8 +10,8 @@ pipelines/processing/download.sh
 pipelines/processing/run.sh
 ```
 
-- `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/processing/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
-- `download.sh` runs steps 1 and 2 and gets the miRBase names the pipeline checks configs against. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE124411`).
+- `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/processing/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. It also gets the miRBase names the pipeline checks configs against. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
+- `download.sh` runs steps 1 and 2. With `--references-only` it stops after the genome and GTF. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE124411`).
 - `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/processing/work/fits.tsv` and runs step 5 into `data/benchmark_data` (or `BENCHMARK_DATA_DIR`). Its arguments limit the runs to those comparisons; the benchmark tables need all 21.
 
 ## Steps
@@ -26,12 +26,15 @@ pipelines/processing/run.sh
 
 Step 3 writes each run to `pipelines/processing/work/runs/<timestamp>_<id>/`, with `complete_analysis.rds` and `run_manifest.json`, and the DE table to `data/experiments/processed/<id>.tsv`.
 
+To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXPERIMENT.md).
+
 ## Config of one comparison
 
 `pipelines/processing/configs/<id>.yaml` has:
 
 - `dataset_id`, `gse`, `mirna_name`, `experiment_type`;
 - `source`: the mode, `reads` here, the genome and GTF paths and the thread counts;
+- `source` with `mode: count_matrix` instead: `count_matrix_path` and `gene_id_column`, and `comparison` with `control_columns` and `treated_columns`, which skips alignment;
 - `comparison`: the control and treated samples, with `sample_id`, `reads_1`, optional `reads_2` and a batch where the design needs one;
 - `metadata`: organism, cell line, treatment and method.
 

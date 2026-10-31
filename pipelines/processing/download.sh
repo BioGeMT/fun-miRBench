@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Download the Ensembl 115 genome and GTF and the FASTQ files of the 21 OE test comparisons. Complete files are kept,
-# so the script can be rerun after an interruption. Arguments go to download_reads.py (for example --study GSE124411).
+# so the script can be rerun after an interruption. --references-only stops after the genome and GTF; other arguments go
+# to download_reads.py (for example --study GSE124411).
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -25,14 +26,14 @@ fetch_reference() {
   echo "fetched $name"
 }
 
-echo "[1/2] References and the miRBase names the pipeline checks configs against..."
+echo "[1/2] References..."
 mkdir -p "$refs"
 # The reruns used the soft-masked genome under the name the configs point to.
 fetch_reference "$ensembl/fasta/homo_sapiens/dna" Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa \
   Homo_sapiens.GRCh38.dna.primary_assembly.fa
 fetch_reference "$ensembl/gtf/homo_sapiens" Homo_sapiens.GRCh38.115.gtf Homo_sapiens.GRCh38.115.gtf
+[[ "${1:-}" != "--references-only" ]] || exit 0
 cd "$repo"
-uv run --quiet funmirbench-experiments-download-examples --example mirbase-hsa-mature --log-level WARNING
 
 echo "[2/2] Reads..."
 uv run --quiet python pipelines/processing/src/download_reads.py "$@"
