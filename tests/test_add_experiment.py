@@ -63,6 +63,28 @@ class AddExperimentTests(unittest.TestCase):
         self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1"])
         self.assertFalse((self.data / "genes/my_experiment.tsv.gz").exists())
 
+    def test_a_failed_write_can_be_retried_without_a_duplicate(self):
+        real = add.append_row
+
+        def fail_on_comparisons(path, row):
+            if path.name == "comparisons.tsv":
+                raise OSError("disk full")
+            real(path, row)
+
+        with patch.object(add, "append_row", side_effect=fail_on_comparisons), self.assertRaises(OSError):
+            self.run_add()
+        self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1"])
+        self.run_add()
+        self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
+        self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
+
+    def test_without_published_tables_a_new_folder_is_started(self):
+        for name in ("experiments.tsv", "comparisons.tsv"):
+            (self.data / name).unlink()
+        self.data.rmdir()
+        self.run_add()
+        self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["my_experiment"])
+
     def test_only_oe_with_replicates_is_accepted(self):
         with self.assertRaisesRegex(ValueError, "overexpression"):
             add.check_config({**CONFIG, "experiment_type": "Knockout"})

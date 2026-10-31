@@ -28,6 +28,10 @@ Rscript -e 'stopifnot(requireNamespace("DESeq2", quietly = TRUE), requireNamespa
 echo "[4/4] miRBase names the pipeline checks configs against..."
 mirbase="$repo/data/experiments/raw/refs/mirbase"
 mkdir -p "$mirbase"
-[[ -f "$mirbase/mature.fa" ]] || curl -fsSL -o "$mirbase/mature.fa" https://mirbase.org/download_version_files/22.1/mature.fa
+if [[ ! -f "$mirbase/mature.fa" ]]; then
+  curl -fsSL -o "$mirbase/mature.fa.part" https://mirbase.org/download_version_files/22.1/mature.fa
+  grep -q '^>hsa-' "$mirbase/mature.fa.part" || { echo "ERROR: the miRBase download has no human miRNAs" >&2; exit 1; }
+  mv "$mirbase/mature.fa.part" "$mirbase/mature.fa"
+fi
 awk '/^>hsa-/ {sub(/^>/, ""); print $1}' "$mirbase/mature.fa" | LC_ALL=C sort -u >"$mirbase/hsa_mature_mirnas.txt"
 echo "Ready."

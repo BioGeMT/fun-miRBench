@@ -46,14 +46,14 @@ To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXP
 | `control_mean_normalized_count`, `treated_mean_normalized_count`, `*_nonzero_samples` | expression |
 | `logFC_shrunk`, `lfcSE_shrunk`, `svalue`, `apeglm_conv` | apeglm shrinkage (prior from the full fit); `lfcSE_shrunk` is the posterior SD |
 | `oriented_logFC`, `oriented_ci95_low/high`, `oriented_logFC_shrunk`, `oriented_ci95_low/high_shrunk` | sign flipped, so positive means "moved like a target" |
-| `svalue_<d>` | FSOS ("false sign or small") s-value against d, over the listed genes, for d in `d00`, `d01`, `d025`, `d05`, `d075`, `d10`, `d15`, `d20`, `d30` (0 to 3) |
+| `svalue_<d>` | FSOS ("false sign or small") s-value against d in the direction of repression, over the listed genes, for d in `d00`, `d01`, `d025`, `d05`, `d075`, `d10`, `d15`, `d20`, `d30` (0 to 3) |
 | `state_<d>` | `responsive`, `no_response_above_margin` or `unresolved`, from the shrunken log2FC, for the same d values |
 | `thr_pvalue_d05`, `thr_padj_d05`, `thr_pvalue_d10`, `thr_padj_d10` | one-sided DESeq2 test against margin d = 0.5 or 1.0 on the raw log2FC; FDR over the listed genes |
 | `state_raw_d05`, `state_raw_d10` | the earlier raw states, kept as a check |
 | `eligible`, `ineligible_reason`, `analysis_status` | why a gene has no usable estimate (not fitted, Cook's outlier, …) |
 
 **States** (`state_<d>`, from the shrunken log2FC and its posterior SD).
-- **responsive:** the oriented shrunken change is positive and the FSOS s-value against d is below 0.05. The per-gene probability is the normal tail of the shrunken estimate below d, which is what `lfcShrink(lfcThreshold = d)` computes; the s-value is then taken over the listed genes.
+- **responsive:** the oriented shrunken change is positive and the FSOS s-value against d is below 0.05. The per-gene probability is the normal tail of the oriented shrunken estimate below d, so that the 5% limit holds for the genes called responsive; the s-value is `apeglm::svalue` over the listed genes.
 - **no_response_above_margin:** the whole shrunken 95% interval of the oriented change is below d. This also covers genes that moved the opposite way.
 - **unresolved:** everything else.
 
@@ -76,7 +76,7 @@ These files are in `metadata/`.
 
 ## Flags
 
-The same rules apply to every comparison. Metrics are computed on the benchmark tables over listed genes with a control mean of at least 10 normalised reads. Flags drop nothing; scores should be reported with and without flagged comparisons.
+The same rules apply to every comparison. Metrics are computed on the benchmark tables over the listed genes. Flags drop nothing; scores should be reported with and without flagged comparisons.
 
 | Flag | Rule |
 |---|---|
@@ -93,4 +93,4 @@ Result: 9 comparisons are kept and 12 flagged.
 
 ## Provenance
 
-The tables were built on 2026-10-17 from the fresh reruns of 2026-10-11 and the input QC review.
+The tables were built on 2026-10-17 from the fresh reruns of 2026-10-11 and the input QC review, and the states redone on 2026-10-31 with s-values in the direction of repression.

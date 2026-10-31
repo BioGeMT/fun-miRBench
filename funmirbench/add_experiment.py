@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import pathlib
@@ -72,8 +73,12 @@ def comparison_row(config: dict) -> dict:
 
 
 def append_row(path: pathlib.Path, row: dict) -> None:
-    table = pd.read_csv(path, sep="\t", keep_default_na=False)
-    pd.concat([table, pd.DataFrame([row])], ignore_index=True).fillna("").to_csv(path, sep="\t", index=False)
+    """Replace the file in one step; a row left by an interrupted earlier try is dropped."""
+    table = pd.read_csv(path, sep="\t", keep_default_na=False) if path.is_file() else pd.DataFrame(columns=list(row))
+    table = pd.concat([table[table.experiment_id != row["experiment_id"]], pd.DataFrame([row])], ignore_index=True)
+    partial = path.with_name(f"{path.name}.part")
+    table.fillna("").to_csv(partial, sep="\t", index=False)
+    os.replace(partial, path)
 
 
 def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo: pathlib.Path | None = None) -> pathlib.Path:
@@ -81,9 +86,8 @@ def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo
     config = load_yaml(config_path)
     check_config(config)
     dataset_id = config["dataset_id"]
-    if not (benchmark_data / "comparisons.tsv").is_file():
-        raise FileNotFoundError(f"no benchmark tables in {benchmark_data}; run `uv run funmirbench-download-data`")
-    if dataset_id in set(pd.read_csv(benchmark_data / "comparisons.tsv", sep="\t").experiment_id):
+    comparisons = benchmark_data / "comparisons.tsv"
+    if comparisons.is_file() and dataset_id in set(pd.read_csv(comparisons, sep="\t").experiment_id):
         raise ValueError(f"{dataset_id} is already in {benchmark_data}; choose another dataset_id.")
     env_bin = pathlib.Path(os.environ.get("ENV_PREFIX", repo / "pipelines/processing/work/env")) / "bin"
     os.environ["PATH"] = f"{env_bin}{os.pathsep}{os.environ['PATH']}"
@@ -92,7 +96,7 @@ def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo
         raise RuntimeError("Rscript was not found; run `pipelines/processing/setup.sh` first.")
 
     run_dir = pathlib.Path(run_ingestion_config(config_path, repo)["run_dir"])
-    (benchmark_data / "genes").mkdir(exist_ok=True)
+    (benchmark_data / "genes").mkdir(parents=True, exist_ok=True)
     (benchmark_data / "logs").mkdir(exist_ok=True)
     fit = pd.DataFrame([{"experiment_id": dataset_id, "fit_rds": str(run_dir / "complete_analysis.rds")}])
     row = run_one(next(fit.itertuples(index=False)), genes=repo / GENES, out=benchmark_data, rscript=rscript)
@@ -103,13 +107,13 @@ def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo
 
     add_mirna(config["mirna_name"], repo / MIRNAS, repo / MATURE_FASTA)
     append_row(benchmark_data / "experiments.tsv", row)
-    append_row(benchmark_data / "comparisons.tsv", comparison_row(config))
+    append_row(comparisons, comparison_row(config))  # last: an experiment counts as added once it is listed here
     manifest_path = benchmark_data / "manifest.json"
     if manifest_path.is_file():
-        manifest = pd.read_json(manifest_path, typ="series").to_dict()
-        manifest["experiments"] = int(manifest["experiments"]) + 1
-        manifest["comparisons_sha256"] = sha256(benchmark_data / "comparisons.tsv")
-        manifest["tables"] = {**manifest["tables"], dataset_id: row["table_sha256"]}
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["tables"][dataset_id] = row["table_sha256"]
+        manifest["experiments"] = len(manifest["tables"])
+        manifest["comparisons_sha256"] = sha256(comparisons)
         write_json(manifest, manifest_path)
     logger.info("%s: %d responsive, %d no response, %d unresolved at d = 0.5", dataset_id, row["d05_responsive"],
                 row["d05_no_response_above_margin"], row["d05_unresolved"])
