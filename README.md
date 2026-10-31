@@ -37,47 +37,16 @@ That environment also includes `uv`, so `uv run ...` keeps working after activat
 
 Main directories:
 
-- `data/experiments/processed/`: root directory for processed experiment DE tables
-- `data/experiments/processed/21671476/`: local cache for curated DE tables from Zenodo record `21671476`
-- `data/experiments/raw/`: local raw GEO inputs such as count matrices and FASTQs
-- `data/common_resources/`: shared, downloaded miRBase and Ensembl annotation cache
-- `data/predictions/`: local generated predictor TSVs
-- `metadata/mirna_experiment_info.tsv`: experiment registry
-- `metadata/predictions_info.tsv`: predictor registry
-- `metadata/benchmark_mirnas.tsv`: miRNA sequences
-- `pipelines/experiments/`: experiment-ingestion backend files and example configs
-- `pipelines/standardized_predictors/`: predictor pipelines
+- `benchmark.yaml`: the benchmark config
+- `funmirbench/`: the code
+- `metadata/`: lists of experiments, predictors and miRNA sequences
+- `pipelines/`: pipelines that make experiment DE tables and predictor scores
 - `data/benchmark_data/`: the per-gene benchmark tables, the benchmark's input
+- `data/predictions/`: predictor scores, the benchmark's input
+- `data/common_resources/`: downloaded miRBase and Ensembl annotation
+- `data/experiments/`: raw experiment inputs and DE tables of `pipelines/experiments/`
 - `results/benchmark_results/`: one folder per benchmark run
 - `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
-
-## Workflow
-
-### 1. Add Experiment Data
-
-Experiment DE tables are produced by a dedicated ingestion pipeline that runs DESeq2 on a count
-matrix or on FASTQs (via FastQC + fastp + STAR + featureCounts), then syncs the result into
-`metadata/mirna_experiment_info.tsv`. Raw data can also be fetched directly from GEO and turned
-into a ready-to-review YAML config automatically. See the dedicated pipelines for the full
-workflow:
-
-- [GEO download pipeline](pipelines/geo/README.md) — fetch FASTQs/count matrices from GEO and
-  auto-generate a YAML config
-- [Experiment ingestion pipeline](pipelines/experiments/README.md) — run DESeq2 (count matrix or
-  reads mode) and sync results into the registry
-
-For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
-workflow is different: those metadata rows stay versioned in the repo, and the corresponding DE
-tables are fetched from Zenodo into the local `data/experiments/processed/21671476/` cache.
-
-### 2. Add Predictor Data
-
-Predictor score files live under `data/predictions/` and are discovered through
-`metadata/predictions_info.tsv`.
-
-The repo includes standardization pipelines for the curated external predictors under
-`pipelines/standardized_predictors/`. Run the predictor-specific pipeline for each score file you
-want to generate, then register the resulting standardized TSV in `metadata/predictions_info.tsv`.
 
 ## Run The Benchmark
 
@@ -90,7 +59,7 @@ uv run funmirbench --config benchmark.yaml
 
 `funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23824917](https://doi.org/10.5281/zenodo.23824917)) and the predictor scores in `data/predictions/`, and keeps files that are already there. To build them yourself, use `pipelines/benchmark_data/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
 
-`benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config. To add your own predictor, register its standardized TSV in `metadata/predictions_info.tsv` and add it to `predictors`.
+`benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config.
 
 - **Labels:** `state_d05`: responsive, no response above margin, or unresolved at d = 0.5, from the shrunken log2FC (FSOS s-value < 0.05 against d; whole shrunken 95% interval below d). Unresolved genes are never negatives.
 - **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
@@ -112,6 +81,11 @@ uv run funmirbench --config benchmark.yaml
 - **Report:** `REPORT.pdf`: run settings, key results, the mean coverage, AUROC and Spearman per tool, the experiments evaluated and skipped, and the plots.
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
+
+## Add Your Own Data
+
+- **Predictors:** put a standardized score TSV under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and add it to `predictors` in `benchmark.yaml`. `pipelines/standardized_predictors/` holds the pipelines of the five published tools.
+- **Experiments:** [`pipelines/experiments/`](pipelines/experiments/README.md) runs DESeq2 from a YAML config and syncs the result into `metadata/mirna_experiment_info.tsv`.
 
 ## Commands
 
