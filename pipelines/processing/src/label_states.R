@@ -8,9 +8,9 @@
 #     independent filtering and the Benjamini-Hochberg FDR use the listed genes only. Cook's
 #     filtering is DESeq2's default.
 #  2. apeglm shrinkage uses the full fit (its prior is estimated from all fitted genes).
-#  3. FSOS ("false sign or small") s-values for each d of the grid, over the listed genes: the per-gene
-#     probability that the change is smaller than d or of the other sign, pnorm((d - |shrunken log2FC|) /
-#     shrunken SD), which is what lfcShrink(lfcThreshold = d) gives, then apeglm::svalue.
+#  3. FSOS ("false sign or small") s-values for each d of the grid, over the listed genes and in the direction of
+#     repression, the only one that can be called responsive: the per-gene probability that the oriented change o is
+#     below d, pnorm((d - o) / shrunken SD), then apeglm::svalue.
 #  4. States per d of the grid, on the shrunken oriented change o (-log2FC):
 #       responsive                eligible, o > 0 and FSOS s-value < 0.05;
 #       no_response_above_margin  eligible and o + 1.959964 * shrunken SD < d (whole 95% interval below d);
@@ -121,7 +121,7 @@ out$ineligible_reason <- ifelse(out$eligible, "",
          out$analysis_status, "no_usable_estimate"))
 for (tag in names(D_GRID)) {
   d <- D_GRID[[tag]]
-  small <- pnorm((d - abs(out$logFC_shrunk[out$eligible])) / out$lfcSE_shrunk[out$eligible])
+  small <- pnorm((d - out$oriented_logFC_shrunk[out$eligible]) / out$lfcSE_shrunk[out$eligible])
   sval <- rep(NA_real_, nrow(out))
   sval[out$eligible] <- apeglm::svalue(small)
   responsive <- out$eligible & out$oriented_logFC_shrunk > 0 & sval < 0.05

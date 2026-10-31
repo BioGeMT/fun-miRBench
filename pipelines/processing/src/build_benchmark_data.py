@@ -92,7 +92,7 @@ def main() -> None:
         "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gene_list": str(args.genes), "gene_list_sha256": sha256(args.genes),
         "label_states_R_sha256": sha256(HERE / "label_states.R"),
-        "states": {"responsive": "oriented shrunken log2FC > 0 and FSOS s-value against d < 0.05 (over listed genes)",
+        "states": {"responsive": "oriented shrunken log2FC > 0 and FSOS s-value against d < 0.05 (repression direction, over listed genes)",
                    "no_response_above_margin": "oriented shrunken log2FC + 1.959964 * lfcSE_shrunk < d",
                    "unresolved": "everything else, including genes with no usable estimate"},
         "raw_states": {"responsive": "threshold-test FDR < 0.05 (BH over listed genes after independent filtering)",
