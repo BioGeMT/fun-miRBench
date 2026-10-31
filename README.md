@@ -80,7 +80,7 @@ A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `
 
 ## Add Your Own Experiment
 
-`funmirbench-add` adds one OE experiment, from raw reads or a count matrix, to the benchmark tables. It needs `conda` for the aligners and R; see its [README](pipelines/processing/ADD_EXPERIMENT.md).
+`funmirbench-add` adds one OE experiment, from raw reads or a count matrix, to the benchmark tables. It needs `conda` for the aligners and R; see [ADD_EXPERIMENT.md](pipelines/processing/ADD_EXPERIMENT.md).
 
 ## Tests
 
