@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-18a_KO_A375	GSE318353	ko	hsa-miR-18a-5p	KO	miR-18a_KO	wild_type	20		one knockout clone, so clone effects cannot be separated from the loss of miR-18a; per-library matrices are not deposited (2 KO and 8 WT libraries merged), so three technical pseudo-replicates

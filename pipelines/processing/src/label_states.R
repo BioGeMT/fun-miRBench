@@ -3,15 +3,15 @@
 # Every gene of the benchmark gene list gets one row. Genes the fit did not include (zero counts in
 # every sample) are kept, with no statistics and the reason.
 #
-#  1. Standard test against 0 and the one-sided tests against each margin d (altHypothesis
-#     "less") are run on the fitted object restricted to the listed genes, so DESeq2's
+#  1. Standard test against 0 and the one-sided tests against each margin d (OE: altHypothesis
+#     "less", KO: "greater") are run on the fitted object restricted to the listed genes, so DESeq2's
 #     independent filtering and the Benjamini-Hochberg FDR use the listed genes only. Cook's
 #     filtering is DESeq2's default.
 #  2. apeglm shrinkage uses the full fit (its prior is estimated from all fitted genes).
-#  3. FSOS ("false sign or small") s-values for each d of the grid, over the listed genes and in the direction of
-#     repression, the only one that can be called responsive: the per-gene probability that the oriented change o is
-#     below d, pnorm((d - o) / shrunken SD), then apeglm::svalue.
-#  4. States per d of the grid, on the shrunken oriented change o (-log2FC):
+#  3. FSOS ("false sign or small") s-values for each d of the grid, over the listed genes and in the direction the
+#     perturbation predicts, the only one that can be called responsive: the per-gene probability that the oriented
+#     change o is below d, pnorm((d - o) / shrunken SD), then apeglm::svalue.
+#  4. States per d of the grid, on the shrunken oriented change o (-log2FC for OE, +log2FC for KO):
 #       responsive                eligible, o > 0 and FSOS s-value < 0.05;
 #       no_response_above_margin  eligible and o + 1.959964 * shrunken SD < d (whole 95% interval below d);
 #       unresolved                everything else.
@@ -20,9 +20,9 @@
 #  5. Raw states at d = 0.5 and 1.0 (state_raw_*), kept as a check: responsive if the threshold-test FDR < 0.05,
 #     no response if o + 1.959964 * lfcSE < d on the raw log2FC.
 #
-# Usage: Rscript label_states.R <complete_analysis.rds> <gene_list.tsv[.gz]> <output_prefix>
+# Usage: Rscript label_states.R <complete_analysis.rds> <gene_list.tsv[.gz]> <output_prefix> [OE|KO, default OE]
 args <- commandArgs(trailingOnly = TRUE)
-stopifnot(length(args) == 3, file.exists(args[[1]]), file.exists(args[[2]]))
+stopifnot(length(args) %in% 3:4, file.exists(args[[1]]), file.exists(args[[2]]))
 options(warn = 1)
 suppressPackageStartupMessages({
   library(DESeq2)
@@ -31,6 +31,8 @@ suppressPackageStartupMessages({
 analysis <- readRDS(args[[1]])
 genes <- read.delim(args[[2]], stringsAsFactors = FALSE)
 prefix <- args[[3]]
+perturbation <- if (length(args) == 4) args[[4]] else "OE"
+stopifnot(perturbation %in% c("OE", "KO"))
 MARGINS <- c(d05 = 0.5, d10 = 1.0)
 D_GRID <- c(d00 = 0, d01 = 0.1, d025 = 0.25, d05 = 0.5, d075 = 0.75, d10 = 1.0, d15 = 1.5, d20 = 2.0, d30 = 3.0)
 Z95 <- qnorm(0.975)
@@ -91,8 +93,8 @@ fit$analysis_status[!is.na(std$pvalue) & is.na(std$padj)] <- "independent_filter
 fit$analysis_status[is.na(std$pvalue) & !is.na(std_raw$pvalue)] <- "cooks_outlier"
 fit$analysis_status[is.na(std$pvalue) & is.na(std_raw$pvalue)] <- "pvalue_missing_other"
 
-alt <- "less"
-sign <- -1
+alt <- if (perturbation == "OE") "less" else "greater"
+sign <- if (perturbation == "OE") -1 else 1
 threshold_info <- list()
 for (tag in names(MARGINS)) {
   d <- MARGINS[[tag]]
@@ -147,7 +149,7 @@ gz <- gzfile(paste0(prefix, ".tsv.gz"), "w")
 write.table(out, gz, sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 close(gz)
 write.table(events, file = paste0(prefix, "_events.tsv"), sep = "\t", quote = TRUE, row.names = FALSE)
-capture.output(list(design = design(dds), coefficient = coef_name,
+capture.output(list(design = design(dds), coefficient = coef_name, perturbation = perturbation,
                     n_listed = nrow(genes), n_listed_fitted = length(listed),
                     standard_test = list(alpha = 0.05, filterThreshold = metadata(std)$filterThreshold),
                     threshold_tests = threshold_info, prior_info = priorInfo(shrunk_list$res),

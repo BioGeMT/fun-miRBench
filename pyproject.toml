@@ -11,6 +11,8 @@ dependencies = [
     "scipy>=1.11",
     "pyyaml>=6",
     "requests>=2.32",
+    "anndata>=0.11",
+    "h5py>=3.10",
 ]
 
 [dependency-groups]
@@ -20,6 +22,11 @@ dev = ["scikit-learn>=1.5"]
 funmirbench = "funmirbench.benchmark:main"
 funmirbench-experiments = "funmirbench.experiments_pipeline:main"
 funmirbench-add = "funmirbench.add_experiment:main"
+funmirbench-single-cell = "funmirbench.single_cell_pipeline:main"
+funmirbench-single-cell-final = "funmirbench.single_cell_final:main"
+funmirbench-single-cell-combine = "funmirbench.single_cell_final:combine_main"
+funmirbench-single-cell-cooccurrence = "funmirbench.single_cell_cooccurrence:main"
+funmirbench-single-cell-eval = "funmirbench.single_cell_eval:main"
 funmirbench-download-data = "funmirbench.published_data:main"
 
 [build-system]

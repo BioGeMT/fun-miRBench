@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-449a_miR-340-5p_RD18_60h	GSE282611	other	hsa-miR-449a;hsa-miR-340-5p	OE	miR-449a_miR-340-5p_60h	vehicle_60h	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; two miRNAs delivered together; control is lipofectamine only, no control mimic; single nuclei

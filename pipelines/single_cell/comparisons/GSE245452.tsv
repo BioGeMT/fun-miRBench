@@ -1,0 +1,3 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+del5q_vs_normal_cells_MDS_diagnosis	GSE245452	other	hsa-miR-145-5p;hsa-miR-146a-5p (5q)	KO	del5q_dx	normal_dx	20		large multigene 5q deletion, not an isolated miRNA loss; arms come from the authors RNA-based copy-number calls, so 5q genes helped define the arm; deletion boundaries not checked; patient is the batch
+del5q_vs_normal_cells_MDS_lenalidomide	GSE245452	other	hsa-miR-145-5p;hsa-miR-146a-5p (5q)	KO	del5q_lenalidomide	normal_lenalidomide	20		same as diagnosis comparison; patients treated with lenalidomide with different responses; patient is the batch

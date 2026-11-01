@@ -1,0 +1,47 @@
+# miRIDIAN miR-200b-3p hairpin inhibitor against the negative-control inhibitor (50 nM, nanochannel electroporation)
+# in primary human adult dermal fibroblasts, days 1 and 7 (the days with a control); 10x 3' v3, one sample per arm
+# and day, so the day is the batch. The inhibitor samples were deposited in 2021 (HiSeq 2500) and the controls in
+# 2023 (NovaSeq 6000), so sequencing run and treatment are confounded. Paper: 10.1038/s41467-023-36665-z.
+# QC: no thresholds stated; at least 500 genes and at most 20% mitochondrial counts.
+dataset_id: GSE167406_KD_miR_200b_3p_HADF
+mirna_name: hsa-miR-200b-3p
+experiment_type: Knockdown
+gse: GSE167406
+
+samples:
+  - sample_id: control_inhibitor_d1
+    group: control
+    batch: d1
+    matrix: data/single_cell/raw/GSE167406/GSM6911548_CI-Treated_HADF_D1_matrix.mtx.gz
+    features: data/single_cell/raw/GSE167406/GSM6911548_CI-Treated_HADF_D1_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE167406/GSM6911548_CI-Treated_HADF_D1_barcodes.tsv.gz
+  - sample_id: control_inhibitor_d7
+    group: control
+    batch: d7
+    matrix: data/single_cell/raw/GSE167406/GSM6911549_CI-Treated_HADF_D7_matrix.mtx.gz
+    features: data/single_cell/raw/GSE167406/GSM6911549_CI-Treated_HADF_D7_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE167406/GSM6911549_CI-Treated_HADF_D7_barcodes.tsv.gz
+  - sample_id: inhibitor_d1
+    group: treated
+    batch: d1
+    matrix: data/single_cell/raw/GSE167406/GSM5104821_MI-Treated_HADF_D1_matrix.mtx.gz
+    features: data/single_cell/raw/GSE167406/GSM5104821_MI-Treated_HADF_D1_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE167406/GSM5104821_MI-Treated_HADF_D1_barcodes.tsv.gz
+  - sample_id: inhibitor_d7
+    group: treated
+    batch: d7
+    matrix: data/single_cell/raw/GSE167406/GSM5104824_MI-Treated_HADF_D7_matrix.mtx.gz
+    features: data/single_cell/raw/GSE167406/GSM5104824_MI-Treated_HADF_D7_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE167406/GSM5104824_MI-Treated_HADF_D7_barcodes.tsv.gz
+
+qc:
+  min_genes: 500
+  max_mito_fraction: 0.2
+
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: primary human adult dermal fibroblasts
+  treatment: miR-200b-3p hairpin inhibitor against negative-control inhibitor, days 1 and 7
+  tissue: Skin
+  method: scRNA-seq (10x), pseudobulk per sample
+  article_pubmed_id: https://doi.org/10.1038/s41467-023-36665-z

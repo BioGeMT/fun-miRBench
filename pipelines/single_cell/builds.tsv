@@ -1,0 +1,19 @@
+dataset	group	adapter_command
+GSE280065	main	GSE280065.py --out {store}
+GSE214508	main	GSE214508.py --out {store}
+GSE292981	main	GSE292981.py --out {store}
+GSE185688	main	GSE185688.py --out {store}
+Replogle2022_K562_GW	machinery	replogle2022.py k562_gw
+Replogle2022_K562_essential	machinery	replogle2022.py k562_essential
+VIPerturb_K562	machinery	viperturb.py
+XAtlasOrion_HEK293T	machinery	hku2026.py XAtlasOrion_HEK293T
+XAtlasOrion_HCT116	machinery	hku2026.py XAtlasOrion_HCT116
+GSE218566_HEK293	machinery	gse218566.py
+Nadig2025_HepG2	machinery	nadig2025.py hepg2
+Nadig2025_Jurkat	machinery	nadig2025.py jurkat
+GSE345058_A549	machinery	gse345058.py
+GSE249595_Jurkat_activated	machinery	gse249595.py activated {data}/GSE249595/x
+GSE249595_Jurkat_untreated	machinery	gse249595.py untreated {data}/GSE249595/x
+GSE318353	supplement	GSE318353.py --out {store}
+GSE282611	supplement	GSE282611.py --out {store}
+GSE135595	supplement	GSE135595.py --out {store}

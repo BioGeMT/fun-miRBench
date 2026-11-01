@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-27a-3p_PD-L1_vesicles_CD4T_humanised_colitis	GSE302696	other	hsa-miR-27a-3p	OE	PD-L1_miR-27a-3p_vesicles	no_vesicles	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; vesicles change PD-L1 and miR-27a-3p and more at once; no vesicle-only control; treatment and animal are the same variable

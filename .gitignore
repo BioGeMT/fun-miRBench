@@ -23,3 +23,7 @@ pipelines/standardized_predictors/*/data/
 pipelines/standardized_predictors/*/resources/
 
 *.log
+
+# Single-cell pipeline outputs
+pipelines/single_cell/runs/*
+pipelines/single_cell/work/

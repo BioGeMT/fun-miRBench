@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	caveats	target_gene_id	other_pathway_arms
+Cancer16_UMRC3__PRKRA_KO	Cancer16_UMRC3	pathway	PRKRA	KO	PRKRA	control_guide	3	Cas9 knockout; controls cut olfactory-receptor genes; one library per line, so replicate units are three technical pseudo-replicates: labels mean changed in this culture; cell QC and guide calls from the authors' cell table	ENSG00000180228	

@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-125b_promoter_reporter_high_vs_low_MDAMB231	GSE123358	reporter	hsa-miR-125b-5p	OE	reporter_high	reporter_low	3		single-cell status not proven: GEO says single-cell cDNA and also 3 ug RNA per sample; promoter EGFP, not miRNA activity; no miRNA was changed; arms split into three technical pseudo-replicates of libraries

@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+KSHV_lytic_vs_latent_iSLK219	GSE190558	other	KSHV miRNAs (whole virus)	OE	lytic_dox_4d	latent	20		whole virus, viral miRNAs not measured or isolated; a comparison of infection, listed under other because no miRNA can be separated from the viral programme; the latent library also holds iSLK.H cells without per-cell call; one library per arm: three technical pseudo-replicates, labels mean changed in this culture

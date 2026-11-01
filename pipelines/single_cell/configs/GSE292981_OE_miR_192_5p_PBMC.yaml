@@ -1,0 +1,39 @@
+# mirVana miR-192 mimic in lipid nanoparticles (200 pmol/ml, 24 h) against saline in human PBMCs; the arms were
+# hashed (BioLegend) and run in one BD Rhapsody lane with three adjuvant arms (GSM8872121; tags A0955 saline,
+# A0965 miR-192-LNP). The control is saline, not nanoparticles with a control mimic. The deposited matrix lists
+# gene symbols (STARsolo, Ensembl 107); they are mapped to Ensembl 115 IDs. Paper: 10.1016/j.omtn.2025.102784.
+# QC: no thresholds stated; at least 200 genes (TAS-Seq PBMC libraries are shallow) and at most 20% mitochondrial.
+dataset_id: GSE292981_OE_miR_192_5p_PBMC
+mirna_name: hsa-miR-192-5p
+experiment_type: Overexpression
+gse: GSE292981
+feature_ids: symbol
+gene_symbols_gtf: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+
+samples:
+  - sample_id: saline
+    group: control
+    matrix: data/single_cell/raw/GSE292981/GSM8872121_WTA1_matrix.mtx.gz
+    features: data/single_cell/raw/GSE292981/GSM8872121_WTA1_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE292981/GSM8872121_WTA1_barcodes.tsv.gz
+    cell_labels: {path: data/single_cell/raw/GSE292981/GSM8872122_WTA1_Tag1_barcode.csv.gz, barcode_column: Barcode,
+                  label_column: Nreads_CellBC, label: A955, label_regex: "^([^_]+)_"}
+  - sample_id: mir192_lnp
+    group: treated
+    matrix: data/single_cell/raw/GSE292981/GSM8872121_WTA1_matrix.mtx.gz
+    features: data/single_cell/raw/GSE292981/GSM8872121_WTA1_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE292981/GSM8872121_WTA1_barcodes.tsv.gz
+    cell_labels: {path: data/single_cell/raw/GSE292981/GSM8872122_WTA1_Tag1_barcode.csv.gz, barcode_column: Barcode,
+                  label_column: Nreads_CellBC, label: A965, label_regex: "^([^_]+)_"}
+
+qc:
+  min_genes: 200
+  max_mito_fraction: 0.2
+
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: PBMC
+  treatment: miR-192 mimic in lipid nanoparticles against saline, 24 h
+  tissue: Blood
+  method: scRNA-seq (BD Rhapsody, TAS-Seq, hashing), pseudobulk per hashed arm
+  article_pubmed_id: https://doi.org/10.1016/j.omtn.2025.102784

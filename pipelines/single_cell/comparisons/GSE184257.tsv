@@ -1,0 +1,3 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+KSHV_vs_mock_oral_epithelial_3dpi	GSE184257	other	KSHV miRNAs (whole virus)	OE	KSHV_3dpi	Mock_3dpi	20		whole virus, viral miRNAs not measured or isolated; a comparison of infection, listed under other because no miRNA can be separated from the viral programme; experiment set is the batch
+KSHV_vs_mock_oral_epithelial_6dpi	GSE184257	other	KSHV miRNAs (whole virus)	OE	KSHV_6dpi	Mock_6dpi	20		whole virus, viral miRNAs not measured or isolated; a comparison of infection, listed under other because no miRNA can be separated from the viral programme; experiment set is the batch
