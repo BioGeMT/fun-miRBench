@@ -1,0 +1,50 @@
+# miR-98-5p mimic against control mimic in H9 human embryonic stem cells being reset from the primed to the naive
+# state; one transfection on day 1, 10x scRNA-seq on days 2, 3, 8 and 14. Days 2 and 3 only: from day 8 the two arms
+# hold different cell states (the mimic arm turns naive), so the comparison would measure a change of state. One
+# sample per arm and day, so the day is the batch (DESeq2 ~ batch + condition).
+# QC thresholds are the authors' (preprint 10.1101/2025.10.14.682465).
+dataset_id: GSE280065_OE_miR_98_5p_H9
+mirna_name: hsa-miR-98-5p
+experiment_type: Overexpression
+gse: GSE280065
+
+samples:
+  - sample_id: ctrl_d02
+    group: control
+    batch: d02
+    matrix: data/single_cell/raw/GSE280065/GSM8586813_ctrl_d02_matrix.mtx.gz
+    features: data/single_cell/raw/GSE280065/GSM8586813_ctrl_d02_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE280065/GSM8586813_ctrl_d02_barcodes.tsv.gz
+  - sample_id: ctrl_d03
+    group: control
+    batch: d03
+    matrix: data/single_cell/raw/GSE280065/GSM8586814_ctrl_d03_matrix.mtx.gz
+    features: data/single_cell/raw/GSE280065/GSM8586814_ctrl_d03_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE280065/GSM8586814_ctrl_d03_barcodes.tsv.gz
+  - sample_id: mimic_d02
+    group: treated
+    batch: d02
+    matrix: data/single_cell/raw/GSE280065/GSM8586818_mimic_d02_matrix.mtx.gz
+    features: data/single_cell/raw/GSE280065/GSM8586818_mimic_d02_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE280065/GSM8586818_mimic_d02_barcodes.tsv.gz
+  - sample_id: mimic_d03
+    group: treated
+    batch: d03
+    matrix: data/single_cell/raw/GSE280065/GSM8586819_mimic_d03_matrix.mtx.gz
+    features: data/single_cell/raw/GSE280065/GSM8586819_mimic_d03_features.tsv.gz
+    barcodes: data/single_cell/raw/GSE280065/GSM8586819_mimic_d03_barcodes.tsv.gz
+
+qc:
+  min_genes: 2000
+  min_counts: 5000
+  max_counts: 100000
+  max_mito_fraction: 0.15
+min_cells_per_sample: 20
+
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: H9 embryonic stem cells, primed-to-naive resetting
+  treatment: miR-98-5p mimic against control mimic, one transfection on day 1, days 2 and 3
+  tissue: Embryonic stem cells
+  method: scRNA-seq (10x), pseudobulk per sample
+  article_pubmed_id: https://doi.org/10.1101/2025.10.14.682465

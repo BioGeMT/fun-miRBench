@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+AGO2_KO_HeLaS3	GSE142277	pathway	AGO2	KO	AGO2_KO	wild_type	20	ENSG00000123908	one library per arm: three technical pseudo-replicates, labels mean changed in this culture; one monoclonal line, so clone and genotype are confounded; low depth Drop-seq; target knockdown is information only

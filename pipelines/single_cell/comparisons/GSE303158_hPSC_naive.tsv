@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	caveats	target_gene_id	other_pathway_arms
+GSE303158_hPSC_naive__LIN28B_KO	GSE303158_hPSC_naive	pathway	LIN28B	KO	LIN28B	CTRL	3	Cas9 knockout, pluripotency library, MOI 0.3; replicate units are the two batches; counts reconstructed from the deposited log-normalised layer and nCount_RNA; all guide cells used, mixscape classes ignored; LIN28B lowered, orientation KO records the loss of LIN28B; LIN28 represses let-7 maturation, so let-7 activity is expected to go up	ENSG00000187772	

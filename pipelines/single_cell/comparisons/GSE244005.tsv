@@ -1,0 +1,3 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+22q11.2del_cerebral_organoid_DIV70	GSE244005	pathway	DGCR8	KO	22q11.2del_DIV70	control_DIV70	20	ENSG00000128191	22q11.2 deletion: DGCR8 is hemizygous, not lost, and many other genes and miRNA loci are deleted with it; three patient and three control lines, not isogenic; patients also have schizophrenia
+22q11.2del_cerebral_organoid_DIV150	GSE244005	pathway	DGCR8	KO	22q11.2del_DIV150	control_DIV150	20	ENSG00000128191	22q11.2 deletion: DGCR8 is hemizygous, not lost, and many other genes and miRNA loci are deleted with it; three patient and three control lines, not isogenic; patients also have schizophrenia

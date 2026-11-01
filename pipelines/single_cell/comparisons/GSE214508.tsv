@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-874-3p_mimic_MCF7_36h	GSE214508	raise	hsa-miR-874-3p	OE	miR-874-3p_mimic	control_mirna	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; miR-874 drives apoptosis by 36 h, dying cells may be included

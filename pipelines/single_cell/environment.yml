@@ -1,0 +1,15 @@
+# The tool versions the single-cell tables were built with; the same R and DESeq2 as pipelines/processing.
+name: funmirbench-single-cell
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.12
+  - pip
+  - uv
+  - unzip
+  - curl
+  - r-base=4.5.3
+  - r-matrix
+  - bioconductor-deseq2=1.50.2
+  - bioconductor-apeglm=1.32.0

@@ -1,0 +1,5 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-200b-3p_inhibitor_HADF_d1	GSE167406	lower	hsa-miR-200b-3p	KO	inhibitor_d1	control_inhibitor_d1	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; batch confound: inhibitor samples HiSeq 2500 in 2021, control samples NovaSeq 6000 in 2023
+miR-200b-3p_inhibitor_HADF_d3	GSE167406	lower	hsa-miR-200b-3p	KO	inhibitor_d3	control_inhibitor_d3	20		no control inhibitor at day 3: not fitted
+miR-200b-3p_inhibitor_HADF_d5	GSE167406	lower	hsa-miR-200b-3p	KO	inhibitor_d5	control_inhibitor_d5	20		no control inhibitor at day 5: not fitted
+miR-200b-3p_inhibitor_HADF_d7	GSE167406	lower	hsa-miR-200b-3p	KO	inhibitor_d7	control_inhibitor_d7	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; batch confound: inhibitor samples HiSeq 2500 in 2021, control samples NovaSeq 6000 in 2023

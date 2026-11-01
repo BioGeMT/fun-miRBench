@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+let-7_switch_high_vs_low_imMKCL	E-GEAD-617	reporter	hsa-let-7a-5p	OE	let-7_high	let-7_low	20		reporter sort of natural activity, no miRNA was changed; switch output depends on transfection as well as let-7; one library per arm: three technical pseudo-replicates, labels mean changed in this culture

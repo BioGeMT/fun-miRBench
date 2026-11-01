@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+22q11.2del_iPSC_cortical_spheroid	GSE145122	pathway	DGCR8	KO	22q11.2del	control	20	ENSG00000128191	22q11.2 deletion: DGCR8 is hemizygous, not lost, and many other genes and miRNA loci are deleted with it; two patients and two unrelated controls, not isogenic; donor confounded with genotype

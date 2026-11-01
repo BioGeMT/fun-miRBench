@@ -1,0 +1,4 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+miR-122_miR-200a_KO_iPSC-CM	GSE135595	ko	hsa-miR-122-5p;hsa-miR-200a-3p	KO	miR-122_miR-200a_KO	EV	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; two miRNAs lost together; lentiviral CRISPR in a transduced population, not a clone; few cells
+MiMAC_let-7i_miR-452_OE_miR-122_miR-200a_KO_iPSC-CM	GSE135595	other	let-7i;miR-452 up;miR-122;miR-200a down	OE	MiMAC	EV	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; four miRNAs changed in opposite directions; orientation OE stands for the cocktail, no single miRNA can be separated; few cells
+let-7i_miR-452_OE_iPSC-CM	GSE135595	other	hsa-let-7i-5p;hsa-miR-452-5p	OE	let-7i_miR-452_OE	EV	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; two miRNAs raised together; few cells

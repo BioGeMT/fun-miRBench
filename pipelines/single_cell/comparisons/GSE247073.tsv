@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+hESC_exosomes_senescent_LO2	GSE247073	other	hsa-miR-302b-3p (exosome cargo)	OE	hESC_exosomes	PBS	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; whole exosome preparation, many RNAs and proteins; no comparison isolates a defined miRNA

@@ -15,6 +15,7 @@ miniconda3/
 data/experiments/processed/*
 data/experiments/raw/*
 data/experiments/prepared/*
+data/single_cell/*
 data/predictions/*
 !data/predictions/random/
 data/predictions/random/*
@@ -46,6 +47,10 @@ pipelines/processing/work/
 
 # Benchmark data tables
 data/benchmark_data/
+
+# Single-cell pipeline outputs
+pipelines/single_cell/runs/*
+pipelines/single_cell/work/
 
 # Predictor pipeline generated data (downloads + intermediate tables)
 pipelines/standardized_predictors/*/data/

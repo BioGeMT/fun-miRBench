@@ -1,0 +1,25 @@
+group	source_dataset	file	url	unpack	bytes	md5
+main	GSE280065	GSE280065/raw_tar/GSE280065_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE280nnn/GSE280065/suppl/GSE280065_RAW.tar	untar:GSE280065/matrices	929669120	e6af7405315762d2ac5ae0c5d88cf52f
+main	GSE292981	GSE292981/raw_tar/GSE292981_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE292nnn/GSE292981/suppl/GSE292981_RAW.tar	untar:GSE292981/matrices	397352960	0bf440deae39c6c2cda304a4e112ed79
+main	GSE185688	GSE185688/raw_tar/GSE185688_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE185nnn/GSE185688/suppl/GSE185688_RAW.tar	untar:GSE185688/matrices	173004800	1119a05252a141a2917d485e795024a5
+main	GSE214508	GSE214508/raw_tar/GSE214508_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE214nnn/GSE214508/suppl/GSE214508_RAW.tar	untar:GSE214508/matrices,untar_inner:GSE214508/matrices:GSM6607486_MCF7_control_mir1.tar.gz;GSM6607488_MCF7_mir874.tar.gz	586721280	ecfa4ebdfd13947ca2908eb737f1900f
+machinery	Replogle2022_K562_GW	replogle2022/K562_gwps_raw_singlecell_01.h5ad	https://ndownloader.figshare.com/files/35775507		65830941948	887e3e6a8c8df6eadf7a3030a53c9546
+machinery	Replogle2022_K562_essential	replogle2022/K562_essential_raw_singlecell_01.h5ad	https://ndownloader.figshare.com/files/35773219		10661879995	4f1122ce1c7f13299a68df6459a266d3
+machinery	VIPerturb_K562	viperturb/genome_wide_binA.RDS	https://zenodo.org/api/records/18460279/files/genome_wide_binA.RDS/content	seurat:viperturb/x_A	3558351019	31d690848cb1d93e04c9bce0c0ad3726
+machinery	VIPerturb_K562	viperturb/genome_wide_binB.RDS	https://zenodo.org/api/records/18460279/files/genome_wide_binB.RDS/content	seurat:viperturb/x_B	3781446726	0b24448645231da466b9059dcc7f3c43
+machinery	VIPerturb_K562	viperturb/genome_wide_binC.RDS	https://zenodo.org/api/records/18460279/files/genome_wide_binC.RDS/content	seurat:viperturb/x_C	2885854190	af9e5908510f6765863d728f5ef18595
+machinery	XAtlasOrion_HCT116	hku2026/sc_Huang-HCT116.zip	https://ndownloader.figshare.com/files/69497463	unzip:hku2026	41958953486	29e23dc70fce2dfa49061badbaa6eecd
+machinery	XAtlasOrion_HEK293T	hku2026/sc_Huang-HEK293T.zip	https://ndownloader.figshare.com/files/69501945	unzip:hku2026	69124189236	936e840141412650cf9e85d74b018b6a
+machinery	GSE218566_HEK293	GSE218566/GSE218566_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE218nnn/GSE218566/suppl/GSE218566_RAW.tar	untar:GSE218566	540948480	993bb90b2bf366cdc9a3506334bde8b6
+machinery	Nadig2025_HepG2	GSE264667/GSE264667_hepg2_raw_singlecell_01.h5ad	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE264nnn/GSE264667/suppl/GSE264667_hepg2_raw_singlecell_01.h5ad		5614460941	dfc676e4186b8c8c173ff14e1194cc8a
+machinery	Nadig2025_Jurkat	GSE264667/GSE264667_jurkat_raw_singlecell_01.h5ad	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE264nnn/GSE264667/suppl/GSE264667_jurkat_raw_singlecell_01.h5ad		9366490264	dae9fab2a8b0430099a76ce60d0c5405
+machinery	GSE345058_A549	GSE345058/GSE345058_raw_counts.mtx.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE345nnn/GSE345058/suppl/GSE345058_raw_counts.mtx.gz		10956707618	2878ebec6e8aee3be7f6cfe2f9244ebb
+machinery	GSE345058_A549	GSE345058/GSE345058_cell_annotations.csv.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE345nnn/GSE345058/suppl/GSE345058_cell_annotations.csv.gz		40152708	68515d8b700fb282e4d01a5a2d6db7f2
+machinery	GSE345058_A549	GSE345058/GSE345058_gene_annotations.csv.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE345nnn/GSE345058/suppl/GSE345058_gene_annotations.csv.gz		378455	f73ec036e1a8d47ead3e6df163d5e292
+machinery	GSE345058_A549	GSE345058/GSE345058_sgRNA.csv.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE345nnn/GSE345058/suppl/GSE345058_sgRNA.csv.gz		68194	a67bcf0d2949175da649a0b16ae4a19c
+machinery	GSE249595	GSE249595/GSE249595_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE249nnn/GSE249595/suppl/GSE249595_RAW.tar	untar:GSE249595/x	3753820160	0eca02a0b491e224c32fe4dc75e253ab
+supplement	GSE318353	GSE318353/raw/GSE318353_KO_matrix.tar.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE318nnn/GSE318353/suppl/GSE318353_KO_matrix.tar.gz	untar:GSE318353/extracted/KO	97390271	cc0769eb09bbc20dcc74878d65eb9a03
+supplement	GSE318353	GSE318353/raw/GSE318353_WT_matrix.tar.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE318nnn/GSE318353/suppl/GSE318353_WT_matrix.tar.gz	untar:GSE318353/extracted/WT	140506058	bcd4a300ba49ba7552794419e7d0fc4a
+supplement	GSE282611	GSE282611/raw/GSE282611_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE282nnn/GSE282611/suppl/GSE282611_RAW.tar	untar:GSE282611/raw	2214113280	af3566fd31205b189b8a0192271801e3
+supplement	GSE135595	GSE135595/raw/GSE135595_scRNAseq_counts.txt.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE135nnn/GSE135595/suppl/GSE135595_scRNAseq_counts.txt.gz		84022050	337815bf62fc2e819ea9b70e7d82295e
+supplement	GSE135595	GSE135595/raw/GSE135595_cell_metadata.txt.gz	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE135nnn/GSE135595/suppl/GSE135595_cell_metadata.txt.gz		55999	5efccc8ed5a3ed0d5cda8a74df15eca2

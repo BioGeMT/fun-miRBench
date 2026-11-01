@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	caveats	target_gene_id	other_pathway_arms
+Feng2026_targeted__DGCR8_KO	Feng2026_targeted	pathway	DGCR8	KO	DGCR8	NonTarget	3	CRISPRi knockdown; controls are the 8241 NonTarget cells kept, unassigned cells are not used; replicate units are donor lines within pools; cells as the authors filtered them	ENSG00000128191	

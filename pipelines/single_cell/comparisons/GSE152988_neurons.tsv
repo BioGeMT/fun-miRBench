@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	caveats	target_gene_id	other_pathway_arms
+GSE152988_neurons__DROSHA_KO	GSE152988_neurons	pathway	DROSHA	KO	DROSHA	control	3	CRISPRi knockdown in iPSC-derived neurons; replicate units are the four libraries; guide labels come from scPerturb, as the GEO files hold no guide features; few controls	ENSG00000113360	

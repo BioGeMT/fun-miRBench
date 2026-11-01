@@ -9,6 +9,9 @@ dependencies = [
     "pyyaml>=6",
     "requests>=2.32",
     "pybigwig>=0.3.25",
+    "scipy>=1.11",
+    "anndata>=0.11",
+    "h5py>=3.10",
 ]
 
 [project.scripts]
@@ -17,6 +20,10 @@ funmirbench-experiments = "funmirbench.experiments_pipeline:main"
 funmirbench-add = "funmirbench.add_experiment:main"
 funmirbench-experiments-download-examples = "funmirbench.experiments_download_examples:main"
 funmirbench-experiments-store = "funmirbench.experiment_store:main"
+funmirbench-single-cell = "funmirbench.single_cell_pipeline:main"
+funmirbench-single-cell-final = "funmirbench.single_cell_final:main"
+funmirbench-single-cell-combine = "funmirbench.single_cell_final:combine_main"
+funmirbench-single-cell-cooccurrence = "funmirbench.single_cell_cooccurrence:main"
 funmirbench-download-data = "funmirbench.published_data:main"
 funmirbench-sync-metadata = "funmirbench.sync_metadata:main"
 funmirbench-validate-experiments = "funmirbench.validate_experiments:main"

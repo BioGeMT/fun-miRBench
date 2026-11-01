@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	caveats	target_gene_id	other_pathway_arms
+VCC2025_H1__TARBP2_KO	VCC2025_H1	pathway	TARBP2	KO	TARBP2	non-targeting	3	CRISPRi knockdown; replicate units are sets of 8 consecutive lanes (6 sets of 48 lanes); controls counted once though in all three files; perturbations were chosen by the authors for effect strength; cells as the authors filtered them	ENSG00000139546	

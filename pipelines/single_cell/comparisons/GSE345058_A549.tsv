@@ -1,0 +1,5 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	caveats	target_gene_id	other_pathway_arms
+GSE345058_A549__DGCR8_KO	GSE345058_A549	pathway	DGCR8	KO	DGCR8	Nontargeting	3	Cas9 knockout; replicate units are the authors' four batches of eight lanes; cells as the authors filtered them	ENSG00000128191	
+GSE345058_A549__DIS3L2_KO	GSE345058_A549	pathway	DIS3L2	KO	DIS3L2	Nontargeting	3	Cas9 knockout; replicate units are the authors' four batches of eight lanes; cells as the authors filtered them	ENSG00000144535	
+GSE345058_A549__PRKRA_KO	GSE345058_A549	pathway	PRKRA	KO	PRKRA	Nontargeting	3	Cas9 knockout; replicate units are the authors' four batches of eight lanes; cells as the authors filtered them	ENSG00000180228	
+GSE345058_A549__TNRC6A_KO	GSE345058_A549	pathway	TNRC6A	KO	TNRC6A	Nontargeting	3	Cas9 knockout; replicate units are the authors' four batches of eight lanes; cells as the authors filtered them	ENSG00000090905	

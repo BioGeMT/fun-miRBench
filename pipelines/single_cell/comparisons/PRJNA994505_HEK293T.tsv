@@ -1,0 +1,2 @@
+comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
+agoTRIBE_vs_control_HEK293T	PRJNA994505_HEK293T	other	all miRNAs loaded into Ago2	OE	agoTRIBE	control	3		expression only, editing events not called: a global Argonaute2-ADAR2 fusion, no defined miRNA; orientation OE means Ago2 fusion raised, not one miRNA raised; 26 control cells; batch pool SS3_21_195 only (the pool that holds the controls); one sample per arm: three technical pseudo-replicates, labels mean changed in this culture; read counts, not UMIs

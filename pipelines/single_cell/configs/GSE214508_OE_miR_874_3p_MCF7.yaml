@@ -1,0 +1,32 @@
+# Pre-miR hsa-miR-874-3p precursor (Thermo Fisher PM12355) against a negative-control miRNA in MCF-7 cells, 36 h
+# after reverse transfection with RNAiMAX; 10x 3' v3.1, one library per arm (no replicates). The siRNA arms of the
+# series are other perturbations. Paper: 10.1038/s41598-022-23205-w. QC: no thresholds stated in the paper; at least
+# 500 genes and at most 20% mitochondrial counts.
+dataset_id: GSE214508_OE_miR_874_3p_MCF7
+mirna_name: hsa-miR-874-3p
+experiment_type: Overexpression
+gse: GSE214508
+
+samples:
+  - sample_id: control_mirna
+    group: control
+    matrix: data/single_cell/raw/GSE214508/MCF7_control_mir1/matrix.mtx.gz
+    features: data/single_cell/raw/GSE214508/MCF7_control_mir1/features.tsv.gz
+    barcodes: data/single_cell/raw/GSE214508/MCF7_control_mir1/barcodes.tsv.gz
+  - sample_id: mir874
+    group: treated
+    matrix: data/single_cell/raw/GSE214508/MCF7_mir874/matrix.mtx.gz
+    features: data/single_cell/raw/GSE214508/MCF7_mir874/features.tsv.gz
+    barcodes: data/single_cell/raw/GSE214508/MCF7_mir874/barcodes.tsv.gz
+
+qc:
+  min_genes: 500
+  max_mito_fraction: 0.2
+
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: MCF-7
+  treatment: miR-874-3p precursor mimic against negative-control miRNA, 36 h
+  tissue: Breast
+  method: scRNA-seq (10x), pseudobulk per sample
+  article_pubmed_id: https://doi.org/10.1038/s41598-022-23205-w
