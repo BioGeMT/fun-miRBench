@@ -157,21 +157,24 @@ def score_machinery(rows: pd.DataFrame, final_dir: pathlib.Path, profiles: pd.Da
         return pd.DataFrame([record for records in pool.map(score_tool, jobs) for record in records])
 
 
-def plot_panels(tools: pd.DataFrame, per: pd.DataFrame, out: pathlib.Path, stem: str, *, boxes: pd.DataFrame | None = None,
-                note: bool = False) -> None:
-    """AUROC, Spearman and decoy z-score in one row. Boxes: the boxes data, or per where it has at least 10 points."""
+def plot_panels(tools: pd.DataFrame, per: pd.DataFrame, out: pathlib.Path, stem: str, *, bulk: pd.DataFrame | None = None) -> None:
+    """AUROC, Spearman and decoy z-score in one row, with a box where a panel has at least 10 points per tool and, given
+    bulk results, a line at each tool's bulk mean."""
     labels = drawn_tools(tools)
     tool_ids = list(labels)
     colors = tool_colors(tool_ids)
-    bottom = 1.75 if note else 1.05
+    bottom = 1.75 if bulk is not None else 1.05
     width, height = PANEL_LEFT + 3 * PANEL_W + 2 * PANEL_GAP + PANEL_RIGHT, PANEL_TOP + PANEL_H + bottom
     fig = plt.figure(figsize=(width, height))
     for i, (metric, title, reference) in enumerate(METRICS):
         ax = fig.add_axes([(PANEL_LEFT + i * (PANEL_W + PANEL_GAP)) / width, bottom / height, PANEL_W / width, PANEL_H / height])
-        behind = boxes if boxes is not None else per
-        if behind[metric].notna().groupby(behind.predictor).sum().min() >= 10:
-            draw_boxes(ax, behind, tool_ids, colors, metric)
+        if per[metric].notna().groupby(per.predictor).sum().min() >= 10:
+            draw_boxes(ax, per, tool_ids, colors, metric)
         draw_dots(ax, per, tool_ids, colors, metric)
+        if bulk is not None:
+            means = bulk.groupby("predictor")[metric].mean()
+            ax.hlines([means[tool] for tool in tool_ids], np.arange(1, len(tool_ids) + 1) - 0.28, np.arange(1, len(tool_ids) + 1) + 0.28,
+                      color="#2D3748", linewidth=1.6, zorder=2)
         style_box_axes(ax, len(tool_ids))
         ax.axhline(reference, color="#9CA3AF", linewidth=1.0, zorder=0)
         ax.set_title(title, pad=14, fontsize=LARGE, fontweight="bold")
@@ -179,8 +182,8 @@ def plot_panels(tools: pd.DataFrame, per: pd.DataFrame, out: pathlib.Path, stem:
     handles = [plt.Rectangle((0, 0), 1, 1, color=colors[tool], alpha=BAR_ALPHA) for tool in tool_ids]
     fig.legend(handles, labels.values(), loc="upper center", frameon=False, borderaxespad=0.0, borderpad=0.0, fontsize=SMALL, handlelength=1.6,
                mode="expand", ncol=len(handles), bbox_to_anchor=(*span, (bottom - 0.25) / height))
-    if note:
-        notes = [plt.Rectangle((0, 0), 1, 1, color="#555555", alpha=0.28, label=f"Box: {boxes.experiment_id.nunique()} bulk RNA-seq experiments"),
+    if bulk is not None:
+        notes = [plt.Line2D([], [], color="#2D3748", linewidth=1.6, label=f"Line: mean of {bulk.experiment_id.nunique()} bulk RNA-seq experiments"),
                  plt.Line2D([], [], marker="o", linestyle="", color="#555555", markersize=8, label=f"Dot: {per.experiment_id.nunique()} single-cell experiments")]
         fig.legend(handles=notes, loc="upper center", frameon=False, borderaxespad=0.0, borderpad=0.0, fontsize=SMALL - 2, handletextpad=0.4,
                    ncol=2, columnspacing=3.0, bbox_to_anchor=(0.5, (bottom - 0.8) / height))
@@ -265,7 +268,7 @@ def write_report(path: pathlib.Path, *, rows: pd.DataFrame, per: pd.DataFrame, c
 
         with plt.rc_context({"savefig.dpi": 300}):
             fig, ax = _new_page()
-            y = draw_plot(fig, ax, plots, "single_cell", "Main experiments", ["Each box is the 21 bulk experiments, each dot one main experiment.", *MEASURE_LINES], PAGE_TOP)
+            y = draw_plot(fig, ax, plots, "single_cell", "Main experiments", [f"Each dot is one main experiment; the line is the predictor's mean over the {bulk.experiment_id.nunique()} bulk experiments.", *MEASURE_LINES], PAGE_TOP)
             draw_plot(fig, ax, plots, "machinery", "Machinery experiments",
                       ["Each dot is one screen, the median of its miRNA-making experiments, because they share control cells.",
                        "Repression genes are left off the plot, a choice made after seeing their weak signal; they are in the tables."], y)
@@ -316,7 +319,7 @@ def run_evaluation(config_path: pathlib.Path) -> pathlib.Path:
     checks.to_csv(out / "data_checks.tsv", sep="\t", index=False)
     plots = out / "plots"
     main = per[per.experiment_id.isin(comparisons.experiment_id[comparisons.action == "keep"])]
-    plot_panels(tools, main, plots, "single_cell", boxes=bulk, note=True)
+    plot_panels(tools, main, plots, "single_cell", bulk=bulk)
     plot_panels(tools, screens[screens.gene_type == "miRNA-making"], plots, "machinery")
     write_report(out / "REPORT.pdf", rows=rows, per=per, comparisons=comparisons, bulk=bulk, machinery=machinery, screens=screens, summary=summary, checks=checks,
                  seed_bulk=pd.read_csv(tables_dir / "seed_check_bulk.tsv", sep="\t"), control=pd.read_csv(tables_dir / "control_check.tsv", sep="\t"),

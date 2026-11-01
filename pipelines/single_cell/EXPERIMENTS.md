@@ -246,4 +246,4 @@ The evaluation scores each predictor on these tables with the bulk evaluator's m
 - Spearman rho: agreement of the score's ranking with the oriented shrunken log2FC.
 - Decoy z-score: Spearman for the tested miRNA against different-seed miRNAs, in standard deviations. For machinery comparisons, the expressed miRNA families (at least 0.5% of reads) weighted by share against 20 sets of families below 0.01%.
 
-In the single-cell plot, each box shows the 21 bulk experiments and each dot one main experiment. In the machinery plot, each dot is one screen.
+In the single-cell plot, each dot is one main experiment and the line is the predictor's mean over the 21 bulk experiments. In the machinery plot, each dot is one screen.
