@@ -53,24 +53,36 @@ def best_per_experiment(precision: pd.DataFrame, labels: dict[str, str]) -> pd.D
                              ascending=[True, False, True, True]).groupby("experiment_id").head(1)
 
 
-def draw_box(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict, metric: str) -> None:
+def draw_boxes(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict, metric: str) -> None:
     values = [per.loc[per.predictor == t, metric].dropna().to_numpy(float) for t in tool_ids]
-    positions = np.arange(1, len(tool_ids) + 1)
-    box = ax.boxplot(values, positions=positions, widths=0.56, patch_artist=True, showfliers=False,
+    box = ax.boxplot(values, positions=np.arange(1, len(tool_ids) + 1), widths=0.56, patch_artist=True, showfliers=False,
                      medianprops={"color": "#2D3748", "linewidth": 1.3},
                      whiskerprops={"color": "#6B7280", "linewidth": 1.0},
                      capprops={"color": "#6B7280", "linewidth": 1.0})
     for patch, tool in zip(box["boxes"], tool_ids):
         patch.set(facecolor=colors[tool], edgecolor=colors[tool], alpha=0.28)
-    for x, tool, v in zip(positions, tool_ids, values):
+
+
+def draw_dots(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict, metric: str) -> None:
+    for x, tool in enumerate(tool_ids, start=1):
+        v = per.loc[per.predictor == tool, metric].dropna().to_numpy(float)
         jitter = np.linspace(-0.09, 0.09, v.size) if v.size > 1 else np.zeros(v.size)
         ax.scatter(x + jitter, v, s=42, color=colors[tool], edgecolor="white", linewidth=0.45, alpha=0.75, zorder=3)
+
+
+def style_box_axes(ax, n_tools: int) -> None:
     ax.spines[["top", "right"]].set_visible(False)
     ax.grid(axis="y", alpha=0.25, linewidth=0.8)
     ax.set_axisbelow(True)
-    ax.set_xlim(0.5, len(tool_ids) + 0.5)
+    ax.set_xlim(0.5, n_tools + 0.5)
     ax.set_xticks([])
     ax.tick_params(axis="y", labelsize=SMALL)
+
+
+def draw_box(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict, metric: str) -> None:
+    draw_boxes(ax, per, tool_ids, colors, metric)
+    draw_dots(ax, per, tool_ids, colors, metric)
+    style_box_axes(ax, len(tool_ids))
 
 
 def draw_won(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict) -> None:

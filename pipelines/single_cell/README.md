@@ -56,6 +56,16 @@ pipelines/single_cell/run.sh --groups main
 
 Without `--groups`, both scripts take all three groups. `main` is about 2 GB of downloads, `supplement` about 3 GB, `machinery` about 228 GB. Complete files and finished datasets are kept, so both scripts can be rerun after an interruption. `SINGLE_CELL_DATA` and `SINGLE_CELL_FINAL` set the download and output folders (default `data/single_cell/raw` and `data/single_cell/final`), `RUN_WORKERS` the fits at a time per dataset (default 8). The result is `<final>/comparisons.tsv` with a `group` column, one folder per dataset, and `genes/<comparison_id>.tsv.gz` inside it.
 
+## Evaluation
+
+[EXPERIMENTS.md](EXPERIMENTS.md) lists every selected experiment and how it was processed. To score the predictors on the tables that `run.sh` writes, set the paths in `single_cell_eval.yaml` at the repository root and run:
+
+```bash
+uv run funmirbench-single-cell-eval --config single_cell_eval.yaml
+```
+
+It needs `<final>/comparisons.tsv`, the standardized predictions and `per_comparison.tsv` of a `funmirbench` run on the bulk experiments. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, and `seed_check.tsv`, `seed_check_bulk.tsv` and `control_check.tsv`, which were computed separately because they need the 3'UTR sequences and the cell stores. The output is `REPORT.pdf`, two plots in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_per_screen.tsv`, `machinery_summary.tsv`, `data_checks.tsv`, and the bulk evaluator's own run in `evaluator/`.
+
 ## Final data
 
 `funmirbench-single-cell-final` builds the final tables of every dataset from one cell store and one comparison list. The per-experiment steps above stay for single configs. Adding a dataset takes two files and no change anywhere else.

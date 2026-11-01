@@ -1,0 +1,9 @@
+comparison_id	label	control
+miR-874-3p_mimic_MCF7_36h	miR-874 mimic, breast cancer cells	control miRNA
+mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h	miR-365 mimic, heart muscle cells	antimiR-365
+miR-98-5p_mimic_H9_d02_d03	miR-98 mimic, stem cells	control mimic
+miR-192-5p_LNP_mimic_PBMC_24h	miR-192 mimic, blood immune cells	saline
+antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h	miR-365 antimiR, heart muscle cells	control antimiR
+miR-18a_KO_A375	miR-18a knockout clone, A375 cells	wild type
+miR-449a_miR-340-5p_RD18_60h	miR-449a and miR-340-5p, RD18 cells	lipofectamine only
+let-7i_miR-452_OE_iPSC-CM	let-7i and miR-452, heart muscle cells	empty vector

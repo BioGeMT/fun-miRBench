@@ -19,6 +19,7 @@ uv sync
 - `funmirbench/`: the code
 - `metadata/`: the comparisons, gene list, predictor list and miRNA sequences
 - `pipelines/processing/`: from reads to the per-gene benchmark tables
+- `pipelines/single_cell/`: from single-cell deposits to the same per-gene tables, with `EXPERIMENTS.md` listing the experiments
 - `pipelines/standardized_predictors/`: one pipeline per predictor
 - `tests/`: the tests
 - `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
@@ -81,6 +82,10 @@ A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `
 ## Add Your Own Experiment
 
 `funmirbench-add` adds one OE experiment, from raw reads or a count matrix, to the benchmark tables. It needs `conda` for the aligners and R; see [ADD_EXPERIMENT.md](pipelines/processing/ADD_EXPERIMENT.md).
+
+## Single-cell Evaluation
+
+`pipelines/single_cell/` builds the tables of the selected single-cell experiments, and `funmirbench-single-cell-eval` scores the predictors on them. See [its README](pipelines/single_cell/README.md#evaluation).
 
 ## Tests
 

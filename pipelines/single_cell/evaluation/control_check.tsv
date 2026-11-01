@@ -1,0 +1,9 @@
+control_pair	cells_side_1	cells_side_2	responsive_knockout_direction	responsive_overexpression_direction
+One library split at random, miR-98 control	1857	1856	0	0
+One library split at random, miR-874 control	6557	6557	0	0
+One library split at random, antimiR-365 control	326	325	0	1
+One hashed group split at random, saline	2936	2936	3	1
+Two lane sets of one screen, K562	2097	2123	0	0
+Two clones, organoid week 12	9619	7439	391	226
+Two libraries of one day, miR-98 controls day 14	3713	3486	991	1720
+Two libraries of two days, miR-98 controls days 2 and 3	1982	3924	4632	4743
