@@ -140,7 +140,7 @@ def decoy_z(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> flo
     """z of the Spearman of the cognate scores with y against the Spearman of each decoy's scores; NA with fewer than
     two decoys or when the decoy correlations do not vary."""
     dvals = np.array([v for v in (spearman(d, y) for d in decoys) if not np.isnan(v)])
-    if len(dvals) < 2 or dvals.std(ddof=1) == 0:
+    if len(dvals) < 2 or np.ptp(dvals) == 0:  # equal values can have an SD of rounding size, not 0
         return np.nan
     return (spearman(cognate, y) - dvals.mean()) / dvals.std(ddof=1)
 

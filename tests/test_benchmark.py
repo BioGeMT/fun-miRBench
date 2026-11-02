@@ -34,9 +34,9 @@ class MetricTests(unittest.TestCase):
         self.assertTrue((benchmark.rank_last(pd.Series(dtype=float), genes) == 0).all())
 
     def test_decoy_z_is_na_when_the_decoys_do_not_vary(self):
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(3)  # with this draw the SD of the three equal correlations is not exactly 0
         y, decoy = rng.normal(size=50), rng.normal(size=50)
-        self.assertTrue(np.isnan(benchmark.decoy_z(y, [decoy, decoy.copy()], y)))
+        self.assertTrue(np.isnan(benchmark.decoy_z(y, [decoy, decoy.copy(), decoy.copy()], y)))
 
     def test_group_bootstrap(self):
         rng = np.random.default_rng(0)
