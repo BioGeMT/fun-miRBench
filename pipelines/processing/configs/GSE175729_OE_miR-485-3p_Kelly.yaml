@@ -1,0 +1,49 @@
+dataset_id: GSE175729_OE_miR-485-3p_Kelly
+gse: GSE175729
+mirna_name: hsa-miR-485-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM5345121
+    reads_1: data/experiments/raw/GSE175729/GSM5345121/SRR14676123_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345121/SRR14676123_2.fastq.gz
+  - sample_id: GSM5345131
+    reads_1: data/experiments/raw/GSE175729/GSM5345131/SRR14676133_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345131/SRR14676133_2.fastq.gz
+  - sample_id: GSM5345135
+    reads_1: data/experiments/raw/GSE175729/GSM5345135/SRR14676137_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345135/SRR14676137_2.fastq.gz
+  - sample_id: GSM5345142
+    reads_1: data/experiments/raw/GSE175729/GSM5345142/SRR14676144_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345142/SRR14676144_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM5345130
+    reads_1: data/experiments/raw/GSE175729/GSM5345130/SRR14676132_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345130/SRR14676132_2.fastq.gz
+  - sample_id: GSM5345139
+    reads_1: data/experiments/raw/GSE175729/GSM5345139/SRR14676141_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345139/SRR14676141_2.fastq.gz
+  - sample_id: GSM5345140
+    reads_1: data/experiments/raw/GSE175729/GSM5345140/SRR14676142_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345140/SRR14676142_2.fastq.gz
+  - sample_id: GSM5345141
+    reads_1: data/experiments/raw/GSE175729/GSM5345141/SRR14676143_1.fastq.gz
+    reads_2: data/experiments/raw/GSE175729/GSM5345141/SRR14676143_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Kelly
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-485-3p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task.

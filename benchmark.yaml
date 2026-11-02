@@ -11,7 +11,7 @@ predictions_tsv: metadata/predictions_info.tsv
 # The default repo config ships with a small 2-dataset demo selection.
 # Edit or comment these active rows to benchmark other subsets.
 experiments:
-  id: [GSE169128_KO_miR_3662, GSE124411_OE_miR_150_5p_1]
+  id: [GSE210778_OE_miR_375_3p, GSE124411_OE_miR_150_5p_1]
   # mirna_name: [hsa-miR-375-3p]
   # tested_cell_line: [HUV-EC-C]
   # tissue: [Cervix]

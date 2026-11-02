@@ -1,0 +1,37 @@
+dataset_id: GSE124411_OE_miR_150_5p_1
+gse: GSE124411
+mirna_name: hsa-miR-150-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3532161
+    reads_1: data/experiments/raw/GSE124411/GSM3532161/SRR8373281_1.fastq.gz
+    reads_2: data/experiments/raw/GSE124411/GSM3532161/SRR8373281_2.fastq.gz
+  - sample_id: GSM3532162
+    reads_1: data/experiments/raw/GSE124411/GSM3532162/SRR8373282_1.fastq.gz
+    reads_2: data/experiments/raw/GSE124411/GSM3532162/SRR8373282_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM3532163
+    reads_1: data/experiments/raw/GSE124411/GSM3532163/SRR8373283_1.fastq.gz
+    reads_2: data/experiments/raw/GSE124411/GSM3532163/SRR8373283_2.fastq.gz
+  - sample_id: GSM3532164
+    reads_1: data/experiments/raw/GSE124411/GSM3532164/SRR8373284_1.fastq.gz
+    reads_2: data/experiments/raw/GSE124411/GSM3532164/SRR8373284_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: LX-2
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-150-5p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task.

@@ -1,0 +1,37 @@
+dataset_id: GSE112859_OE_miR_574_5p
+gse: GSE112859
+mirna_name: hsa-miR-574-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3090069
+    reads_1: data/experiments/raw/GSE112859/GSM3090069/SRR6966128_1.fastq.gz
+    reads_2: data/experiments/raw/GSE112859/GSM3090069/SRR6966128_2.fastq.gz
+  - sample_id: GSM3090070
+    reads_1: data/experiments/raw/GSE112859/GSM3090070/SRR6966129_1.fastq.gz
+    reads_2: data/experiments/raw/GSE112859/GSM3090070/SRR6966129_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM3090067
+    reads_1: data/experiments/raw/GSE112859/GSM3090067/SRR6966126_1.fastq.gz
+    reads_2: data/experiments/raw/GSE112859/GSM3090067/SRR6966126_2.fastq.gz
+  - sample_id: GSM3090068
+    reads_1: data/experiments/raw/GSE112859/GSM3090068/SRR6966127_1.fastq.gz
+    reads_2: data/experiments/raw/GSE112859/GSM3090068/SRR6966127_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: MGC-803
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-574-5p
+  method: RNA-seq
+curation:
+  purpose: Fresh test processing; no requirement to reproduce existing DE tables
+  selection_evidence: GEO RNA-Seq sample titles and characteristics
+  interpretation_limit: Fresh curated comparison; original DE provenance is outside this task.

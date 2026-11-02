@@ -14,6 +14,7 @@ dependencies = [
 [project.scripts]
 funmirbench = "funmirbench.benchmark:main"
 funmirbench-experiments = "funmirbench.experiments_pipeline:main"
+funmirbench-add = "funmirbench.add_experiment:main"
 funmirbench-experiments-download-examples = "funmirbench.experiments_download_examples:main"
 funmirbench-experiments-store = "funmirbench.experiment_store:main"
 funmirbench-download-data = "funmirbench.published_data:main"

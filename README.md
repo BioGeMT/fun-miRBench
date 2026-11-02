@@ -27,8 +27,8 @@ uv sync
 If you want to use the experiments pipeline, create and activate the extra local environment after entering the repo:
 
 ```bash
-conda env create -f pipelines/experiments/environment.yml
-conda activate funmirbench-experiments
+conda env create -f pipelines/processing/environment.yml
+conda activate funmirbench-processing
 ```
 
 That environment also includes `uv`, so `uv run ...` keeps working after activation.
@@ -44,7 +44,7 @@ Main directories:
 - `data/predictions/`: local generated predictor TSVs
 - `metadata/mirna_experiment_info.tsv`: experiment registry
 - `metadata/predictions_info.tsv`: predictor registry
-- `pipelines/experiments/`: experiment-ingestion backend files and example configs
+- `pipelines/processing/`: the 21 OE test comparisons, from reads to the per-gene benchmark tables
 - `pipelines/standardized_predictors/`: predictor pipelines
 - `manuscript_assets/`: final manuscript figure exports and compact supporting tables
 - `results/`: benchmark outputs
@@ -87,10 +87,8 @@ matrix or on FASTQs (via FastQC + fastp + STAR + featureCounts), then syncs the 
 into a ready-to-review YAML config automatically. See the dedicated pipelines for the full
 workflow:
 
-- [GEO download pipeline](pipelines/geo/README.md) — fetch FASTQs/count matrices from GEO and
-  auto-generate a YAML config
-- [Experiment ingestion pipeline](pipelines/experiments/README.md) — run DESeq2 (count matrix or
-  reads mode) and sync results into the registry
+- [Benchmark data](pipelines/processing/README.md): the 21 OE test comparisons from reads to the
+  per-gene benchmark tables; run `pipelines/processing/setup.sh`, then `download.sh`, then `run.sh`
 
 For the curated benchmark datasets tracked in `metadata/mirna_experiment_info.tsv`, the expected
 workflow is different: those metadata rows stay versioned in the repo, and the corresponding DE
@@ -173,7 +171,7 @@ experiments_tsv: metadata/mirna_experiment_info.tsv
 predictions_tsv: metadata/predictions_info.tsv
 
 experiments:
-  id: [GSE169128_KO_miR_3662, GSE124411_OE_miR_150_5p_1]
+  id: [GSE210778_OE_miR_375_3p, GSE124411_OE_miR_150_5p_1]
 
 predictors:
   tool_id: [targetscan, mirdb_mirtarget, microt_cnn, mirbind2, miraw]

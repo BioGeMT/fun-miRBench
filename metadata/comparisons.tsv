@@ -1,0 +1,22 @@
+experiment_id	study	mirna_name	perturbation	cell_line	split	design	dependency_group	action	flags
+GSE112859_OE_miR_574_5p	GSE112859	hsa-miR-574-5p	OE	MGC-803	test	~ condition	group_fd4683b833bb	keep	
+GSE115646_OE_miR-101-3p_HepG2	GSE115646	hsa-miR-101-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_8_of_10
+GSE115646_OE_miR-133a-3p_HepG2	GSE115646	hsa-miR-133a-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_8_of_10
+GSE115646_OE_miR-140-3p_HepG2	GSE115646	hsa-miR-140-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_6_of_8
+GSE115646_OE_miR-140-5p_HepG2	GSE115646	hsa-miR-140-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	gc_shift;qc_samples_7_of_8
+GSE115646_OE_miR-18a-5p_HepG2	GSE115646	hsa-miR-18a-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_9_of_12
+GSE115646_OE_miR-211-5p_HepG2	GSE115646	hsa-miR-211-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_7_of_10
+GSE124411_OE_miR_150_5p_1	GSE124411	hsa-miR-150-5p	OE	LX-2	test	~ condition	group_3b2be30d4cf4	flag	gc_shift
+GSE129076_OE_miR_450a_5p_1	GSE129076	hsa-miR-450a-5p	OE	A2780	test	~ condition	group_b61e55166ae3	flag	qc_samples_3_of_6
+GSE129076_OE_miR_450a_5p_2	GSE129076	hsa-miR-450a-5p	OE	SKOV-3	test	~ condition	group_b61e55166ae3	flag	gc_shift;qc_samples_4_of_6
+GSE148827_OE_miR_1271_5p	GSE148827	hsa-miR-1271-5p	OE	SH-SY5Y	test	~ condition	group_824543c377f9	flag	gc_shift
+GSE154968_OE_miR_21_3p	GSE154968	hsa-miR-21-3p	OE	HaCaT	test	~ condition	group_7f7df5eec01a	keep	
+GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	OE	HepG2	test	~ condition	group_543aabc66d1a	flag	global_shift;most_genes_changed
+GSE175729_OE_miR-100-3p_Kelly	GSE175729	hsa-miR-100-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-1915-3p_Kelly	GSE175729	hsa-miR-1915-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-380-3p_Kelly	GSE175729	hsa-miR-380-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-485-3p_Kelly	GSE175729	hsa-miR-485-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
+GSE175729_OE_miR-99b-5p_Kelly	GSE175729	hsa-miR-99b-5p	OE	Kelly	test	~ condition	group_019ec7350dd7	flag	gc_shift
+GSE202135_OE_miR_130a_3p	GSE202135	hsa-miR-130a-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	group_49b966b28e24	keep	
+GSE202135_OE_miR_130b_3p	GSE202135	hsa-miR-130b-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	group_49b966b28e24	keep	
+GSE210778_OE_miR_375_3p	GSE210778	hsa-miR-375-3p	OE	HUV-EC-C	test	~ condition	group_67cd69a310a6	keep	
