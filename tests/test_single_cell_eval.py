@@ -24,14 +24,21 @@ class ReadComparisonsTests(unittest.TestCase):
 
     def test_keeps_only_selected_comparisons_with_their_group(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self.write(directory, [final_row("main_one", "hsa-miR-1-3p"), final_row("other", "hsa-miR-2-3p")])
-            rows = single_cell_eval.read_comparisons(root, root / "selected.tsv")
-        self.assertEqual(rows.comparison_id.tolist(), ["main_one"])
-        self.assertEqual(rows.group.tolist(), ["main"])
+            rows = [final_row("main_one", "hsa-miR-1-3p"), final_row("pair", "hsa-miR-2-3p"), final_row("screen__DICER1_KO", "DICER1"), final_row("other", "hsa-miR-4-3p")]
+            root = self.write(directory, rows)
+            kept = single_cell_eval.read_comparisons(root, root / "selected.tsv")
+        self.assertEqual(sorted(kept.comparison_id), ["main_one", "pair", "screen__DICER1_KO"])
+        self.assertEqual(kept.set_index("comparison_id").group["main_one"], "main")
+
+    def test_a_selected_comparison_missing_from_the_final_table_stops_the_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.write(directory, [final_row("main_one", "hsa-miR-1-3p")])
+            with self.assertRaisesRegex(ValueError, "run run.sh for all groups"):
+                single_cell_eval.read_comparisons(root, root / "selected.tsv")
 
     def test_a_selected_comparison_that_is_not_fitted_stops_the_run(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = self.write(directory, [final_row("main_one", "hsa-miR-1-3p", status="not_fitted")])
+            root = self.write(directory, [final_row("main_one", "hsa-miR-1-3p", status="not_fitted"), final_row("pair", "hsa-miR-2-3p"), final_row("screen__DICER1_KO", "DICER1")])
             with self.assertRaisesRegex(ValueError, "not fitted"):
                 single_cell_eval.read_comparisons(root, root / "selected.tsv")
 
@@ -97,6 +104,7 @@ class FigureMachineryTests(unittest.TestCase):
         self.assertEqual(n_making, 1)
         self.assertEqual(tables["spearman_shrunk"].tool.tolist(), [2.0, 5.0])
         self.assertEqual(tables["spearman_shrunk"].index.tolist(), ["K562 GW (2)", "K562 GW (1)"])
+        self.assertEqual(tables["auroc_d05"].index.tolist(), ["K562 GW (0)", "K562 GW (0)"])  # the brackets count experiments with that measure
 
 
 if __name__ == "__main__":

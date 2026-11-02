@@ -58,13 +58,13 @@ Without `--groups`, both scripts take all three groups. `main` is about 2 GB of 
 
 ## Evaluation
 
-[EXPERIMENTS.md](EXPERIMENTS.md) lists every selected experiment and how it was processed. To score the predictors on the tables that `run.sh` writes, set the paths in `single_cell_eval.yaml` at the repository root and run:
+[EXPERIMENTS.md](EXPERIMENTS.md) lists every selected experiment and how it was processed. To score the predictors, first build all three groups with `run.sh` (no `--groups`), because the evaluation needs all 70 comparisons. Then run `funmirbench` on the bulk experiments, set `bulk_per_comparison` in `single_cell_eval.yaml` at the repository root to the `per_comparison.tsv` of that dated run, and run:
 
 ```bash
 uv run funmirbench-single-cell-eval --config single_cell_eval.yaml
 ```
 
-It needs `<final>/comparisons.tsv`, the standardized predictions and `per_comparison.tsv` of a `funmirbench` run on the bulk experiments. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, and `seed_check.tsv`, `seed_check_bulk.tsv` and `control_check.tsv`, which were computed separately because they need the 3'UTR sequences and the cell stores. The output is `REPORT.pdf`, with two figures of grouped bars and tables of the same numbers, the figures in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_family_coverage.tsv`, `data_checks.tsv` (with `in_figure`), and the bulk evaluator's own run in `evaluator/`.
+It also needs the standardized predictions. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, and `seed_check.tsv`, `seed_check_bulk.tsv`, `control_check.tsv` and `shrinkage_check.tsv`, which were computed separately because they need the 3'UTR sequences, the cell stores and the saved fits. The output is `REPORT.pdf`, with two figures of grouped bars and tables of the same numbers, the figures in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_family_coverage.tsv`, `data_checks.tsv` (with `in_figure`), and the bulk evaluator's own run in `evaluator/`.
 
 ## Final data
 

@@ -1,15 +1,15 @@
 # Evaluation of the selected single-cell comparisons. All file paths are relative to this YAML file's directory.
 # Run: uv run funmirbench-single-cell-eval --config single_cell_eval.yaml
 
-# The final tables, from pipelines/single_cell/run.sh.
+# The final tables, from pipelines/single_cell/run.sh for all three groups.
 final_dir: data/single_cell/final
 selected: pipelines/single_cell/selected_comparisons.tsv
 # The fixed tables of the evaluation: miRNA profiles, seed checks, control check, experiment labels.
 tables_dir: pipelines/single_cell/evaluation
 mirnas_tsv: metadata/benchmark_mirnas.tsv
 predictions_tsv: metadata/predictions_info.tsv
-# per_comparison.tsv of a `funmirbench` run on the bulk OE experiments, drawn as the boxes.
-bulk_per_comparison: results/bulk/per_comparison.tsv
+# per_comparison.tsv of a `funmirbench` run on the bulk OE experiments; its mean is the bulk group. Set this to the run's dated folder.
+bulk_per_comparison: results/<run>/per_comparison.tsv
 
 predictors:
   tool_id: [targetscan_family_expanded, mirdb_mirtarget, microt_cnn, mirbind2, miraw]

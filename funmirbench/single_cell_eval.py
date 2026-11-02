@@ -47,12 +47,13 @@ MEASURE_LINES = ["AUROC: chance that a responsive gene scores above a no-respons
 
 
 def read_comparisons(final_dir: pathlib.Path, selected_path: pathlib.Path) -> pd.DataFrame:
-    """The selected comparisons that the final table holds, with their group; each must be fitted."""
+    """The selected comparisons with their group; the final table must hold all of them, fitted."""
     selected = pd.read_csv(selected_path, sep="\t", dtype=str, keep_default_na=False)[["comparison_id", "group"]]
     final = pd.read_csv(final_dir / "comparisons.tsv", sep="\t", dtype=str, keep_default_na=False).drop(columns="group", errors="ignore")
     rows = final.merge(selected, on="comparison_id")
-    if not (rows.group == "main").any():
-        raise ValueError(f"{final_dir}: no main comparison in the final table")
+    missing = sorted(set(selected.comparison_id) - set(rows.comparison_id))
+    if missing:
+        raise ValueError(f"{final_dir}: {len(missing)} selected comparisons are not in the final table, for example {missing[:3]}; run run.sh for all groups")
     unfitted = rows.comparison_id[rows.status != "fitted"].tolist()
     if unfitted:
         raise ValueError(f"selected comparisons not fitted: {unfitted}")
@@ -193,7 +194,8 @@ def single_cell_tables(per: pd.DataFrame, bulk: pd.DataFrame, labels: pd.DataFra
 
 
 def machinery_tables(machinery: pd.DataFrame, kept: pd.DataFrame, tools: pd.DataFrame) -> tuple[dict[str, pd.DataFrame], int]:
-    """Per gene type and screen, the median of its experiments, because they share control cells. Also the number of miRNA-making rows."""
+    """Per gene type and screen, the median of its experiments, because they share control cells; in brackets, the experiments
+    with a value of that measure. Also the number of miRNA-making rows."""
     drawn = machinery[machinery.comparison_id.isin(kept.comparison_id)]
     tables, n_making = {}, 0
     for metric, _, _ in METRICS:
@@ -201,7 +203,7 @@ def machinery_tables(machinery: pd.DataFrame, kept: pd.DataFrame, tools: pd.Data
         for gene_type in ("miRNA-making", "repression"):
             rows = drawn[drawn.gene_type == gene_type]
             wide = rows.groupby(["screen", "predictor"])[metric].median().unstack().reindex([s for s in FIGURE_SCREENS if s in set(rows.screen)])
-            n = rows.groupby("screen").comparison_id.nunique()
+            n = rows.dropna(subset=[metric]).groupby("screen").comparison_id.nunique().reindex(wide.index, fill_value=0)
             wide.index = [f"{SCREENS[screen][0]} ({n[screen]})" for screen in wide.index]
             parts.append(wide)
         n_making = len(parts[0])
@@ -264,19 +266,22 @@ def report_tables(tables: dict[str, pd.DataFrame], tools: pd.DataFrame, first_co
 
 
 def write_report(path: pathlib.Path, *, main: pd.DataFrame, single_cell: dict[str, pd.DataFrame], machinery: dict[str, pd.DataFrame], n_making: int, kept: pd.DataFrame, checks: pd.DataFrame,
-                 seed_bulk: pd.DataFrame, control: pd.DataFrame, labels: pd.DataFrame, tools: pd.DataFrame, n_genes: int, n_bulk: int, min_per_state: int, plots: pathlib.Path) -> None:
+                 seed_bulk: pd.DataFrame, control: pd.DataFrame, shrinkage, labels: pd.DataFrame, tools: pd.DataFrame, n_genes: int, n_bulk: int, min_per_state: int, plots: pathlib.Path) -> None:
     tool_labels = drawn_tools(tools)
     main_seed = checks[checks.group == "main"]
+    same_day = control[control.control_pair.str.startswith("Two libraries of one day")].iloc[0]
     medians = machinery["decoy_z_shrunk"].iloc[:n_making].median()
     making = kept[kept.mirna_or_gene.isin(MAKING)]
     settings = [["Main experiments", str(len(main))], ["Machinery drawn", f"{len(making)} miRNA-making and {len(kept) - len(making)} repression, in {kept.dataset.nunique()} screens"],
                 ["Predictors evaluated", str(len(tool_labels))], ["Responsive genes", "oriented shrunken log2FC > 0; s-value < 0.05 against d = 0.5"],
                 ["No-response genes", "whole shrunken 95% interval of the oriented change below d = 0.5"]]
-    key = ["Supporting evidence: too few independent experiments to rank predictors, so no mean over experiments and no counts of wins.",
-           f"One main experiment has two paired days; the other {len(main) - 1} have one sample per group split into pseudo-replicates.",
-           f"Seed check: {int(main_seed.passes.fillna(False).astype(bool).sum())} of {len(main)} main experiments pass, and {int(seed_bulk.passes.sum())} of {len(seed_bulk)} bulk experiments. It keeps or drops nothing.",
-           f"Control check: up to {int(control.responsive_overexpression_direction.max()):,} genes responsive between libraries of two days with nothing perturbed, so AUROC of miR-874 and miR-365 mimic is unreliable.",
-           "Median decoy z-score over the miRNA-making screens: " + ", ".join(f"{tool_labels[t]} {number(medians[t], 1)}" for t in tool_labels) + "."]
+    key = ["Supporting evidence only: too few independent experiments to rank predictors.",
+           f"One main experiment has two paired days; the other {len(main) - 1} split one sample per group into pseudo-replicates.",
+           f"Seed check: {int(main_seed.passes.fillna(False).astype(bool).sum())} of {len(main)} main and {int(seed_bulk.passes.sum())} of {len(seed_bulk)} bulk experiments pass; it keeps or drops nothing.",
+           f"Two same-day control libraries give {same_day.responsive_knockout_direction:,} to {same_day.responsive_overexpression_direction:,} responsive genes, so AUROC of miR-874 and miR-365 mimic is unreliable.",
+           f"Shrinkage: some saved values sit on a less supported peak. A search of {int(shrinkage.genes_searched):,} genes changed {int(shrinkage.genes_changed)}; Spearman moved by at most {shrinkage.largest_change_spearman}, "
+           f"decoy z {shrinkage.largest_change_decoy_z}, AUROC {shrinkage.largest_change_auroc}. Saved tables are kept.",
+           "Median decoy z-score, miRNA-making screens: " + ", ".join(f"{tool_labels[t]} {number(medians[t], 1)}" for t in tool_labels) + "."]
     labelled = labels.set_index("comparison_id")
     inventory = [[f"{labelled.label[comparison]} against {labelled.control[comparison]}. {labelled.caveats[comparison]}", comparison] for comparison in labels.comparison_id if comparison in set(main.comparison_id)]
     for screen in FIGURE_SCREENS:
@@ -291,8 +296,7 @@ def write_report(path: pathlib.Path, *, main: pd.DataFrame, single_cell: dict[st
         _draw_basic_table(ax, settings, columns=["Run setting", "Value"], col_widths=[0.27, 0.73], bbox=[PAGE_LEFT, y - height, PAGE_WIDTH, height])
         y = _bullet_block(ax, "Evaluation design",
                           [f"Cells are summed per replicate unit and fitted with the bulk DESeq2 and labelling scripts, on the same {n_genes:,} genes.",
-                           "Machinery: profiled miRNA families (at least 0.5% of abundance) against 20 sets of families below 0.01%.",
-                           "Screens drawn: low guide load, at least 3 replicate units, clear transcript drop, not flagged by the control check."], y=y - height - BLOCK_GAP)
+                           "Machinery: profiled miRNA families (at least 0.5% of abundance) against 20 sets of families below 0.01%."], y=y - height - BLOCK_GAP)
         _bullet_block(ax, "Key results", key, y=y)
         _save_page(pdf, fig)
 
@@ -300,12 +304,13 @@ def write_report(path: pathlib.Path, *, main: pd.DataFrame, single_cell: dict[st
             fig, ax = _new_page()
             y = draw_plot(fig, ax, plots, "single_cell", "Main experiments", [f"One group per experiment; on the right, the mean of the {n_bulk} bulk experiments.", *MEASURE_LINES], PAGE_TOP)
             draw_plot(fig, ax, plots, "machinery", "Machinery experiments",
-                      ["One group per screen, the median of its experiments, which share control cells; in brackets, the number of experiments.",
-                       "GW is genome-wide, Ess essential genes. HEK293 uses the HEK293T miRNA profile."], y)
+                      ["One group per screen, the median of its experiments, which share control cells; in brackets, the experiments with that measure.",
+                       "GW is genome-wide, Ess essential genes. HEK293 uses the HEK293T miRNA profile.",
+                       "Drawn: low guide load, at least 3 replicate units, clear transcript drop, not flagged by the control check; chosen after seeing results."], y)
             _save_page(pdf, fig)
 
         draw_tables(pdf, report_tables(single_cell, tools, "Experiment", "Main"))
-        draw_tables(pdf, report_tables(machinery, tools, "Screen (experiments)", "Machinery", n_making))
+        draw_tables(pdf, report_tables(machinery, tools, "Screen (n)", "Machinery", n_making))
         draw_inventory(pdf, inventory)
 
 
@@ -351,6 +356,7 @@ def run_evaluation(config_path: pathlib.Path) -> pathlib.Path:
               groups=(((n_making - 1) / 2, "miRNA-making genes"), (n_making + (n_groups - n_making - 1) / 2, "Repression genes")))
     write_report(out / "REPORT.pdf", main=rows[rows.group == "main"], single_cell=single_cell, machinery=screens, n_making=n_making, kept=kept, checks=checks,
                  seed_bulk=pd.read_csv(tables_dir / "seed_check_bulk.tsv", sep="\t"), control=pd.read_csv(tables_dir / "control_check.tsv", sep="\t"),
+                 shrinkage=pd.read_csv(tables_dir / "shrinkage_check.tsv", sep="\t", dtype=str).iloc[0],
                  labels=labels, tools=tools, n_genes=int(per.n_genes.iloc[0]), n_bulk=bulk.experiment_id.nunique(), min_per_state=min_per_state, plots=plots)
     logger.info("wrote %s", out)
     return out
