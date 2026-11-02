@@ -50,7 +50,7 @@ uv run funmirbench --config benchmark.yaml
 - **Scores per comparison:**
   - Spearman between the score and the oriented shrunken log2FC, overall and within tenths of control expression;
   - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
-- **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `decoy_z_shrunk` is the cognate miRNA against its decoys.
+- **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `decoy_z_shrunk` is the cognate miRNA against its decoys; it is NA with fewer than two decoys or when the decoy correlations do not vary.
 - **Summaries:**
   - on all comparisons and on unflagged ones;
   - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
@@ -58,7 +58,7 @@ uv run funmirbench --config benchmark.yaml
 - **Plots**, in `plots/` as PNG:
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
   - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, decoy z-score and the experiments each tool wins, for every tool on all genes, with y axes that follow the values of the run;
-  - `recovery`: recall by prediction budget, counting every gene in the ranking, and each experiment's best precision at 50% recall relative to random, among responsive and no-response genes, on the comparisons with at least 30 genes in each state.
+  - `recovery`: recall by prediction budget, counting every gene in the ranking (genes tied at the budget count by the share taken from their tie), and each experiment's best precision at 50% recall relative to random, among responsive and no-response genes, on the comparisons with at least 30 genes in each state.
 - **Report:** `REPORT.pdf`: run settings, key results, the output tables, the plots, one table per plot with its numbers, and the experiments evaluated and skipped.
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.

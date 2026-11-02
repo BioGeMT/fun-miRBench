@@ -23,7 +23,7 @@ from funmirbench.experiments_pipeline import load_yaml, repo_root, run_ingestion
 from funmirbench.logger import parse_log_level, setup_logging
 
 sys.path.insert(0, str(repo_root() / "pipelines/processing/src"))  # the labelling step is shared with the full rebuild
-from build_benchmark_data import run_one, sha256  # noqa: E402
+from build_benchmark_data import build_manifest, run_one, sha256  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +59,16 @@ def replace_table(table: pd.DataFrame, path: pathlib.Path) -> None:
     os.replace(partial, path)
 
 
-def add_mirna(name: str, mirnas_path: pathlib.Path, mature_fasta: pathlib.Path) -> None:
+def add_mirna(name: str, mirnas_path: pathlib.Path, mature_fasta: pathlib.Path) -> bool:
+    """Adds the miRNA if it is new to the benchmark; returns whether it was added."""
     mirnas = pd.read_csv(mirnas_path, sep="\t", keep_default_na=False)
     if name in set(mirnas.mirna_name):
-        return
+        return False
     sequence = mirbase_sequence(name, mature_fasta)
     row = {"mirna_name": name, "mirna_sequence": sequence, "seed_2_8": sequence[1:8], "seed_family": ""}
     replace_table(pd.concat([mirnas, pd.DataFrame([row])], ignore_index=True), mirnas_path)
     logger.info("Added %s to %s", name, mirnas_path)
+    return True
 
 
 def comparison_row(config: dict) -> dict:
@@ -109,21 +111,32 @@ def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo
         raise ValueError("No gene of the benchmark gene list has a usable estimate. Counts need Ensembl gene IDs without "
                          "version suffixes, such as ENSG00000141510.")
 
-    add_mirna(config["mirna_name"], repo / MIRNAS, repo / MATURE_FASTA)
-    replace_table(with_row(benchmark_data / "experiments.tsv", row), benchmark_data / "experiments.tsv")
-    # comparisons.tsv goes last: an experiment counts as added once it is listed there, so anything before can be retried
-    partial = comparisons.with_name(f"{comparisons.name}.part")
-    with_row(comparisons, comparison_row(config)).to_csv(partial, sep="\t", index=False)
-    manifest_path = benchmark_data / "manifest.json"
-    if manifest_path.is_file():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["tables"][dataset_id] = row["table_sha256"]
-        manifest["experiments"] = len(manifest["tables"])
-        manifest["comparisons_sha256"] = sha256(partial)
+    mirnas_before = (repo / MIRNAS).read_bytes()
+    added_mirna = add_mirna(config["mirna_name"], repo / MIRNAS, repo / MATURE_FASTA)
+    try:
+        experiments = with_row(benchmark_data / "experiments.tsv", row)
+        replace_table(experiments, benchmark_data / "experiments.tsv")
+        # comparisons.tsv goes last: an experiment counts as added once it is listed there, so anything before can be retried
+        partial = comparisons.with_name(f"{comparisons.name}.part")
+        with_row(comparisons, comparison_row(config)).to_csv(partial, sep="\t", index=False)
+        manifest_path = benchmark_data / "manifest.json"
+        if manifest_path.is_file():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tables"][dataset_id] = row["table_sha256"]
+            manifest["experiments"] = len(manifest["tables"])
+            manifest["comparisons_sha256"] = sha256(partial)
+        else:
+            manifest = build_manifest(repo / GENES, partial, dict(zip(experiments.experiment_id, experiments.table_sha256)))
         manifest_partial = manifest_path.with_name(f"{manifest_path.name}.part")
         write_json(manifest, manifest_partial)
         os.replace(manifest_partial, manifest_path)
-    os.replace(partial, comparisons)
+        os.replace(partial, comparisons)
+    except BaseException:
+        if added_mirna:  # without its experiment the new miRNA would only join the decoys of the others
+            restore = (repo / MIRNAS).with_name(f"{MIRNAS.name}.part")
+            restore.write_bytes(mirnas_before)
+            os.replace(restore, repo / MIRNAS)
+        raise
     logger.info("%s: %d responsive, %d no response, %d unresolved at d = 0.5", dataset_id, row["d05_responsive"],
                 row["d05_no_response_above_margin"], row["d05_unresolved"])
     return benchmark_data / row["table"]

@@ -81,7 +81,7 @@ class AddExperimentTests(unittest.TestCase):
             with self.subTest(name), self.fail_replacing(target), self.assertRaises(OSError):
                 self.run_add()
             self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1"])
-        self.assertIn("hsa-miR-16-5p", set(pd.read_csv(self.root / add.MIRNAS, sep="\t").mirna_name))
+            self.assertEqual(list(pd.read_csv(self.root / add.MIRNAS, sep="\t").mirna_name), ["hsa-miR-16-5p"])
         json.loads((self.data / "manifest.json").read_text())  # still valid after the failed writes
         self.run_add()
         self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
@@ -94,6 +94,9 @@ class AddExperimentTests(unittest.TestCase):
         self.data.rmdir()
         self.run_add()
         self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["my_experiment"])
+        manifest = json.loads((self.data / "manifest.json").read_text())
+        self.assertEqual(manifest["tables"], {"my_experiment": "abc"})
+        self.assertEqual(manifest["comparisons_sha256"], add.sha256(self.data / "comparisons.tsv"))
 
     def test_only_oe_with_replicates_is_accepted(self):
         with self.assertRaisesRegex(ValueError, "overexpression"):

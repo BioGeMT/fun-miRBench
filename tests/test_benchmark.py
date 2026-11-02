@@ -33,6 +33,11 @@ class MetricTests(unittest.TestCase):
         self.assertLess(s["c"], s["a"])
         self.assertTrue((benchmark.rank_last(pd.Series(dtype=float), genes) == 0).all())
 
+    def test_decoy_z_is_na_when_the_decoys_do_not_vary(self):
+        rng = np.random.default_rng(3)  # with this draw the SD of the three equal correlations is not exactly 0
+        y, decoy = rng.normal(size=50), rng.normal(size=50)
+        self.assertTrue(np.isnan(benchmark.decoy_z(y, [decoy, decoy.copy(), decoy.copy()], y)))
+
     def test_group_bootstrap(self):
         rng = np.random.default_rng(0)
         v = pd.Series([1.0, 1.0, 3.0, 3.0])
@@ -49,9 +54,15 @@ class RecoveryTests(unittest.TestCase):
         score = np.arange(n, 0, -1, dtype=float)
         positive = np.zeros(n, dtype=bool)
         positive[[0, 30]] = True  # one positive in the top 10, one below
-        recalls = benchmark.recall_at_budgets(score, positive, np.array([f"g{i:02d}" for i in range(n)]))
+        recalls = benchmark.recall_at_budgets(score, positive)
         self.assertEqual(recalls[10], 0.5)
         self.assertEqual(recalls[50], 1.0)
+
+    def test_recall_cutting_a_tied_block_counts_its_share(self):
+        score = np.r_[1.0, np.zeros(99)]
+        positive = np.zeros(100, dtype=bool)
+        positive[[0, 50, 60]] = True  # the top gene, then 2 positives among 99 tied genes
+        self.assertAlmostEqual(benchmark.recall_at_budgets(score, positive)[10], (1 + 9 * 2 / 99) / 3)
 
     def test_precision_at_recall_admits_tied_genes_together(self):
         score = np.array([3.0, 2.0, 2.0, 2.0, 1.0, 1.0])
@@ -87,6 +98,8 @@ class ReportTests(unittest.TestCase):
         means = pd.DataFrame({"auroc_d05": [np.nan], "spearman_shrunk": [0.1], "decoy_z_shrunk": [1.0]}, index=["Tool"])
         lines = report_pdf.key_results(means, pd.Series([np.nan], index=["Tool"]))
         self.assertEqual(lines, ["Highest mean Spearman: Tool (0.100)."])
+        lines = report_pdf.key_results(means.assign(spearman_shrunk=np.nan), pd.Series([np.nan], index=["Tool"]))
+        self.assertTrue(lines[0].startswith("No Spearman"))
 
 
 class EndToEndTests(unittest.TestCase):
