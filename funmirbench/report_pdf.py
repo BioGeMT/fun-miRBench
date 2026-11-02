@@ -197,12 +197,15 @@ def coverage_lines(responsive_pairs: pd.Series) -> list[str]:
 
 
 def key_results(means: pd.DataFrame, responsive_pairs: pd.Series) -> list[str]:
-    spearman = means.spearman_shrunk.idxmax()
     lines = [f"Highest mean AUROC: {means.auroc_d05.idxmax()} ({_format_summary_value(means.auroc_d05.max())})."] \
         if means.auroc_d05.notna().any() else []
-    return [*lines,
-            f"Highest mean Spearman: {spearman} ({_format_summary_value(means.spearman_shrunk[spearman])}).",
-            *coverage_lines(responsive_pairs)]
+    if means.spearman_shrunk.notna().any():
+        lines.append(f"Highest mean Spearman: {means.spearman_shrunk.idxmax()} "
+                     f"({_format_summary_value(means.spearman_shrunk.max())}).")
+    else:
+        lines.append("No Spearman: every predictor ranks all measured genes equally, as when it has no scores "
+                     "for the miRNA.")
+    return [*lines, *coverage_lines(responsive_pairs)]
 
 
 def draw_inventory(pdf, rows: list[list[str]]) -> None:

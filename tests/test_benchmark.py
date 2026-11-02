@@ -87,6 +87,8 @@ class ReportTests(unittest.TestCase):
         means = pd.DataFrame({"auroc_d05": [np.nan], "spearman_shrunk": [0.1], "decoy_z_shrunk": [1.0]}, index=["Tool"])
         lines = report_pdf.key_results(means, pd.Series([np.nan], index=["Tool"]))
         self.assertEqual(lines, ["Highest mean Spearman: Tool (0.100)."])
+        lines = report_pdf.key_results(means.assign(spearman_shrunk=np.nan), pd.Series([np.nan], index=["Tool"]))
+        self.assertTrue(lines[0].startswith("No Spearman"))
 
 
 class EndToEndTests(unittest.TestCase):
