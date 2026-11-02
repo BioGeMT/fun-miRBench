@@ -61,6 +61,25 @@ def run_one(row, *, genes: pathlib.Path, out: pathlib.Path, rscript: str) -> dic
     return rec
 
 
+def build_manifest(genes: pathlib.Path, comparisons: pathlib.Path, tables: dict[str, str]) -> dict:
+    """Hashes of the inputs and tables, and the state definitions; tables maps experiment_id to table SHA-256."""
+    return {
+        "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "gene_list": str(genes), "gene_list_sha256": sha256(genes),
+        "label_states_R_sha256": sha256(HERE / "label_states.R"),
+        "states": {"responsive": "oriented shrunken log2FC > 0 and FSOS s-value against d < 0.05 (repression direction, over listed genes), and not no_response_above_margin",
+                   "no_response_above_margin": "oriented shrunken log2FC + 1.959964 * lfcSE_shrunk < d",
+                   "unresolved": "everything else, including genes with no usable estimate"},
+        "raw_states": {"responsive": "threshold-test FDR < 0.05 (BH over listed genes after independent filtering)",
+                       "no_response_above_margin": "oriented log2FC + 1.959964 * lfcSE < d"},
+        "margins": D_GRID,
+        "raw_margins": {"d05": 0.5, "d10": 1.0},
+        "experiments": len(tables),
+        "comparisons_sha256": sha256(comparisons),
+        "tables": tables,
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--fits", type=pathlib.Path, required=True)
@@ -88,21 +107,8 @@ def main() -> None:
     if set(comps.experiment_id) != set(summary.experiment_id):
         raise ValueError("--comparisons must list exactly the fitted comparisons")
     shutil.copyfile(args.comparisons, args.out / "comparisons.tsv")
-    manifest = {
-        "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "gene_list": str(args.genes), "gene_list_sha256": sha256(args.genes),
-        "label_states_R_sha256": sha256(HERE / "label_states.R"),
-        "states": {"responsive": "oriented shrunken log2FC > 0 and FSOS s-value against d < 0.05 (repression direction, over listed genes), and not no_response_above_margin",
-                   "no_response_above_margin": "oriented shrunken log2FC + 1.959964 * lfcSE_shrunk < d",
-                   "unresolved": "everything else, including genes with no usable estimate"},
-        "raw_states": {"responsive": "threshold-test FDR < 0.05 (BH over listed genes after independent filtering)",
-                       "no_response_above_margin": "oriented log2FC + 1.959964 * lfcSE < d"},
-        "margins": D_GRID,
-        "raw_margins": {"d05": 0.5, "d10": 1.0},
-        "experiments": len(summary),
-        "comparisons_sha256": sha256(args.out / "comparisons.tsv"),
-        "tables": {r["experiment_id"]: r["table_sha256"] for r in rows},
-    }
+    manifest = build_manifest(args.genes, args.out / "comparisons.tsv",
+                              {r["experiment_id"]: r["table_sha256"] for r in rows})
     (args.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(summary[["experiment_id", "d05_responsive", "d05_no_response_above_margin",
                    "d05_unresolved"]].to_string(index=False))

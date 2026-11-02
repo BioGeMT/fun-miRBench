@@ -94,6 +94,9 @@ class AddExperimentTests(unittest.TestCase):
         self.data.rmdir()
         self.run_add()
         self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["my_experiment"])
+        manifest = json.loads((self.data / "manifest.json").read_text())
+        self.assertEqual(manifest["tables"], {"my_experiment": "abc"})
+        self.assertEqual(manifest["comparisons_sha256"], add.sha256(self.data / "comparisons.tsv"))
 
     def test_only_oe_with_replicates_is_accepted(self):
         with self.assertRaisesRegex(ValueError, "overexpression"):
