@@ -64,7 +64,7 @@ Without `--groups`, both scripts take all three groups. `main` is about 2 GB of 
 uv run funmirbench-single-cell-eval --config single_cell_eval.yaml
 ```
 
-It needs `<final>/comparisons.tsv`, the standardized predictions and `per_comparison.tsv` of a `funmirbench` run on the bulk experiments. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, and `seed_check.tsv`, `seed_check_bulk.tsv` and `control_check.tsv`, which were computed separately because they need the 3'UTR sequences and the cell stores. The output is `REPORT.pdf`, two plots in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_per_screen.tsv`, `machinery_summary.tsv`, `data_checks.tsv`, and the bulk evaluator's own run in `evaluator/`.
+It needs `<final>/comparisons.tsv`, the standardized predictions and `per_comparison.tsv` of a `funmirbench` run on the bulk experiments. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, and `seed_check.tsv`, `seed_check_bulk.tsv` and `control_check.tsv`, which were computed separately because they need the 3'UTR sequences and the cell stores. The output is `REPORT.pdf`, with two figures of grouped bars and tables of the same numbers, the figures in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_family_coverage.tsv`, `data_checks.tsv` (with `in_figure`), and the bulk evaluator's own run in `evaluator/`.
 
 ## Final data
 

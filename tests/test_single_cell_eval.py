@@ -81,5 +81,23 @@ class FamilyTests(unittest.TestCase):
         np.testing.assert_allclose(combined, [(0.5 * 0.5) / 0.75, 0.25 / 0.75])
 
 
+class FigureMachineryTests(unittest.TestCase):
+    def test_only_figure_screens_with_a_clear_transcript_drop_are_drawn(self):
+        rows = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen", "main_row"], "group": ["machinery", "machinery", "machinery", "main"],
+                             "dataset": ["Replogle2022_K562_GW", "Replogle2022_K562_GW", "XAtlasOrion_HCT116", "DATA"]})
+        drop = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen"], "target_ci95_high": [-0.5, 0.1, -2.0]})
+        self.assertEqual(single_cell_eval.figure_machinery(rows, drop).comparison_id.tolist(), ["clear"])
+
+    def test_a_screen_median_counts_each_experiment_once_and_keeps_gene_types_apart(self):
+        record = lambda comparison, gene_type, value: {"comparison_id": comparison, "screen": "Replogle2022_K562_GW", "gene_type": gene_type, "predictor": "tool",
+                                                       "auroc_d05": np.nan, "spearman_shrunk": value, "decoy_z_shrunk": value}
+        machinery = pd.DataFrame([record("a", "miRNA-making", 1.0), record("b", "miRNA-making", 3.0), record("c", "repression", 5.0), record("left_out", "repression", 100.0)])
+        kept = pd.DataFrame({"comparison_id": ["a", "b", "c"]})
+        tables, n_making = single_cell_eval.machinery_tables(machinery, kept, pd.DataFrame({"tool_id": ["tool"]}))
+        self.assertEqual(n_making, 1)
+        self.assertEqual(tables["spearman_shrunk"].tool.tolist(), [2.0, 5.0])
+        self.assertEqual(tables["spearman_shrunk"].index.tolist(), ["K562 GW (2)", "K562 GW (1)"])
+
+
 if __name__ == "__main__":
     unittest.main()

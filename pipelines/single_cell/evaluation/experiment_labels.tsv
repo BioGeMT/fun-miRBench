@@ -1,9 +1,9 @@
-comparison_id	label	control
-miR-874-3p_mimic_MCF7_36h	miR-874 mimic, breast cancer cells	control miRNA
-mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h	miR-365 mimic, heart muscle cells	antimiR-365
-miR-98-5p_mimic_H9_d02_d03	miR-98 mimic, stem cells	control mimic
-miR-192-5p_LNP_mimic_PBMC_24h	miR-192 mimic, blood immune cells	saline
-antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h	miR-365 antimiR, heart muscle cells	control antimiR
-miR-18a_KO_A375	miR-18a knockout clone, A375 cells	wild type
-miR-449a_miR-340-5p_RD18_60h	miR-449a and miR-340-5p, RD18 cells	lipofectamine only
-let-7i_miR-452_OE_iPSC-CM	let-7i and miR-452, heart muscle cells	empty vector
+comparison_id	label	control	caveats
+miR-874-3p_mimic_MCF7_36h	miR-874 mimic	control miRNA	MCF7 cells, 36 h. One culture per group, split into three pseudo-replicates. Treated and control are separate libraries. miR-874 drives apoptosis by 36 h, so dying cells may be included.
+mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h	miR-365 mimic	antimiR-365	Heart muscle cells, 48 h. No neutral control: raising against lowering the same miRNA, so the effect is not one-sided. One library per group, split into three pseudo-replicates.
+miR-98-5p_mimic_H9_d02_d03	miR-98 mimic	control mimic	H9 stem cells. Two paired time points, days 2 and 3, with the day as batch; independent cultures are not established. The early window was chosen after later days lost the seed effect. let-7 family.
+miR-192-5p_LNP_mimic_PBMC_24h	miR-192 mimic	saline	Blood immune cells. Control is saline, with no control-mimic nanoparticle, so the carrier response is in the effect. GEO says saline 24 h, the paper says 4 h. Hashed into one lane, three pseudo-replicates.
+antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h	miR-365 antimiR	control antimiR	Heart muscle cells from a patient line, 48 h. Lowers the miRNA. Hashed into one lane, groups unbalanced about 3 to 1, treatment tags inferred from the pooling ratio, three pseudo-replicates.
+miR-18a_KO_A375	miR-18a knockout	wild type	A375 cells. One knockout clone; merged libraries, so three pseudo-replicates.
+miR-449a_miR-340-5p_RD18_60h	miR-449a and miR-340-5p	lipofectamine only	RD18 single nuclei, 60 h. Two miRNAs delivered together, no control mimic, three pseudo-replicates.
+let-7i_miR-452_OE_iPSC-CM	let-7i and miR-452	empty vector	Heart muscle cells. Two miRNAs raised together, few cells, three pseudo-replicates.
