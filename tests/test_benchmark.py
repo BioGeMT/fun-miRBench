@@ -54,9 +54,15 @@ class RecoveryTests(unittest.TestCase):
         score = np.arange(n, 0, -1, dtype=float)
         positive = np.zeros(n, dtype=bool)
         positive[[0, 30]] = True  # one positive in the top 10, one below
-        recalls = benchmark.recall_at_budgets(score, positive, np.array([f"g{i:02d}" for i in range(n)]))
+        recalls = benchmark.recall_at_budgets(score, positive)
         self.assertEqual(recalls[10], 0.5)
         self.assertEqual(recalls[50], 1.0)
+
+    def test_recall_cutting_a_tied_block_counts_its_share(self):
+        score = np.r_[1.0, np.zeros(99)]
+        positive = np.zeros(100, dtype=bool)
+        positive[[0, 50, 60]] = True  # the top gene, then 2 positives among 99 tied genes
+        self.assertAlmostEqual(benchmark.recall_at_budgets(score, positive)[10], (1 + 9 * 2 / 99) / 3)
 
     def test_precision_at_recall_admits_tied_genes_together(self):
         score = np.array([3.0, 2.0, 2.0, 2.0, 1.0, 1.0])

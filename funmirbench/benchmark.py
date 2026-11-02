@@ -117,10 +117,13 @@ def score_metrics(score: pd.Series, table: pd.DataFrame, *, min_per_state: int) 
     return rec
 
 
-def recall_at_budgets(score: np.ndarray, positive: np.ndarray, genes: np.ndarray) -> dict[int, float]:
-    """Share of the positives among the top genes for each budget; ties in gene order."""
-    found = np.cumsum(positive[np.lexsort((genes, -score))])
-    return {b: found[min(b, len(found)) - 1] / positive.sum() for b in BUDGETS}
+def recall_at_budgets(score: np.ndarray, positive: np.ndarray) -> dict[int, float]:
+    """Share of the positives among the top genes for each budget; a tied block cut by the budget counts in
+    proportion to the genes taken from it, the mean over every order of the tied genes."""
+    by_score = pd.DataFrame({"score": score, "positive": positive}).groupby("score").positive.agg(["size", "sum"])
+    by_score = by_score.sort_index(ascending=False)
+    taken, found = np.r_[0, by_score["size"].cumsum()], np.r_[0, by_score["sum"].cumsum()]
+    return {b: np.interp(b, taken, found) / positive.sum() for b in BUDGETS}
 
 
 def precision_at_recall(score: np.ndarray, positive: np.ndarray, target: float = RECALL_TARGET) -> dict:
@@ -267,7 +270,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
                               "no_response_total": int(no_response.sum())})
             if enough:
                 s = rankings[tool].to_numpy(float)
-                recalls = recall_at_budgets(s, responsive, universe.to_numpy())  # budgets count every gene
+                recalls = recall_at_budgets(s, responsive)  # budgets count every gene
                 recovery_rows += [{"experiment_id": c.experiment_id, "predictor": tool, "budget": b, "recall": r}
                                   for b, r in recalls.items()]
                 precision_rows.append({"experiment_id": c.experiment_id, "predictor": tool,
