@@ -134,9 +134,12 @@ def precision_at_recall(score: np.ndarray, positive: np.ndarray, target: float =
 
 
 def decoy_z(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> float:
-    """z of the Spearman of the cognate scores with y against the Spearman of each decoy's scores; needs two decoys."""
+    """z of the Spearman of the cognate scores with y against the Spearman of each decoy's scores; NA with fewer than
+    two decoys or when the decoy correlations do not vary."""
     dvals = np.array([v for v in (spearman(d, y) for d in decoys) if not np.isnan(v)])
-    return (spearman(cognate, y) - dvals.mean()) / dvals.std(ddof=1) if len(dvals) > 1 else np.nan
+    if len(dvals) < 2 or dvals.std(ddof=1) == 0:
+        return np.nan
+    return (spearman(cognate, y) - dvals.mean()) / dvals.std(ddof=1)
 
 
 # ---------------------------------------------------------------- inputs

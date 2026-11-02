@@ -33,6 +33,11 @@ class MetricTests(unittest.TestCase):
         self.assertLess(s["c"], s["a"])
         self.assertTrue((benchmark.rank_last(pd.Series(dtype=float), genes) == 0).all())
 
+    def test_decoy_z_is_na_when_the_decoys_do_not_vary(self):
+        rng = np.random.default_rng(0)
+        y, decoy = rng.normal(size=50), rng.normal(size=50)
+        self.assertTrue(np.isnan(benchmark.decoy_z(y, [decoy, decoy.copy()], y)))
+
     def test_group_bootstrap(self):
         rng = np.random.default_rng(0)
         v = pd.Series([1.0, 1.0, 3.0, 3.0])
