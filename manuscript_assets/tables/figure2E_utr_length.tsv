@@ -1,2 +1,0 @@
-metric	fgs_genes	igs_genes	non_igs_genes	n_igs	n_non_igs	mean_igs	mean_non_igs	mean_difference_igs_minus_non_igs	median_igs	median_non_igs	mann_whitney_pvalue_two_sided_normal_approx	pvalue_label
-3'UTR length	19524	11230	8294	11230	7730	2532.3551202137132	1311.5034928848643	1220.851627328849	1891.5	637.0	0.0	<1e-308

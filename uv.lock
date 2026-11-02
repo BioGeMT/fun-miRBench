@@ -357,11 +357,18 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pybigwig" },
     { name = "pyyaml" },
     { name = "requests" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
@@ -369,12 +376,15 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "matplotlib", specifier = ">=3.9" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "pandas", specifier = ">=2.2" },
-    { name = "pybigwig", specifier = ">=0.3.25" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "requests", specifier = ">=2.32" },
-    { name = "scikit-learn", specifier = ">=1.5" },
+    { name = "scipy", specifier = ">=1.11" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "scikit-learn", specifier = ">=1.5" }]
 
 [[package]]
 name = "idna"
@@ -982,18 +992,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/00/98/fc53ab36da80b88df0967896b6c4b4cd948a0dc5aa40a754266aa3ae48b3/pillow-12.1.1-pp311-pypy311_pp73-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f975aa7ef9684ce7e2c18a3aa8f8e2106ce1e46b94ab713d156b2898811651d3", size = 5313850, upload-time = "2026-02-11T04:23:00.554Z" },
     { url = "https://files.pythonhosted.org/packages/30/02/00fa585abfd9fe9d73e5f6e554dc36cc2b842898cbfc46d70353dae227f8/pillow-12.1.1-pp311-pypy311_pp73-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8089c852a56c2966cf18835db62d9b34fef7ba74c726ad943928d494fa7f4735", size = 5963343, upload-time = "2026-02-11T04:23:02.934Z" },
     { url = "https://files.pythonhosted.org/packages/f2/26/c56ce33ca856e358d27fda9676c055395abddb82c35ac0f593877ed4562e/pillow-12.1.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:cb9bb857b2d057c6dfc72ac5f3b44836924ba15721882ef103cecb40d002d80e", size = 7029880, upload-time = "2026-02-11T04:23:04.783Z" },
-]
-
-[[package]]
-name = "pybigwig"
-version = "0.3.25"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cf/f4/672930ad51bbc135f51cac89577155f1d0c2d120375fc77978d3aa071bb7/pybigwig-0.3.25.tar.gz", hash = "sha256:8c717b0222e6677956fd659c8a21650983679ffb3314427d7f68d2910fad202a", size = 75287, upload-time = "2026-01-14T15:00:01.986Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/59/69032bf511d51bbc2d45311110386042a7b6a62e6149f919e94a1b55979e/pybigwig-0.3.25-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d5cf56ac1c6d5c3c625f0e97c817233f811deb06350caa1b0e6881226b088684", size = 183525, upload-time = "2026-01-14T15:00:03.132Z" },
-    { url = "https://files.pythonhosted.org/packages/0b/11/d6cc872893faad265a1ab201bda92d8c79ca06558f36e431634beeccc51b/pybigwig-0.3.25-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c10381d784af6e2a8c1e5313548c2b23b46c0495eea33a5dff4ccb3e44c19cb1", size = 185835, upload-time = "2026-01-14T15:00:04.08Z" },
-    { url = "https://files.pythonhosted.org/packages/7a/f6/51d8a97116de23c9280c1fa3b813bc088f8571ce5936ba84af1ecf13ed45/pybigwig-0.3.25-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:852c41f00afc610322eb3c5aba74068d05b340d09db4573db2deca330ad48f30", size = 187030, upload-time = "2026-01-14T15:00:05.322Z" },
-    { url = "https://files.pythonhosted.org/packages/5b/e6/01ada46425bd120b36e7c2f6fe74a980de6912d416f07c9c85b22fadd515/pybigwig-0.3.25-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ba907b069ad498647661cc376ba79438728a321afb61a9eca333d60ca9c6d9a6", size = 186996, upload-time = "2026-01-14T15:00:06.704Z" },
 ]
 
 [[package]]

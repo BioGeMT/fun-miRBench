@@ -1,4 +1,5 @@
 import gzip
+import hashlib
 import json
 import os
 import tempfile
@@ -9,10 +10,7 @@ from unittest.mock import patch
 
 import requests
 
-from funmirbench.experiment_store import (
-    ensure_zenodo_experiment_cached,
-    sync_zenodo_experiments,
-)
+from funmirbench.benchmark_data_store import sync_family_expanded_targetscan, sync_benchmark_data
 from funmirbench.predictor_store import _download_archive, sync_zenodo_predictors
 from funmirbench.zenodo_store import compute_md5
 
@@ -36,124 +34,6 @@ class FailingResponse(FakeResponse):
 
 
 class ZenodoArtifactTests(unittest.TestCase):
-    def test_experiment_sync_leaves_pipeline_file_untouched(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            repo = Path(temporary_directory)
-            destination = repo / "data/experiments/processed/example.tsv"
-            destination.parent.mkdir(parents=True)
-            destination.write_bytes(b"pipeline output\n")
-            registry = {
-                "example.tsv": {
-                    "checksum": "md5:00000000000000000000000000000000",
-                    "url": "https://example.test/example.tsv",
-                }
-            }
-
-            with patch("funmirbench.experiment_store.requests.get") as request:
-                paths = sync_zenodo_experiments(
-                    ["data/experiments/processed/example.tsv"],
-                    repo=repo,
-                    registry=registry,
-                    force=True,
-                )
-
-            self.assertEqual(paths, [])
-            self.assertEqual(destination.read_bytes(), b"pipeline output\n")
-            request.assert_not_called()
-
-    def test_experiment_sync_validates_existing_cache(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            repo = Path(temporary_directory)
-            payload = b"gene_id\tlogFC\tFDR\nENSG1\t1.2\t0.01\n"
-            destination = repo / "data/experiments/processed/21671476/example.tsv"
-            destination.parent.mkdir(parents=True)
-            destination.write_bytes(payload)
-            registry = {
-                "example.tsv": {
-                    "checksum": f"md5:{compute_md5(destination)}",
-                    "url": "https://example.test/example.tsv",
-                }
-            }
-
-            with patch("funmirbench.experiment_store.requests.get") as request:
-                paths = sync_zenodo_experiments(
-                    ["data/experiments/processed/21671476/example.tsv"],
-                    repo=repo,
-                    registry=registry,
-                )
-
-            self.assertEqual(paths, [destination])
-            request.assert_not_called()
-
-            destination.write_bytes(b"corrupt local cache\n")
-            with self.assertRaisesRegex(ValueError, "failed checksum verification"):
-                sync_zenodo_experiments(
-                    ["data/experiments/processed/21671476/example.tsv"],
-                    repo=repo,
-                    registry=registry,
-                )
-
-    def test_compressed_experiment_cache_requires_manifest(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            repo = Path(temporary_directory)
-            payload = b"gene_id\tlogFC\tFDR\nENSG1\t1.2\t0.01\n"
-            compressed = gzip.compress(payload)
-            compressed_path = repo / "remote.tsv.gz"
-            compressed_path.write_bytes(compressed)
-            destination = repo / "data/experiments/processed/21671476/example.tsv"
-            destination.parent.mkdir(parents=True)
-            destination.write_bytes(payload)
-            registry = {
-                "example.tsv.gz": {
-                    "checksum": f"md5:{compute_md5(compressed_path)}",
-                    "url": "https://example.test/example.tsv.gz",
-                }
-            }
-
-            with self.assertRaisesRegex(ValueError, "Rerun with --force"):
-                sync_zenodo_experiments(
-                    ["data/experiments/processed/21671476/example.tsv"],
-                    repo=repo,
-                    registry=registry,
-                )
-
-    def test_experiment_download_accepts_flat_gzipped_artifact(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            repo = Path(temporary_directory)
-            payload = b"gene_id\tlogFC\tFDR\nENSG1\t1.2\t0.01\n"
-            compressed = gzip.compress(payload)
-            compressed_path = repo / "remote.tsv.gz"
-            compressed_path.write_bytes(compressed)
-            destination = repo / "data/experiments/processed/21671476/example.tsv"
-            registry = {
-                "example.tsv.gz": {
-                    "checksum": f"md5:{compute_md5(compressed_path)}",
-                    "url": "https://example.test/example.tsv.gz",
-                }
-            }
-
-            with patch("funmirbench.experiment_store.requests.get", return_value=FakeResponse(compressed)):
-                cached = ensure_zenodo_experiment_cached(
-                    "data/experiments/processed/21671476/example.tsv",
-                    repo=repo,
-                    registry=registry,
-                )
-
-            self.assertEqual(cached, destination)
-            self.assertEqual(destination.read_bytes(), payload)
-            manifest_path = destination.with_name("example.tsv.funmirbench.json")
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            self.assertEqual(manifest["remote_filename"], "example.tsv.gz")
-            self.assertEqual(manifest["remote_checksum"], registry["example.tsv.gz"]["checksum"])
-
-            destination.write_bytes(b"corrupt local cache\n")
-            with self.assertRaises(ValueError):
-                ensure_zenodo_experiment_cached(
-                    "data/experiments/processed/21671476/example.tsv",
-                    repo=repo,
-                    registry=registry,
-                )
-
     def test_predictor_sync_extracts_nested_gzipped_members(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             repo = Path(temporary_directory)
@@ -288,6 +168,47 @@ class ZenodoArtifactTests(unittest.TestCase):
                 list(directory.glob(".funmirbench_predictors.*.zip")),
                 [],
             )
+
+    def test_benchmark_data_is_unpacked_once_and_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            archive = repo / "benchmark_data.zip"
+            with zipfile.ZipFile(archive, "w") as handle:
+                handle.writestr("benchmark_data/comparisons.tsv", "experiment_id\n")
+                handle.writestr("benchmark_data/genes/E1.tsv.gz", "table")
+            payload = archive.read_bytes()
+            archive.unlink()
+            meta = {"filename": "benchmark_data.zip", "url": "https://example.org/benchmark_data.zip", "size": len(payload)}
+            registry = {"benchmark_data.zip": {**meta, "checksum": "md5:" + hashlib.md5(payload).hexdigest()}}
+            with patch("funmirbench.predictor_store.requests.get", return_value=FakeResponse(payload)) as get:
+                final = sync_benchmark_data(repo=repo, registry=registry)
+                self.assertEqual(sync_benchmark_data(repo=repo, registry=registry), final)
+            self.assertEqual(get.call_count, 1)
+            self.assertEqual(final, (repo / "data/benchmark_data").resolve())
+            self.assertEqual((final / "genes/E1.tsv.gz").read_text(), "table")
+            self.assertEqual([p.name for p in final.parent.iterdir()], ["benchmark_data"])
+            # An existing folder, such as tables built from reads, is only replaced on request.
+            (final / "own.tsv").write_text("x")
+            with patch("funmirbench.predictor_store.requests.get", return_value=FakeResponse(payload)):
+                sync_benchmark_data(repo=repo, registry=registry)
+                self.assertTrue((final / "own.tsv").exists())
+                sync_benchmark_data(repo=repo, registry=registry, force=True)
+            self.assertFalse((final / "own.tsv").exists())
+
+    def test_family_expanded_targetscan_is_decompressed_to_its_registered_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "metadata").mkdir()
+            (repo / "metadata/predictions_info.tsv").write_text(
+                "tool_id\tpredictor_output_path\ntargetscan_family_expanded\tdata/predictions/t/expanded.tsv\n")
+            payload = gzip.compress(b"scores")
+            name = "targetscan_family_expanded_standardized.tsv.gz"
+            registry = {name: {"filename": name, "url": "https://example.org/x", "size": len(payload),
+                               "checksum": "md5:" + hashlib.md5(payload).hexdigest()}}
+            with patch("funmirbench.predictor_store.requests.get", return_value=FakeResponse(payload)):
+                path = sync_family_expanded_targetscan(repo=repo, registry=registry)
+            self.assertEqual(path.read_bytes(), b"scores")
+            self.assertEqual([p.name for p in path.parent.iterdir()], ["expanded.tsv"])
 
 
 if __name__ == "__main__":

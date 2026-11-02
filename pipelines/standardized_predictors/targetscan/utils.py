@@ -21,6 +21,9 @@ MIRBASE_RELEASE = "22.1"
 MIRBASE_MATURE_URL = "https://mirbase.org/download_version_files/22.1/mature.fa"
 PREDICTOR_NAME = "targetscan"
 TARGETSCAN_SCORE_COL = "Cumulative weighted context++ score"
+STANDARDIZED_FIELDNAMES = ["Ensembl_ID", "Gene_Name", "miRNA_ID", "miRNA_Name", "Score"]
+# Provenance columns written only when family rows are expanded to every member miRNA.
+FAMILY_EXPANSION_FIELDNAMES = ["TargetScan_miRNA_Family", "TargetScan_Representative_miRNA"]
 
 
 def repo_root() -> pathlib.Path:
@@ -508,6 +511,39 @@ def step_build_human_mirna_annotations(
     return annotations
 
 
+def step_build_human_mirna_family_members(
+    mir_family_info_path: pathlib.Path,
+    *,
+    species_id: str = "9606",
+) -> Dict[str, List[str]]:
+    """Map each TargetScan family key (``Seed+m8``) to its member ``MiRBase ID`` values.
+
+    ``Summary_Counts`` reports one row per transcript and family under the family's
+    ``Seed+m8`` key, scored for a single ``Representative miRNA``.
+    """
+    members: Dict[str, List[str]] = {}
+    with pathlib.Path(mir_family_info_path).open("r", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        for row in reader:
+            if row["Species ID"].strip() != species_id:
+                continue
+            seed = row["Seed+m8"].strip()
+            mir_name_ts = row["MiRBase ID"].strip()
+            if not seed or not mir_name_ts:
+                continue
+            family = members.setdefault(seed, [])
+            if mir_name_ts not in family:
+                family.append(mir_name_ts)
+
+    logger.info(
+        "miR_Family_Info family members: families=%d | member_mirnas=%d | multi_member_families=%d",
+        len(members),
+        sum(len(family) for family in members.values()),
+        sum(1 for family in members.values() if len(family) > 1),
+    )
+    return members
+
+
 def step_write_standardized_predictions(
     summary_counts_path: pathlib.Path,
     *,
@@ -516,7 +552,15 @@ def step_write_standardized_predictions(
     mirna_annotations: Dict[str, MirnaEntry],
     output_path: pathlib.Path,
     species_id: str = "9606",
+    family_members: Dict[str, List[str]] | None = None,
 ) -> None:
+    """Write standardized TargetScan predictions.
+
+    By default each family row is written for its ``Representative miRNA`` only. When
+    ``family_members`` is given, the family score is projected onto every annotated member
+    miRNA of that family (a family-level score, not an individual-miRNA score), with the
+    family key and representative miRNA kept as provenance.
+    """
     rep_txs_by_gene_id = tx_index["rep_txs_by_gene_id"]
     targetscan_gene_id_by_tx = tx_index["targetscan_gene_id_by_tx"]
     tx_to_gene_ens = ensembl_tables["tx_to_gene"]
@@ -563,7 +607,18 @@ def step_write_standardized_predictions(
                 stats["rows_missing_mirna_annotation"] += 1
                 continue
 
-            pre_mismatch_pair_counts[(gene_id_ens, mirna_entry.mirna_id)] += 1
+            target_entries = [mirna_entry]
+            mirna_family = row["miRNA family"].strip() if family_members is not None else ""
+            if family_members is not None:
+                for member in family_members.get(mirna_family, []):
+                    member_entry = mirna_annotations.get(member)
+                    if member_entry is None:
+                        stats["family_members_missing_annotation"] += 1
+                    elif member_entry not in target_entries:
+                        target_entries.append(member_entry)
+
+            for target_entry in target_entries:
+                pre_mismatch_pair_counts[(gene_id_ens, target_entry.mirna_id)] += 1
 
             targetscan_gene_id = targetscan_gene_id_by_tx.get(tx_raw)
             if targetscan_gene_id != gene_id_ens:
@@ -582,30 +637,37 @@ def step_write_standardized_predictions(
                 continue
 
             stats["rows_after_filters"] += 1
-            key = (gene_id_ens, mirna_entry.mirna_id)
-            post_mismatch_pair_counts[key] += 1
-            if key in unique_rows:
-                stats["duplicate_gene_mirna_rows"] += 1
-                if len(duplicate_examples) < 10:
-                    duplicate_examples.append(
-                        (
-                            gene_id_ens,
-                            mirna_entry.mirna_id,
-                            representative_mirna,
-                            float(unique_rows[key]["Score"]),
-                            raw_score,
-                            tx_raw,
+            for target_entry in target_entries:
+                if target_entry is not mirna_entry:
+                    stats["family_member_rows_added"] += 1
+                key = (gene_id_ens, target_entry.mirna_id)
+                post_mismatch_pair_counts[key] += 1
+                if key in unique_rows:
+                    stats["duplicate_gene_mirna_rows"] += 1
+                    if len(duplicate_examples) < 10:
+                        duplicate_examples.append(
+                            (
+                                gene_id_ens,
+                                target_entry.mirna_id,
+                                representative_mirna,
+                                float(unique_rows[key]["Score"]),
+                                raw_score,
+                                tx_raw,
+                            )
                         )
-                    )
-                continue
+                    continue
 
-            unique_rows[key] = {
-                "Ensembl_ID": gene_id_ens,
-                "Gene_Name": gene_to_name_ens.get(gene_id_ens) or row["Gene Symbol"].strip(),
-                "miRNA_ID": mirna_entry.mirna_id,
-                "miRNA_Name": mirna_entry.mirna_name,
-                "Score": raw_score,
-            }
+                record = {
+                    "Ensembl_ID": gene_id_ens,
+                    "Gene_Name": gene_to_name_ens.get(gene_id_ens) or row["Gene Symbol"].strip(),
+                    "miRNA_ID": target_entry.mirna_id,
+                    "miRNA_Name": target_entry.mirna_name,
+                    "Score": raw_score,
+                }
+                if family_members is not None:
+                    record["TargetScan_miRNA_Family"] = mirna_family
+                    record["TargetScan_Representative_miRNA"] = representative_mirna
+                unique_rows[key] = record
 
     if stats["rows_null_score"]:
         details = ", ".join(f"{tx}/{mirna}" for tx, mirna in null_score_examples)
@@ -675,10 +737,21 @@ def step_write_standardized_predictions(
             f"Sample rows: {details}"
         )
 
+    if family_members is not None:
+        logger.info(
+            "%s family expansion: member rows added=%s | member lookups without miRNA annotation=%s",
+            PREDICTOR_NAME,
+            f"{stats['family_member_rows_added']:,}",
+            f"{stats['family_members_missing_annotation']:,}",
+        )
+
+    fieldnames = list(STANDARDIZED_FIELDNAMES)
+    if family_members is not None:
+        fieldnames.extend(FAMILY_EXPANSION_FIELDNAMES)
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["Ensembl_ID", "Gene_Name", "miRNA_ID", "miRNA_Name", "Score"],
+            fieldnames=fieldnames,
             delimiter="\t",
         )
         writer.writeheader()

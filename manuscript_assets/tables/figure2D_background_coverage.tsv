@@ -1,6 +1,0 @@
-tool_id	predictor	background_pairs_scored	background_pairs_total	background_coverage
-targetscan	TargetScan v8	59104	479250	0.12332603025560772
-mirdb_mirtarget	miRDB	74580	479250	0.15561815336463225
-microt_cnn	microT-CNN	433833	479250	0.9052331768388107
-mirbind2	miRBind2-3UTR	468478	479250	0.9775232133541992
-miraw	miRAW	447766	479250	0.9343056859676578

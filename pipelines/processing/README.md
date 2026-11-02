@@ -72,7 +72,7 @@ These files are in `metadata/`.
   - `action` (keep or flag) and `flags`.
 
   Human RNA-seq samples of the study that no comparison uses are listed with role `not_used`.
-- **`mirna_experiment_info.tsv`, `predictions_info.tsv`:** the experiment and predictor lists that the evaluation (`benchmark.yaml`) reads.
+- **`predictions_info.tsv`, `benchmark_mirnas.tsv`:** the predictor list and miRNA sequences that the evaluation (`benchmark.yaml`) reads.
 
 ## Flags
 
