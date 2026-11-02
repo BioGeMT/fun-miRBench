@@ -1,5 +1,5 @@
 """miR-98-5p mimic against control mimic, H9 hESC during resetting to naive pluripotency. Days 2 and 3 share an arm name
-and stand as real replicates with the day as batch; days 8 and 14 are their own comparisons; day 5 has no control.
+and stand as two paired time points with the day as batch (GEO labels each rep1, so independent cultures are not established); days 8 and 14 are their own comparisons; day 5 has no control.
 QC: authors' thresholds (preprint 10.1101/2025.10.14.682465)."""
 
 from _sample_arms import DATA, Library, build_store, store_path
@@ -7,7 +7,7 @@ from funmirbench.single_cell_store import read_10x_mtx
 
 RAW = DATA / "GSE280065" / "matrices"
 SAMPLES = [
-    # file stem, sample, batch, arm, control type, real replicate unit
+    # file stem, sample, batch, arm, control type, replicate unit
     ("GSM8586813_ctrl_d02", "ctrl_d02", "d02", "control_d02_d03", "control_mimic", "ctrl_d02"),
     ("GSM8586814_ctrl_d03", "ctrl_d03", "d03", "control_d02_d03", "control_mimic", "ctrl_d03"),
     ("GSM8586818_mimic_d02", "mimic_d02", "d02", "mimic_d02_d03", "", "mimic_d02"),

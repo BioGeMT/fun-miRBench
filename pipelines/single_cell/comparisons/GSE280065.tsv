@@ -1,5 +1,5 @@
 comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
-miR-98-5p_mimic_H9_d02_d03	GSE280065	raise	hsa-miR-98-5p	OE	mimic_d02_d03	control_d02_d03	20		days 2 and 3 stand as real replicates, day is the batch; let-7 family
+miR-98-5p_mimic_H9_d02_d03	GSE280065	raise	hsa-miR-98-5p	OE	mimic_d02_d03	control_d02_d03	20		two paired time points, days 2 and 3, with the day as batch; independent cultures are not established; let-7 family
 miR-98-5p_mimic_H9_d05	GSE280065	raise	hsa-miR-98-5p	OE	mimic_d05	control_d05	20		no control mimic library at day 5: not fitted
 miR-98-5p_mimic_H9_d08	GSE280065	raise	hsa-miR-98-5p	OE	mimic_d08	control_d08	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; cell states of the arms diverge from day 8 (the mimic arm turns naive), so this also measures a change of state
 miR-98-5p_mimic_H9_d14	GSE280065	raise	hsa-miR-98-5p	OE	mimic_d14	control_d14	20		two libraries per arm; cell states of the arms differ by day 14, 13 days after one transfection
