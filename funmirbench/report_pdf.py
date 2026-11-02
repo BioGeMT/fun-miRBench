@@ -282,7 +282,8 @@ def draw_tables(pdf, tables: list[tuple]) -> None:
 
 def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataFrame, summary: pd.DataFrame,
                  per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFrame, precision: pd.DataFrame,
-                 tools: pd.DataFrame, n_genes: int, min_per_state: int, plots: pathlib.Path) -> None:
+                 tools: pd.DataFrame, n_genes: int, min_per_state: int, plots: pathlib.Path,
+                 detailed_reports: list | None = None) -> None:
     means = tool_means(summary, tools)
     pairs = coverage.set_index("predictor").loc[list(drawn_tools(tools))].rename(index=drawn_tools(tools))
     responsive_pairs = pairs.responsive_scored / pairs.responsive_total
@@ -330,3 +331,6 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
         draw_tables(pdf, plot_tables(per, coverage, recovery, precision, means, tools))
 
         draw_inventory(pdf, rows)
+        if detailed_reports:
+            from funmirbench.subreports import report_index_pages
+            report_index_pages(pdf, detailed_reports, base=path.parent)

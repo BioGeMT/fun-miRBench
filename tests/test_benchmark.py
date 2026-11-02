@@ -166,6 +166,15 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(coverage.loc["tool", "genes_measured"], 400)
             self.assertEqual(coverage.loc["tool", "experiments_retained"], 2)
             self.assertEqual((out / "REPORT.pdf").read_bytes()[:4], b"%PDF")
+            reports = pd.read_csv(out / "reports/index.tsv", sep="\t")
+            self.assertEqual(set(reports.kind), {"experiment", "predictor", "diagnostics", "predictor_experiment"})
+            self.assertTrue(all((out / p).is_file() for p in reports.report))
+            self.assertFalse(list((out / "reports").rglob("*rank_cdfs*")))
+            self.assertFalse(list((out / "reports").rglob("*rank_counts*")))
+            detailed = pd.read_csv(out / "reports/universe_metrics.tsv", sep="\t")
+            fps = detailed[detailed.universe == "fps"].set_index("experiment_id")
+            for exp in ("E1", "E2"):
+                self.assertAlmostEqual(fps.loc[exp, "auroc"], tool.loc[exp, "auroc_d05"])
 
     def test_unresolved_genes_use_up_the_budget_and_too_few_genes_leave_out_recovery(self):
         genes = [f"ENSG{i:011d}" for i in range(200)]
