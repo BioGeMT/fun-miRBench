@@ -12,7 +12,7 @@
 #     repression, the only one that can be called responsive: the per-gene probability that the oriented change o is
 #     below d, pnorm((d - o) / shrunken SD), then apeglm::svalue.
 #  4. States per d of the grid, on the shrunken oriented change o (-log2FC):
-#       responsive                eligible, o > 0 and FSOS s-value < 0.05;
+#       responsive                eligible, o > 0 and FSOS s-value < 0.05, and not no_response_above_margin;
 #       no_response_above_margin  eligible and o + 1.959964 * shrunken SD < d (whole 95% interval below d);
 #       unresolved                everything else.
 #     Eligible: finite log2FC, finite lfcSE > 0 and a finite p-value in the standard test, and a finite
@@ -124,9 +124,9 @@ for (tag in names(D_GRID)) {
   small <- pnorm((d - out$oriented_logFC_shrunk[out$eligible]) / out$lfcSE_shrunk[out$eligible])
   sval <- rep(NA_real_, nrow(out))
   sval[out$eligible] <- apeglm::svalue(small)
-  responsive <- out$eligible & out$oriented_logFC_shrunk > 0 & sval < 0.05
   no_response <- out$eligible & out$oriented_ci95_high_shrunk < d
-  stopifnot(!any(responsive & no_response))
+  # the s-value averages over higher-ranked genes, so it can pass for a gene whose own interval is below d
+  responsive <- out$eligible & out$oriented_logFC_shrunk > 0 & sval < 0.05 & !no_response
   state <- rep("unresolved", nrow(out))
   state[responsive] <- "responsive"
   state[no_response] <- "no_response_above_margin"

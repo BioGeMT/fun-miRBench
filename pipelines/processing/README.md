@@ -53,7 +53,7 @@ To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXP
 | `eligible`, `ineligible_reason`, `analysis_status` | why a gene has no usable estimate (not fitted, Cook's outlier, …) |
 
 **States** (`state_<d>`, from the shrunken log2FC and its posterior SD).
-- **responsive:** the oriented shrunken change is positive and the FSOS s-value against d is below 0.05. The per-gene probability is the normal tail of the oriented shrunken estimate below d, so that the 5% limit holds for the genes called responsive; the s-value is `apeglm::svalue` over the listed genes.
+- **responsive:** the oriented shrunken change is positive and the FSOS s-value against d is below 0.05. The per-gene probability is the normal tail of the oriented shrunken estimate below d, so that the 5% limit holds for the genes called responsive; the s-value is `apeglm::svalue` over the listed genes. A gene whose whole shrunken 95% interval is below d is no_response_above_margin even if its s-value passes, since the s-value averages over the genes ranked before it.
 - **no_response_above_margin:** the whole shrunken 95% interval of the oriented change is below d. This also covers genes that moved the opposite way.
 - **unresolved:** everything else.
 
