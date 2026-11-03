@@ -1,7 +1,6 @@
 dataset	group	adapter_command
 GSE280065	main	GSE280065.py --out {store}
 GSE214508	main	GSE214508.py --out {store}
-GSE292981	main	GSE292981.py --out {store}
 GSE185688	main	GSE185688.py --out {store}
 Replogle2022_K562_GW	machinery	replogle2022.py k562_gw
 Replogle2022_K562_essential	machinery	replogle2022.py k562_essential

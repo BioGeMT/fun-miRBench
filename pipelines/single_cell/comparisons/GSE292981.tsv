@@ -1,2 +1,0 @@
-comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
-miR-192-5p_LNP_mimic_PBMC_24h	GSE292981	raise	hsa-miR-192-5p	OE	miR-192_LNP_mimic	saline	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; hashed in one lane; control is saline, not a control-mimic nanoparticle, so the carrier response is in the effect; GEO says saline 24 h, the paper says 4 h; fractional STARsolo counts rounded after summing per unit

@@ -46,7 +46,7 @@ The DE table is written to `data/experiments/processed/<dataset_id>.tsv` as for 
 
 ## Selected experiments
 
-`selected_comparisons.tsv` lists the 70 comparisons used for evaluation (`main` 5, `machinery` 62, `supplement` 3), `builds.tsv` the 18 datasets they come from and `sources.tsv` the 24 source files, with their addresses, sizes and MD5 where known. These commands install, download and run them, in an environment with `conda` and `uv`:
+`selected_comparisons.tsv` lists the 68 comparisons used for evaluation (`main` 3, `machinery` 62, `supplement` 3), `builds.tsv` the 17 datasets they come from and `sources.tsv` the 23 source files, with their addresses, sizes and MD5 where known. These commands install, download and run them, in an environment with `conda` and `uv`:
 
 ```bash
 pipelines/single_cell/setup.sh
@@ -58,13 +58,13 @@ Without `--groups`, both scripts take all three groups. `main` is about 2 GB of 
 
 ## Evaluation
 
-[EXPERIMENTS.md](EXPERIMENTS.md) lists every selected experiment and how it was processed. To score the predictors, first build all three groups with `run.sh` (no `--groups`), because the evaluation needs all 70 comparisons. Then run `funmirbench` on the bulk experiments, set `bulk_per_comparison` in `single_cell_eval.yaml` at the repository root to the `per_comparison.tsv` of that dated run, and run:
+[EXPERIMENTS.md](EXPERIMENTS.md) lists every selected experiment and how it was processed. To score the predictors, first build all three groups with `run.sh` (no `--groups`), because the evaluation needs all 70 comparisons. Then run:
 
 ```bash
 uv run funmirbench-single-cell-eval --config single_cell_eval.yaml
 ```
 
-It also needs the standardized predictions. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, and `seed_check.tsv`, `seed_check_bulk.tsv`, `control_check.tsv` and `shrinkage_check.tsv`, which were computed separately because they need the 3'UTR sequences, the cell stores and the saved fits. The output is `REPORT.pdf`, with two figures of grouped bars and tables of the same numbers, the figures in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_family_coverage.tsv`, `data_checks.tsv` (with `in_figure`), and the bulk evaluator's own run in `evaluator/`.
+It also needs the standardized predictions. `evaluation/` holds its fixed tables: `mirna_profiles.tsv` (miRNA family shares per cell line), `mirna_families.tsv` (miRBase 22.1), `experiment_labels.tsv`, `seed_check.tsv` and `machinery_seed_check.tsv`. These two checks, and `control_check.tsv`, `seed_check_bulk.tsv` and `shrinkage_check.tsv` that EXPERIMENTS.md reports, were computed separately because they need the 3'UTR sequences, the cell stores and the saved fits. The output is `REPORT.pdf`, with two figures of grouped bars and tables of the same numbers, the figures in `plots/`, `per_comparison.tsv`, `machinery_per_comparison.tsv`, `machinery_family_coverage.tsv`, `data_checks.tsv` (with `in_figure`), and the bulk evaluator's own run in `evaluator/`.
 
 ## Final data
 
@@ -102,7 +102,7 @@ At high guide load (median `n_guides` of the passing cells above 1.5), `arm` lis
 
 Columns: `comparison_id`, `dataset`, `category` (`raise`, `lower`, `pooled_mirna`, `pathway`, `host_gene`, `reporter`, `viral_mirna`, `ko`, `other`), `mirna_or_gene`, `orientation` (`OE` when the miRNA activity goes up, `KO` when it goes down), `treated_arm`, `control_arm`, `min_cells` (per replicate unit), `caveats`. Optional: `other_pathway_arms`, separated by `;`, used only at high guide load; `target_gene_id` (Ensembl IDs separated by `;`, the first in the store counts), used for the target's own change.
 
-Eligibility comes from design and data only: no seed or target signal is used to keep or drop a comparison.
+Eligibility comes from design and data only: no seed or target signal is used to keep or drop a comparison. The evaluation's figures then draw only the comparisons that pass a seed check (see EXPERIMENTS.md).
 
 ### What a comparison does
 

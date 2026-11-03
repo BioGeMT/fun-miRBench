@@ -1,13 +1,13 @@
 # Single-cell experiments
 
-This file lists the single-cell experiments of the benchmark and how each was processed. A comparison is one treated group against one control group. The final tables hold 15,311 comparisons from 100 datasets, and 70 of them are selected for evaluation. Single cell is supporting evidence for the bulk benchmark: there are too few independent experiments to rank predictors, so the figures show no mean over experiments and no counts of wins.
+This file lists the single-cell experiments of the benchmark and how each was processed. A comparison is one treated group against one control group. The final tables hold 15,311 comparisons from 100 datasets, and 68 of them are selected for evaluation. Single cell is supporting evidence for the bulk benchmark: there are too few independent experiments to rank predictors, so the figures show no mean over experiments and no counts of wins.
 
 The `single-cell-processing` branch holds the code that builds the per-gene tables, as `v2-processing` does for bulk. The `single-cell-evaluation` branch scores them, as `v2-evaluation` does for bulk.
 
 | Group | Comparisons | Datasets | What changed in the cells | Use |
 |---|---:|---:|---|---|
-| Main | 5 | 4 | One miRNA raised or lowered | Drawn in the first figure, next to the mean of the 21 bulk experiments |
-| Machinery | 62 | 11 | A gene that makes miRNAs or carries out repression was knocked down or out | 17 comparisons in 5 screens are drawn in the second figure (11 miRNA-making, 6 repression); all 62 are in the output tables |
+| Main | 3 | 3 | One miRNA raised or lowered | Drawn in the first figure |
+| Machinery | 62 | 11 | A gene that makes miRNAs or carries out repression was knocked down or out | 10 comparisons in 4 screens are drawn in the second figure (9 miRNA-making, 1 repression); all 62 are in the output tables |
 | Supplement | 3 | 3 | Two miRNAs raised together, or one miRNA knocked out in a clone | Output tables only |
 
 ## Main experiments
@@ -17,18 +17,14 @@ The `single-cell-processing` branch holds the code that builds the per-gene tabl
 | `miR-874-3p_mimic_MCF7_36h` | GSE214508 | miR-874-3p | MCF7 breast cancer cells, 36 h | precursor mimic | control miRNA | 8,057 | 13,114 | 3 pseudo-replicates | `~ condition` |
 | `mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h` | GSE185688 | miR-365a-3p | iPSC heart muscle cells, healthy line, 25 nM, 48 h | mimic | antimiR-365 | 2,935 | 2,389 | 3 pseudo-replicates | `~ condition` |
 | `miR-98-5p_mimic_H9_d02_d03` | GSE280065 | miR-98-5p | H9 stem cells during resetting to naive pluripotency, days 2 and 3 | mimic | control mimic | 5,459 | 5,906 | 2 paired days | `~ batch + condition` |
-| `miR-192-5p_LNP_mimic_PBMC_24h` | GSE292981 | miR-192-5p | blood immune cells (PBMC), 24 h | mimic in lipid nanoparticles | saline | 7,260 | 5,872 | 3 pseudo-replicates | `~ condition` |
-| `antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h` | GSE185688 | miR-365a-3p | iPSC heart muscle cells, LQT1 patient line, 25 nM, 48 h | antimiR | control antimiR | 2,039 | 651 | 3 pseudo-replicates | `~ condition` |
 
-Outcome of each comparison. States are at d = 0.5, on the 19,226 listed genes. The seed effect is how much more genes with a 7mer or 8mer site moved in the expected direction than matched genes with no site, in log2FC. It is reported and never used to keep or drop an experiment.
+Outcome of each comparison. States are at d = 0.5, on the 19,226 listed genes. The seed effect is how much more genes with a 7mer or 8mer site moved in the expected direction than matched genes with no site, in log2FC. A main experiment is included only if the 95% interval of its seed effect is above 0, so that the miRNA acted. This rule was set after seeing results, and the two experiments it removed are listed under Comparisons not selected.
 
 | Comparison | Responsive | No response | Unresolved | Seed effect and rank of 2,022 families |
 |---|---|---|---|---|
 | `miR-874-3p_mimic_MCF7_36h` | 2,384 | 8,932 | 7,910 | miR-874-3p: 0.300, rank 1 |
 | `mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h` | 87 | 15,623 | 3,516 | miR-365a-3p: 0.103, rank 1 |
 | `miR-98-5p_mimic_H9_d02_d03` | 9 | 17,990 | 1,227 | miR-98-5p: 0.054, rank 1 |
-| `miR-192-5p_LNP_mimic_PBMC_24h` | 570 | 11,490 | 7,166 | miR-192-5p: 0.014, rank 502 |
-| `antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h` | 113 | 14,515 | 4,598 | miR-365a-3p: 0.014, rank 315 |
 
 Sources and cell filters:
 
@@ -37,22 +33,18 @@ Sources and cell filters:
 | `miR-874-3p_mimic_MCF7_36h` | 10.1038/s41598-022-23205-w | at most 10% mitochondrial, in the deposit's Cell Ranger filter (authors) |
 | `mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h` | 10.1038/s41467-021-27856-7 | 300 to 6,500 genes, at most 20% mitochondrial (authors) |
 | `miR-98-5p_mimic_H9_d02_d03` | preprint 10.1101/2025.10.14.682465 | 2,000 or more genes, 5,000 to 100,000 counts, at most 15% mitochondrial (authors) |
-| `miR-192-5p_LNP_mimic_PBMC_24h` | none recorded | barcodes with a hashtag call in the authors' table; no thresholds stated |
-| `antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h` | 10.1038/s41467-021-27856-7 | 300 to 6,500 genes, at most 20% mitochondrial (authors) |
 
 Caveats:
 
 - `miR-874-3p_mimic_MCF7_36h`: MCF7 cells, 36 h. One culture per group, split into three pseudo-replicates. Treated and control are separate libraries. miR-874 drives apoptosis by 36 h, so dying cells may be included.
-- `mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h`: Heart muscle cells, 48 h. No neutral control: raising against lowering the same miRNA, so the effect is not one-sided. One library per group, split into three pseudo-replicates.
-- `miR-98-5p_mimic_H9_d02_d03`: H9 stem cells. Two paired time points, days 2 and 3, with the day as batch; independent cultures are not established. The early window was chosen after later days lost the seed effect. let-7 family.
-- `miR-192-5p_LNP_mimic_PBMC_24h`: Blood immune cells. Control is saline, with no control-mimic nanoparticle, so the carrier response is in the effect. GEO says saline 24 h, the paper says 4 h. Hashed into one lane, three pseudo-replicates.
-- `antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h`: Heart muscle cells from a patient line, 48 h. Lowers the miRNA. Hashed into one lane, groups unbalanced about 3 to 1, treatment tags inferred from the pooling ratio, three pseudo-replicates.
+- `mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h`: Heart muscle cells, 48 h. No neutral control: the comparison combines raising and lowering the same miRNA. One library per group, split into three pseudo-replicates.
+- `miR-98-5p_mimic_H9_d02_d03`: H9 stem cells. Two paired time points, days 2 and 3, with the day as batch. Independent cultures are not established. The early window was chosen after later days lost the seed effect. miR-98 belongs to the let-7 family.
 
 ### What the replicates mean
 
-None of the five is replicated in independent cultures as far as the records show. miR-98 has two paired time points: day 2 and day 3 each hold one mimic and one control library, GEO labels each of them rep1, and the day is the batch. This early window was chosen after later days lost the seed effect. The other four have one sample per group, whose cells are split at random into three pseudo-replicates. These measure cell sampling and not differences between cultures, so their labels mean changed in this culture.
+None of the three is replicated in independent cultures as far as the records show. miR-98 has two paired time points: day 2 and day 3 each hold one mimic and one control library, GEO labels each of them rep1, and the day is the batch. This early window was chosen after later days lost the seed effect. The other two have one sample per group, whose cells are split at random into three pseudo-replicates. These measure cell sampling and not differences between cultures, so their labels mean changed in this culture.
 
-The treated and control cells of miR-874 and of the miR-365 mimic comparison are separate libraries, and their AUROC values are unreliable: the control check below gives 991 to 1,720 responsive genes between two libraries of one day. Between days and between clones it gives more, but those differences also include real biology. The cells of miR-192 and of the miR-365 antimiR comparison are hashed into one lane and share a library. Each group is still one culture, and that difference was not tested. The miR-365 antimiR treatment tags were inferred from the pooling ratio and call counts, and the records do not map them directly.
+The treated and control cells of miR-874 and of the miR-365 mimic comparison are separate libraries, and their AUROC values are unreliable: the control check below gives 991 to 1,720 responsive genes between two libraries of one day. Between days and between clones it gives more, but those differences also include real biology.
 
 ## Machinery experiments
 
@@ -62,13 +54,13 @@ In the comparison IDs, `_KO` means the gene was targeted. All screens are CRISPR
 
 | Screen | Source | Cell line | Method | Replicate units | Median guides per cell | miRNA-making comparisons | Repression comparisons | In the figure | Counts |
 |---|---|---|---|---|---|---|---|---|---|
-| `Replogle2022_K562_GW` | figshare+ 20029387 | K562 | CRISPRi | 33 sets of 8 lanes (267 lanes) | 1 | 3 | 5 | 6 | authors' raw counts; only the cells and the 8,248 genes the authors kept |
+| `Replogle2022_K562_GW` | figshare+ 20029387 | K562 | CRISPRi | 33 sets of 8 lanes (267 lanes) | 1 | 3 | 5 | 3 | authors' raw counts; only the cells and the 8,248 genes the authors kept |
 | `Replogle2022_K562_essential` | figshare+ 20029387 | K562 | CRISPRi | 6 sets of 8 lanes (48 lanes) | 1 | 2 | 0 | 2 | authors' raw counts; only the cells and the 8,563 genes the authors kept |
 | `VIPerturb_K562` | Zenodo 18460279 | K562 | CRISPRi with KRAB-dCas9-MeCP2 | 10x lanes of one culture | 1 | 2 | 4 | 0 | raw counts of the three full bins; shallow depth per gene; the response-filtered object is not used |
 | `XAtlasOrion_HEK293T` | figshare+ 29190726, through HKU 10.25442/hku.34002315.v1 | HEK293T | CRISPRi | 27 sets of 8 lanes (223 lanes) | 1 | 3 | 6 | 0 | counts reconstructed from the HKU log-normalised file, which leaves out perturbations below 20 cells |
 | `XAtlasOrion_HCT116` | figshare+ 29190726, through HKU 10.25442/hku.34002315.v1 | HCT116 | CRISPRi | 13 sets of 8 lanes (109 lanes) | 1 | 3 | 6 | 0 | counts reconstructed from the HKU log-normalised file, which leaves out perturbations below 20 cells |
-| `GSE218566_HEK293` | GSE218566 | HEK293 | CRISPRi | library dates (sub-libraries of one pooled culture) | 1 | 3 | 1 | 4 | authors' whole-transcriptome counts; culture replicates are not labelled per cell |
-| `Nadig2025_HepG2` | GSE264667 | HepG2 | CRISPRi | 7 sets of 8 lanes (56 lanes) | 1 | 1 | 1 | 2 | authors' raw counts; only the cells and the 9,624 genes the authors kept |
+| `GSE218566_HEK293` | GSE218566 | HEK293 | CRISPRi | library dates (sub-libraries of one pooled culture) | 1 | 3 | 1 | 2 | authors' whole-transcriptome counts; culture replicates are not labelled per cell |
+| `Nadig2025_HepG2` | GSE264667 | HepG2 | CRISPRi | 7 sets of 8 lanes (56 lanes) | 1 | 1 | 1 | 0 | authors' raw counts; only the cells and the 9,624 genes the authors kept |
 | `Nadig2025_Jurkat` | GSE264667 | Jurkat | CRISPRi | 6 sets of 8 lanes (55 lanes) | 1 | 2 | 1 | 3 | authors' raw counts; only the cells and the 8,882 genes the authors kept |
 | `GSE345058_A549` | GSE345058 | A549 | inducible Cas9 knockout | the authors' 4 batches of 8 lanes | 1 | 1 | 1 | 0 | authors' raw counts, 1,000 targeted genes |
 | `GSE249595_Jurkat_activated` | GSE249595 | Jurkat, activated | CRISPRi at high guide load | 2 sets of 8 lanes (16 lanes) | 11 | 4 | 7 | 0 | raw barcodes; the authors' cell, hash and guide filters were reapplied; their mitochondrial outlier filter gives no threshold and is not reapplied |
@@ -78,7 +70,7 @@ The 62 comparisons are the ones that met two rules, out of 201 comparisons of th
 
 ### What the figure draws
 
-Experiments of one screen share their control cells, so the figure shows one group of bars per screen, the median of its experiments. miRNA-making and repression genes are separate groups. A screen is drawn when it has low guide load, at least 3 replicate units per side and was not flagged by the control check, and it uses CRISPRi. K562 essential was not tested in that check itself; K562 genome-wide from the same study was. Within those screens, a comparison is drawn when the targeted transcript clearly fell: the upper 95% limit of its unshrunken log2FC is below 0. These rules came after seeing results, and they leave out the study that scored negative, which raises every predictor. No rule uses a predictor's score, a target's response or the seed check. All 62 comparisons stay in the output tables.
+The figure shows one group of bars per knocked-down gene, the median over the screens that knocked it down. Each screen has one experiment per gene, so no two experiments of a gene share control cells. miRNA-making and repression genes are separate groups. A screen is drawn when it has low guide load, at least 3 replicate units per side and was not flagged by the control check, and it uses CRISPRi. K562 essential was not tested in that check itself; K562 genome-wide from the same study was. Within those screens, a comparison is drawn when the targeted transcript clearly fell: the upper 95% limit of its unshrunken log2FC is below 0. It must also pass the machinery seed check (`machinery_seed_check.tsv`): for every miRNA family, genes with a 7mer or 8mer site are compared with matched genes with no site, as in the main seed check, and the abundance-weighted mean over the cell's profiled families must exceed the mean over the 20 sets of rare families, with the 95% interval over genes above 0. Of the 17 comparisons that meet the other rules, 10 pass: 9 of 11 miRNA-making and 1 of 6 repression. HEK293 DICER1 fails with only 389 genes above 50 mean counts, so too little data rather than a clear failure. These rules came after seeing results, and they leave out the study that scored negative, which raises every predictor. The machinery seed check raises every predictor's mean per-gene decoy z-score by a similar amount, 0.75 to 0.97. No rule uses a predictor's score. All 62 comparisons stay in the output tables.
 
 - `GSE249595` Jurkat (2 screens): a median of 11 or 12 guides per cell and 2 replicate units per side. Its 5 miRNA-making comparisons score below 0 on decoy z for all predictors, about -2 at the screen median, and none has a responsive gene. Removing shrinkage does not rescue them.
 - `VIPerturb_K562`: 2 replicate units per side.
@@ -87,70 +79,70 @@ Experiments of one screen share their control cells, so the figure shows one gro
 
 Repression genes have paralogues that may compensate, which may explain weak results in single knockdowns.
 
-| Comparison | Gene type | Treated cells | Control cells | Replicates per side | Responsive | Target log2FC | Upper 95% limit | In the figure |
-|---|---|---|---|---|---|---|---|---|
-| `GSE218566_HEK293__DICER1_KO` | miRNA-making | 375 | 2,758 | 11 | 12 | -2.72 | -2.22 | yes |
-| `GSE218566_HEK293__DROSHA_KO` | miRNA-making | 574 | 2,758 | 11 | 18 | -1.67 | -1.21 | yes |
-| `GSE218566_HEK293__XPO5_KO` | miRNA-making | 1,583 | 2,758 | 11 | 0 | -1.11 | -0.83 | yes |
-| `GSE249595_Jurkat_activated__DGCR8_KO` | miRNA-making | 138 | 622,130 | 2 | 0 | -0.31 | 0.08 | no |
-| `GSE249595_Jurkat_activated__DICER1_KO` | miRNA-making | 716 | 622,130 | 2 | 0 | -1.65 | -0.03 | no |
-| `GSE249595_Jurkat_activated__DROSHA_KO` | miRNA-making | 308 | 622,130 | 2 | 0 | -0.13 | 0.02 | no |
-| `GSE249595_Jurkat_activated__XPO5_KO` | miRNA-making | 425 | 622,130 | 2 | 0 | 0.18 | 1.82 | no |
-| `GSE249595_Jurkat_untreated__DICER1_KO` | miRNA-making | 103 | 76,195 | 2 | 0 | -2.66 | 1.50 | no |
-| `GSE345058_A549__DGCR8_KO` | miRNA-making | 569 | 45,320 | 4 | 48 | -0.24 | 0.23 | no |
-| `Nadig2025_HepG2__XPO5_KO` | miRNA-making | 56 | 4,311 | 6 | 0 | -2.97 | -1.46 | yes |
-| `Nadig2025_Jurkat__DICER1_KO` | miRNA-making | 94 | 12,013 | 6 | 21 | -3.61 | -2.31 | yes |
-| `Nadig2025_Jurkat__XPO5_KO` | miRNA-making | 134 | 12,013 | 6 | 8 | -3.59 | -1.81 | yes |
-| `Replogle2022_K562_GW__DGCR8_KO` | miRNA-making | 122 | 61,590 | 27 | 87 | -1.64 | -1.05 | yes |
-| `Replogle2022_K562_GW__DICER1_KO` | miRNA-making | 342 | 75,328 | 33 | 275 | -3.06 | -2.31 | yes |
-| `Replogle2022_K562_GW__XPO5_KO` | miRNA-making | 476 | 75,328 | 33 | 11 | -2.38 | -1.91 | yes |
-| `Replogle2022_K562_essential__DICER1_KO` | miRNA-making | 158 | 10,691 | 6 | 11 | -4.95 | -2.90 | yes |
-| `Replogle2022_K562_essential__XPO5_KO` | miRNA-making | 221 | 10,691 | 6 | 2 | -2.61 | -2.00 | yes |
-| `VIPerturb_K562__DROSHA_KO` | miRNA-making | 68 | 7,949 | 2 | 29 | -1.44 | -0.77 | no |
-| `VIPerturb_K562__XPO5_KO` | miRNA-making | 69 | 7,949 | 2 | 0 | -1.24 | -0.92 | no |
-| `XAtlasOrion_HCT116__DGCR8_KO` | miRNA-making | 126 | 165,777 | 13 | 4 | -1.51 | -0.78 | no |
-| `XAtlasOrion_HCT116__DICER1_KO` | miRNA-making | 82 | 152,668 | 12 | 0 | -1.50 | -0.81 | no |
-| `XAtlasOrion_HCT116__DROSHA_KO` | miRNA-making | 214 | 165,777 | 13 | 32 | -1.80 | -1.25 | no |
-| `XAtlasOrion_HEK293T__DGCR8_KO` | miRNA-making | 71 | 111,420 | 13 | 3 | -0.99 | -0.39 | no |
-| `XAtlasOrion_HEK293T__DICER1_KO` | miRNA-making | 87 | 157,826 | 18 | 10 | -0.94 | -0.56 | no |
-| `XAtlasOrion_HEK293T__DROSHA_KO` | miRNA-making | 189 | 213,505 | 26 | 47 | -0.88 | -0.57 | no |
-| `GSE218566_HEK293__AGO2_KO` | repression | 409 | 2,758 | 11 | 1 | -2.15 | -1.63 | yes |
-| `GSE249595_Jurkat_activated__AGO1_KO` | repression | 353 | 622,130 | 2 | 0 | -0.87 | 1.24 | no |
-| `GSE249595_Jurkat_activated__AGO2_KO` | repression | 695 | 622,130 | 2 | 1 | -0.02 | 0.86 | no |
-| `GSE249595_Jurkat_activated__AGO3_KO` | repression | 330 | 622,130 | 2 | 0 | -0.28 | 0.41 | no |
-| `GSE249595_Jurkat_activated__AGO4_KO` | repression | 803 | 622,130 | 2 | 0 | -0.75 | 1.53 | no |
-| `GSE249595_Jurkat_activated__TNRC6A_KO` | repression | 863 | 622,130 | 2 | 0 | -0.35 | 0.73 | no |
-| `GSE249595_Jurkat_activated__TNRC6B_KO` | repression | 905 | 622,130 | 2 | 0 | -0.39 | 0.36 | no |
-| `GSE249595_Jurkat_activated__TNRC6C_KO` | repression | 974 | 622,130 | 2 | 0 | 0.14 | 1.14 | no |
-| `GSE249595_Jurkat_untreated__AGO2_KO` | repression | 100 | 76,195 | 2 | 0 | 0.59 | 2.50 | no |
-| `GSE249595_Jurkat_untreated__AGO4_KO` | repression | 94 | 76,195 | 2 | 0 | 0.80 | 5.00 | no |
-| `GSE249595_Jurkat_untreated__TNRC6A_KO` | repression | 126 | 76,195 | 2 | 0 | -0.44 | 2.50 | no |
-| `GSE249595_Jurkat_untreated__TNRC6B_KO` | repression | 109 | 76,195 | 2 | 0 | -0.26 | 1.88 | no |
-| `GSE249595_Jurkat_untreated__TNRC6C_KO` | repression | 120 | 76,195 | 2 | 0 | 0.04 | 2.54 | no |
-| `GSE345058_A549__TNRC6A_KO` | repression | 501 | 45,320 | 4 | 20 | -0.31 | -0.19 | no |
-| `Nadig2025_HepG2__TNRC6A_KO` | repression | 89 | 4,976 | 7 | 9 | -3.09 | -2.03 | yes |
-| `Nadig2025_Jurkat__TNRC6A_KO` | repression | 168 | 12,013 | 6 | 23 | -2.47 | -1.73 | yes |
-| `Replogle2022_K562_GW__AGO1_KO` | repression | 160 | 69,253 | 30 | 6 | -0.46 | -0.14 | yes |
-| `Replogle2022_K562_GW__AGO3_KO` | repression | 183 | 68,392 | 30 | 0 | -2.35 | -1.67 | yes |
-| `Replogle2022_K562_GW__TNRC6A_KO` | repression | 379 | 75,328 | 33 | 3 | -2.13 | -1.62 | yes |
-| `Replogle2022_K562_GW__TNRC6B_KO` | repression | 59 | 30,372 | 13 | 0 | -0.44 | 0.06 | no |
-| `Replogle2022_K562_GW__TNRC6C_KO` | repression | 237 | 70,998 | 31 | 0 | -0.06 | 0.51 | no |
-| `VIPerturb_K562__AGO3_KO` | repression | 102 | 7,949 | 2 | 0 | -1.42 | -0.35 | no |
-| `VIPerturb_K562__AGO4_KO` | repression | 52 | 7,949 | 2 | 2 | -1.15 | 0.80 | no |
-| `VIPerturb_K562__TNRC6A_KO` | repression | 65 | 7,949 | 2 | 1 | -1.28 | -0.30 | no |
-| `VIPerturb_K562__TNRC6C_KO` | repression | 65 | 7,949 | 2 | 2 | -0.07 | 1.12 | no |
-| `XAtlasOrion_HCT116__AGO1_KO` | repression | 159 | 165,777 | 13 | 2 | -1.66 | -0.87 | no |
-| `XAtlasOrion_HCT116__AGO2_KO` | repression | 118 | 165,777 | 13 | 1 | -1.63 | -1.14 | no |
-| `XAtlasOrion_HCT116__AGO3_KO` | repression | 123 | 165,777 | 13 | 0 | -1.33 | -0.81 | no |
-| `XAtlasOrion_HCT116__AGO4_KO` | repression | 353 | 165,777 | 13 | 2 | -0.65 | -0.10 | no |
-| `XAtlasOrion_HCT116__TNRC6B_KO` | repression | 242 | 165,777 | 13 | 0 | -0.06 | 0.14 | no |
-| `XAtlasOrion_HCT116__TNRC6C_KO` | repression | 164 | 165,777 | 13 | 2 | -0.16 | 0.10 | no |
-| `XAtlasOrion_HEK293T__AGO1_KO` | repression | 217 | 205,455 | 25 | 21 | -0.94 | -0.53 | no |
-| `XAtlasOrion_HEK293T__AGO2_KO` | repression | 223 | 210,364 | 26 | 10 | -0.67 | -0.39 | no |
-| `XAtlasOrion_HEK293T__AGO3_KO` | repression | 173 | 199,899 | 24 | 15 | -0.57 | -0.23 | no |
-| `XAtlasOrion_HEK293T__AGO4_KO` | repression | 501 | 218,838 | 27 | 2 | -0.43 | -0.17 | no |
-| `XAtlasOrion_HEK293T__TNRC6B_KO` | repression | 273 | 218,838 | 27 | 7 | -0.25 | -0.12 | no |
-| `XAtlasOrion_HEK293T__TNRC6C_KO` | repression | 199 | 206,182 | 25 | 11 | 0.16 | 0.39 | no |
+| Comparison | Gene type | Treated cells | Control cells | Replicates per side | Responsive | Target log2FC | Upper 95% limit | Seed check | In the figure |
+|---|---|---|---|---|---|---|---|---|---|
+| `GSE218566_HEK293__DICER1_KO` | miRNA-making | 375 | 2,758 | 11 | 12 | -2.72 | -2.22 | fail | no |
+| `GSE218566_HEK293__DROSHA_KO` | miRNA-making | 574 | 2,758 | 11 | 18 | -1.67 | -1.21 | pass | yes |
+| `GSE218566_HEK293__XPO5_KO` | miRNA-making | 1,583 | 2,758 | 11 | 0 | -1.11 | -0.83 | pass | yes |
+| `GSE249595_Jurkat_activated__DGCR8_KO` | miRNA-making | 138 | 622,130 | 2 | 0 | -0.31 | 0.08 | pass | no |
+| `GSE249595_Jurkat_activated__DICER1_KO` | miRNA-making | 716 | 622,130 | 2 | 0 | -1.65 | -0.03 | fail | no |
+| `GSE249595_Jurkat_activated__DROSHA_KO` | miRNA-making | 308 | 622,130 | 2 | 0 | -0.13 | 0.02 | fail | no |
+| `GSE249595_Jurkat_activated__XPO5_KO` | miRNA-making | 425 | 622,130 | 2 | 0 | 0.18 | 1.82 | fail | no |
+| `GSE249595_Jurkat_untreated__DICER1_KO` | miRNA-making | 103 | 76,195 | 2 | 0 | -2.66 | 1.50 | fail | no |
+| `GSE345058_A549__DGCR8_KO` | miRNA-making | 569 | 45,320 | 4 | 48 | -0.24 | 0.23 | pass | no |
+| `Nadig2025_HepG2__XPO5_KO` | miRNA-making | 56 | 4,311 | 6 | 0 | -2.97 | -1.46 | fail | no |
+| `Nadig2025_Jurkat__DICER1_KO` | miRNA-making | 94 | 12,013 | 6 | 21 | -3.61 | -2.31 | pass | yes |
+| `Nadig2025_Jurkat__XPO5_KO` | miRNA-making | 134 | 12,013 | 6 | 8 | -3.59 | -1.81 | pass | yes |
+| `Replogle2022_K562_GW__DGCR8_KO` | miRNA-making | 122 | 61,590 | 27 | 87 | -1.64 | -1.05 | pass | yes |
+| `Replogle2022_K562_GW__DICER1_KO` | miRNA-making | 342 | 75,328 | 33 | 275 | -3.06 | -2.31 | pass | yes |
+| `Replogle2022_K562_GW__XPO5_KO` | miRNA-making | 476 | 75,328 | 33 | 11 | -2.38 | -1.91 | pass | yes |
+| `Replogle2022_K562_essential__DICER1_KO` | miRNA-making | 158 | 10,691 | 6 | 11 | -4.95 | -2.90 | pass | yes |
+| `Replogle2022_K562_essential__XPO5_KO` | miRNA-making | 221 | 10,691 | 6 | 2 | -2.61 | -2.00 | pass | yes |
+| `VIPerturb_K562__DROSHA_KO` | miRNA-making | 68 | 7,949 | 2 | 29 | -1.44 | -0.77 | pass | no |
+| `VIPerturb_K562__XPO5_KO` | miRNA-making | 69 | 7,949 | 2 | 0 | -1.24 | -0.92 | fail | no |
+| `XAtlasOrion_HCT116__DGCR8_KO` | miRNA-making | 126 | 165,777 | 13 | 4 | -1.51 | -0.78 | pass | no |
+| `XAtlasOrion_HCT116__DICER1_KO` | miRNA-making | 82 | 152,668 | 12 | 0 | -1.50 | -0.81 | fail | no |
+| `XAtlasOrion_HCT116__DROSHA_KO` | miRNA-making | 214 | 165,777 | 13 | 32 | -1.80 | -1.25 | pass | no |
+| `XAtlasOrion_HEK293T__DGCR8_KO` | miRNA-making | 71 | 111,420 | 13 | 3 | -0.99 | -0.39 | fail | no |
+| `XAtlasOrion_HEK293T__DICER1_KO` | miRNA-making | 87 | 157,826 | 18 | 10 | -0.94 | -0.56 | fail | no |
+| `XAtlasOrion_HEK293T__DROSHA_KO` | miRNA-making | 189 | 213,505 | 26 | 47 | -0.88 | -0.57 | pass | no |
+| `GSE218566_HEK293__AGO2_KO` | repression | 409 | 2,758 | 11 | 1 | -2.15 | -1.63 | fail | no |
+| `GSE249595_Jurkat_activated__AGO1_KO` | repression | 353 | 622,130 | 2 | 0 | -0.87 | 1.24 | fail | no |
+| `GSE249595_Jurkat_activated__AGO2_KO` | repression | 695 | 622,130 | 2 | 1 | -0.02 | 0.86 | fail | no |
+| `GSE249595_Jurkat_activated__AGO3_KO` | repression | 330 | 622,130 | 2 | 0 | -0.28 | 0.41 | fail | no |
+| `GSE249595_Jurkat_activated__AGO4_KO` | repression | 803 | 622,130 | 2 | 0 | -0.75 | 1.53 | pass | no |
+| `GSE249595_Jurkat_activated__TNRC6A_KO` | repression | 863 | 622,130 | 2 | 0 | -0.35 | 0.73 | fail | no |
+| `GSE249595_Jurkat_activated__TNRC6B_KO` | repression | 905 | 622,130 | 2 | 0 | -0.39 | 0.36 | fail | no |
+| `GSE249595_Jurkat_activated__TNRC6C_KO` | repression | 974 | 622,130 | 2 | 0 | 0.14 | 1.14 | fail | no |
+| `GSE249595_Jurkat_untreated__AGO2_KO` | repression | 100 | 76,195 | 2 | 0 | 0.59 | 2.50 | fail | no |
+| `GSE249595_Jurkat_untreated__AGO4_KO` | repression | 94 | 76,195 | 2 | 0 | 0.80 | 5.00 | pass | no |
+| `GSE249595_Jurkat_untreated__TNRC6A_KO` | repression | 126 | 76,195 | 2 | 0 | -0.44 | 2.50 | fail | no |
+| `GSE249595_Jurkat_untreated__TNRC6B_KO` | repression | 109 | 76,195 | 2 | 0 | -0.26 | 1.88 | fail | no |
+| `GSE249595_Jurkat_untreated__TNRC6C_KO` | repression | 120 | 76,195 | 2 | 0 | 0.04 | 2.54 | fail | no |
+| `GSE345058_A549__TNRC6A_KO` | repression | 501 | 45,320 | 4 | 20 | -0.31 | -0.19 | pass | no |
+| `Nadig2025_HepG2__TNRC6A_KO` | repression | 89 | 4,976 | 7 | 9 | -3.09 | -2.03 | fail | no |
+| `Nadig2025_Jurkat__TNRC6A_KO` | repression | 168 | 12,013 | 6 | 23 | -2.47 | -1.73 | pass | yes |
+| `Replogle2022_K562_GW__AGO1_KO` | repression | 160 | 69,253 | 30 | 6 | -0.46 | -0.14 | fail | no |
+| `Replogle2022_K562_GW__AGO3_KO` | repression | 183 | 68,392 | 30 | 0 | -2.35 | -1.67 | fail | no |
+| `Replogle2022_K562_GW__TNRC6A_KO` | repression | 379 | 75,328 | 33 | 3 | -2.13 | -1.62 | fail | no |
+| `Replogle2022_K562_GW__TNRC6B_KO` | repression | 59 | 30,372 | 13 | 0 | -0.44 | 0.06 | fail | no |
+| `Replogle2022_K562_GW__TNRC6C_KO` | repression | 237 | 70,998 | 31 | 0 | -0.06 | 0.51 | fail | no |
+| `VIPerturb_K562__AGO3_KO` | repression | 102 | 7,949 | 2 | 0 | -1.42 | -0.35 | fail | no |
+| `VIPerturb_K562__AGO4_KO` | repression | 52 | 7,949 | 2 | 2 | -1.15 | 0.80 | fail | no |
+| `VIPerturb_K562__TNRC6A_KO` | repression | 65 | 7,949 | 2 | 1 | -1.28 | -0.30 | fail | no |
+| `VIPerturb_K562__TNRC6C_KO` | repression | 65 | 7,949 | 2 | 2 | -0.07 | 1.12 | fail | no |
+| `XAtlasOrion_HCT116__AGO1_KO` | repression | 159 | 165,777 | 13 | 2 | -1.66 | -0.87 | fail | no |
+| `XAtlasOrion_HCT116__AGO2_KO` | repression | 118 | 165,777 | 13 | 1 | -1.63 | -1.14 | fail | no |
+| `XAtlasOrion_HCT116__AGO3_KO` | repression | 123 | 165,777 | 13 | 0 | -1.33 | -0.81 | fail | no |
+| `XAtlasOrion_HCT116__AGO4_KO` | repression | 353 | 165,777 | 13 | 2 | -0.65 | -0.10 | fail | no |
+| `XAtlasOrion_HCT116__TNRC6B_KO` | repression | 242 | 165,777 | 13 | 0 | -0.06 | 0.14 | fail | no |
+| `XAtlasOrion_HCT116__TNRC6C_KO` | repression | 164 | 165,777 | 13 | 2 | -0.16 | 0.10 | fail | no |
+| `XAtlasOrion_HEK293T__AGO1_KO` | repression | 217 | 205,455 | 25 | 21 | -0.94 | -0.53 | fail | no |
+| `XAtlasOrion_HEK293T__AGO2_KO` | repression | 223 | 210,364 | 26 | 10 | -0.67 | -0.39 | fail | no |
+| `XAtlasOrion_HEK293T__AGO3_KO` | repression | 173 | 199,899 | 24 | 15 | -0.57 | -0.23 | pass | no |
+| `XAtlasOrion_HEK293T__AGO4_KO` | repression | 501 | 218,838 | 27 | 2 | -0.43 | -0.17 | pass | no |
+| `XAtlasOrion_HEK293T__TNRC6B_KO` | repression | 273 | 218,838 | 27 | 7 | -0.25 | -0.12 | fail | no |
+| `XAtlasOrion_HEK293T__TNRC6C_KO` | repression | 199 | 206,182 | 25 | 11 | 0.16 | 0.39 | fail | no |
 
 Target log2FC and its upper limit are unshrunken. Of the 25 miRNA-making targets, 24 have a negative log2FC. Shrunken target values are not used, because shrinkage can erase a real drop (see Data checks).
 
@@ -178,7 +170,7 @@ Sources and cell filters:
 
 Caveats:
 
-- `miR-18a_KO_A375`: A375 cells. One knockout clone; merged libraries, so three pseudo-replicates.
+- `miR-18a_KO_A375`: A375 cells. One knockout clone. Libraries were merged, so three pseudo-replicates.
 - `miR-449a_miR-340-5p_RD18_60h`: RD18 single nuclei, 60 h. Two miRNAs delivered together, no control mimic, three pseudo-replicates.
 - `let-7i_miR-452_OE_iPSC-CM`: Heart muscle cells. Two miRNAs raised together, few cells, three pseudo-replicates.
 
@@ -188,6 +180,7 @@ Caveats:
 |---|---:|---|
 | miR-199a GFP high against low | 3 | Fitted, left out of the install: about 280 GB of reads and alignment for sorted cells |
 | miR-98 at days 8 and 14 | 2 | The seed effect is no longer visible, so this choice used a result |
+| miR-192 mimic in blood immune cells (saline control), miR-365 antimiR in LQT1 heart muscle cells | 2 | No seed effect, so the miRNA most likely did not act. Fitted, then removed by the seed-effect rule after seeing results. Leaving them out raises the mean Spearman rho of miRBind2-3UTR most (0.063 to 0.107), of TargetScan v8 and miRDB by 0.033, leaves microT-CNN almost unchanged (+0.001) and lowers miRAW (0.062 to 0.047) |
 | Reporter sorts (let-7 switch, miR-126 sensor) | 7 | Cells were sorted on a reporter and no miRNA was changed |
 | `MIR9-2HG` enhancer deletions | 4 | The miRNA drop was never measured |
 | Other pathway comparisons | 297 | 158 are of 8 other pathway genes (`DIS3L2`, `LIN28A`, `LIN28B`, `PRKRA`, `TARBP2`, `TUT4`, `TUT7`, `ZSWIM8`); 139 fail the two rules above |
@@ -222,7 +215,7 @@ pipelines/single_cell/run.sh --groups main
 
 ### Reproduction
 
-All 70 selected gene tables were rebuilt with these scripts on 1 November 2026, and all are byte-identical to the final tables. The fresh test downloaded and built 18 comparisons from an empty folder in 33 minutes: main, supplement and the 10 machinery comparisons of two datasets. All 62 machinery comparisons were then rebuilt from copies of the source files on disk, so the downloads behind the other 52 were not repeated.
+All 70 gene tables selected on 1 November 2026, which include the 68 selected now, were rebuilt with these scripts that day, and all are byte-identical to the final tables. On 3 November the miR-365 mimic table was rebuilt again after the two removals and is still identical. The fresh test downloaded and built 18 comparisons from an empty folder in 33 minutes: main, supplement and the 10 machinery comparisons of two datasets. All 62 machinery comparisons were then rebuilt from copies of the source files on disk, so the downloads behind the other 52 were not repeated.
 
 ## Data checks
 
@@ -245,16 +238,16 @@ In screens, 300 fake comparisons of control cells in 20 screens gave at most 22 
 
 Shrinkage. For a gene with a large change measured from few cells, the shrinkage calculation can have two peaks, one near zero and one near the measured change, and the software can stop at the less supported one without flagging it. DICER1 in K562 essential is stored as -0.014, while about -4.4 is better supported. On the saved fits of 24 comparisons (5 main and 19 machinery in the drawn screens), all 272,428 fitted genes were searched from four starts: the saved value, the unshrunken value, zero and halfway. Each result was compared with the support for the stored value. This changed 228 genes, 161 of them toward zero, and 134 labels at d = 0.5. Spearman changed by at most 0.0002, decoy z by at most 0.018 and AUROC by at most 0.010, so the tables keep the saved values. Four starts can still miss a peak, so this is strong evidence and not a bound, and the excluded screens were not tested. Target gene values should be read unshrunken. In bulk, the means per predictor of Spearman within expression tenths differ by at most 0.0023 between unshrunken and shrunken log2FC, and of plain Spearman by 0.009 to 0.022.
 
-miR-192 by cell type. The share of T cells is 48% with the mimic and 34% with saline. No cell type shows a seed effect, and most responsive genes are in monocytes (1,198), where a response to the nanoparticle cannot be separated because the control is saline.
+miR-192 by cell type (no longer selected). The share of T cells is 48% with the mimic and 34% with saline. No cell type shows a seed effect, and most responsive genes are in monocytes (1,198), where a response to the nanoparticle cannot be separated because the control is saline.
 
 ## Evaluation
 
 The evaluation scores each predictor on these tables with the bulk evaluator's measures.
 
-- AUROC: chance that a responsive gene scores above a no-response gene, on comparisons with at least 30 genes in each state.
+- AUROC: chance that a responsive gene scores above a no-response gene, on comparisons with at least 30 genes in each state. The figures do not draw it: it is unreliable for miR-874 and the miR-365 mimic (control check), miR-98 mimic has fewer than 30 responsive genes, and only 2 of the 10 drawn machinery comparisons reach 30. It stays in the output tables.
 - Spearman rho: agreement of the score's ranking with the oriented shrunken log2FC.
-- Decoy z-score: Spearman for the tested miRNA against different-seed miRNAs, in standard deviations. For machinery comparisons, the profiled miRNA families (at least 0.5% of the profiled abundance) weighted by share against 20 sets of families below 0.01%. The score is a check of specificity and not of accuracy, and direct and machinery values do not share a null.
+- Decoy z-score: Spearman for the tested miRNA against miRNAs with a different seed, in standard deviations. For machinery comparisons, the profiled miRNA families (at least 0.5% of the profiled abundance) weighted by share against 20 sets of families below 0.01%. The score is a check of specificity and not of accuracy, and direct and machinery values do not share a null.
 
 TargetScan does not score every decoy family: in its least covered set it keeps 62.6% of the decoy weight in HEK293T, 64.0% in A549, 81.8% in K562, 89.1% in HepG2 and 99.2% in Jurkat. The other predictors score all of them. `machinery_family_coverage.tsv` holds these values.
 
-The report holds two figures of grouped bars and tables of the same numbers. In the first figure, each group is one main experiment, with the mean of the 21 bulk experiments on the right. In the second, each group is one screen, miRNA-making genes and then repression genes. Every comparison stays in the output tables.
+The report holds two figures of grouped bars and tables of the same numbers. Both show Spearman rho and decoy z-score. In the first figure, each group is one main experiment in which the miRNA acted. In the second, each group is one knocked-down gene, miRNA-making genes and then repression genes. Every comparison stays in the output tables.

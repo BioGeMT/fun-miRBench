@@ -1,5 +1,7 @@
 """miR-365 in iPSC cardiomyocytes, 25 nM, 48 h. Healthy line: mimic-365 against antimiR-365 in separate libraries, no
 neutral control. LQT1 line: antimiR-365 and antimiR-Ctrl hashed into one lane. One arm each, three pseudo-replicates.
+No comparison uses the LQT1 lane (no seed effect); its cells stay in the store because dropping them changes the
+healthy line's pseudo-replicates and so the miR-365 mimic table.
 QC: authors (10.1038/s41467-021-27856-7)."""
 
 import numpy as np

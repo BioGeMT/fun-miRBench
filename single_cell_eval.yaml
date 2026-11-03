@@ -8,8 +8,6 @@ selected: pipelines/single_cell/selected_comparisons.tsv
 tables_dir: pipelines/single_cell/evaluation
 mirnas_tsv: metadata/benchmark_mirnas.tsv
 predictions_tsv: metadata/predictions_info.tsv
-# per_comparison.tsv of a `funmirbench` run on the bulk OE experiments; its mean is the bulk group. Set this to the run's dated folder.
-bulk_per_comparison: results/<run>/per_comparison.tsv
 
 predictors:
   tool_id: [targetscan_family_expanded, mirdb_mirtarget, microt_cnn, mirbind2, miraw]

@@ -88,24 +88,38 @@ class FamilyTests(unittest.TestCase):
         np.testing.assert_allclose(combined, [(0.5 * 0.5) / 0.75, 0.25 / 0.75])
 
 
+class FigureMainTests(unittest.TestCase):
+    def test_only_main_comparisons_whose_seed_effect_interval_is_above_0_are_drawn(self):
+        rows = pd.DataFrame({"comparison_id": ["acted", "zero_in_interval", "no_seed_row", "machinery_row"], "group": ["main", "main", "main", "machinery"]})
+        seed = pd.DataFrame({"comparison_id": ["acted", "zero_in_interval", "machinery_row"], "ci_low": [0.04, -0.01, 0.5]})
+        self.assertEqual(single_cell_eval.figure_main(rows, seed).comparison_id.tolist(), ["acted"])
+
+
 class FigureMachineryTests(unittest.TestCase):
-    def test_only_figure_screens_with_a_clear_transcript_drop_are_drawn(self):
-        rows = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen", "main_row"], "group": ["machinery", "machinery", "machinery", "main"],
-                             "dataset": ["Replogle2022_K562_GW", "Replogle2022_K562_GW", "XAtlasOrion_HCT116", "DATA"]})
-        drop = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen"], "target_ci95_high": [-0.5, 0.1, -2.0]})
-        self.assertEqual(single_cell_eval.figure_machinery(rows, drop).comparison_id.tolist(), ["clear"])
+    def test_only_figure_screens_with_a_clear_transcript_drop_and_a_passed_seed_check_are_drawn(self):
+        rows = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen", "seed_failed", "main_row"], "group": ["machinery"] * 4 + ["main"],
+                             "dataset": ["Replogle2022_K562_GW", "Replogle2022_K562_GW", "XAtlasOrion_HCT116", "Replogle2022_K562_GW", "DATA"]})
+        drop = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen", "seed_failed"], "target_ci95_high": [-0.5, 0.1, -2.0, -1.0]})
+        machinery_seed = pd.DataFrame({"comparison_id": ["clear", "unclear", "other_screen", "seed_failed"], "passes": [True, True, True, False]})
+        self.assertEqual(single_cell_eval.figure_machinery(rows, drop, machinery_seed).comparison_id.tolist(), ["clear"])
 
-    def test_a_screen_median_counts_each_experiment_once_and_keeps_gene_types_apart(self):
-        record = lambda comparison, gene_type, value: {"comparison_id": comparison, "screen": "Replogle2022_K562_GW", "gene_type": gene_type, "predictor": "tool",
-                                                       "auroc_d05": np.nan, "spearman_shrunk": value, "decoy_z_shrunk": value}
-        machinery = pd.DataFrame([record("a", "miRNA-making", 1.0), record("b", "miRNA-making", 3.0), record("c", "repression", 5.0), record("left_out", "repression", 100.0)])
-        kept = pd.DataFrame({"comparison_id": ["a", "b", "c"]})
+    def test_a_gene_median_pools_its_screens_and_keeps_gene_types_apart(self):
+        record = lambda comparison, screen, gene, gene_type, value: {"comparison_id": comparison, "screen": screen, "gene": gene, "gene_type": gene_type,
+                                                                     "predictor": "tool", "auroc_d05": np.nan, "spearman_shrunk": value, "decoy_z_shrunk": value}
+        machinery = pd.DataFrame([record("a", "Replogle2022_K562_GW", "XPO5", "miRNA-making", 1.0), record("b", "Nadig2025_HepG2", "XPO5", "miRNA-making", 3.0),
+                                  record("c", "Replogle2022_K562_GW", "DICER1", "miRNA-making", 4.0), record("d", "Replogle2022_K562_GW", "AGO2", "repression", 5.0),
+                                  record("left_out", "Nadig2025_HepG2", "AGO2", "repression", 100.0)])
+        kept = pd.DataFrame({"comparison_id": ["a", "b", "c", "d"]})
         tables, n_making = single_cell_eval.machinery_tables(machinery, kept, pd.DataFrame({"tool_id": ["tool"]}))
-        self.assertEqual(n_making, 1)
-        self.assertEqual(tables["spearman_shrunk"].tool.tolist(), [2.0, 5.0])
-        self.assertEqual(tables["spearman_shrunk"].index.tolist(), ["K562 GW (2)", "K562 GW (1)"])
-        self.assertEqual(tables["auroc_d05"].index.tolist(), ["K562 GW (0)", "K562 GW (0)"])  # the brackets count experiments with that measure
+        self.assertEqual(n_making, 2)
+        self.assertEqual(tables["spearman_shrunk"].tool.to_dict(), {"DICER1": 4.0, "XPO5": 2.0, "AGO2": 5.0})
+        self.assertNotIn("auroc_d05", tables)
 
+    def test_two_experiments_of_one_gene_in_one_screen_are_refused(self):
+        record = lambda comparison: {"comparison_id": comparison, "screen": "Replogle2022_K562_GW", "gene": "XPO5", "gene_type": "miRNA-making",
+                                     "predictor": "tool", "spearman_shrunk": 1.0, "decoy_z_shrunk": 1.0}
+        with self.assertRaises(ValueError):
+            single_cell_eval.machinery_tables(pd.DataFrame([record("a"), record("b")]), pd.DataFrame({"comparison_id": ["a", "b"]}), pd.DataFrame({"tool_id": ["tool"]}))
 
 if __name__ == "__main__":
     unittest.main()
