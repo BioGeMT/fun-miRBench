@@ -46,7 +46,7 @@ The DE table is written to `data/experiments/processed/<dataset_id>.tsv` as for 
 
 ## Selected experiments
 
-`selected_comparisons.tsv` lists the 70 comparisons used for evaluation (`main` 5, `machinery` 62, `supplement` 3), `builds.tsv` the 18 datasets they come from and `sources.tsv` the 24 source files, with their addresses, sizes and MD5 where known. These commands install, download and run them, in an environment with `conda` and `uv`:
+`selected_comparisons.tsv` lists the 68 comparisons used for evaluation (`main` 3, `machinery` 62, `supplement` 3), `builds.tsv` the 17 datasets they come from and `sources.tsv` the 23 source files, with their addresses, sizes and MD5 where known. These commands install, download and run them, in an environment with `conda` and `uv`:
 
 ```bash
 pipelines/single_cell/setup.sh

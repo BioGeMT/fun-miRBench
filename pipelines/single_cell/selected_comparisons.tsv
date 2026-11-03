@@ -61,11 +61,9 @@ XAtlasOrion_HEK293T__DICER1_KO	XAtlasOrion_HEK293T	machinery	pathway	DICER1	KO
 XAtlasOrion_HEK293T__DROSHA_KO	XAtlasOrion_HEK293T	machinery	pathway	DROSHA	KO
 XAtlasOrion_HEK293T__TNRC6B_KO	XAtlasOrion_HEK293T	machinery	pathway	TNRC6B	KO
 XAtlasOrion_HEK293T__TNRC6C_KO	XAtlasOrion_HEK293T	machinery	pathway	TNRC6C	KO
-antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h	GSE185688	main	lower	hsa-miR-365a-3p	KO
 mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h	GSE185688	main	raise	hsa-miR-365a-3p	OE
 miR-874-3p_mimic_MCF7_36h	GSE214508	main	raise	hsa-miR-874-3p	OE
 miR-98-5p_mimic_H9_d02_d03	GSE280065	main	raise	hsa-miR-98-5p	OE
-miR-192-5p_LNP_mimic_PBMC_24h	GSE292981	main	raise	hsa-miR-192-5p	OE
 let-7i_miR-452_OE_iPSC-CM	GSE135595	supplement	other	hsa-let-7i-5p;hsa-miR-452-5p	OE
 miR-449a_miR-340-5p_RD18_60h	GSE282611	supplement	other	hsa-miR-449a;hsa-miR-340-5p	OE
 miR-18a_KO_A375	GSE318353	supplement	ko	hsa-miR-18a-5p	KO

@@ -1,6 +1,5 @@
 group	source_dataset	file	url	unpack	bytes	md5
 main	GSE280065	GSE280065/raw_tar/GSE280065_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE280nnn/GSE280065/suppl/GSE280065_RAW.tar	untar:GSE280065/matrices	929669120	e6af7405315762d2ac5ae0c5d88cf52f
-main	GSE292981	GSE292981/raw_tar/GSE292981_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE292nnn/GSE292981/suppl/GSE292981_RAW.tar	untar:GSE292981/matrices	397352960	0bf440deae39c6c2cda304a4e112ed79
 main	GSE185688	GSE185688/raw_tar/GSE185688_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE185nnn/GSE185688/suppl/GSE185688_RAW.tar	untar:GSE185688/matrices	173004800	1119a05252a141a2917d485e795024a5
 main	GSE214508	GSE214508/raw_tar/GSE214508_RAW.tar	https://ftp.ncbi.nlm.nih.gov/geo/series/GSE214nnn/GSE214508/suppl/GSE214508_RAW.tar	untar:GSE214508/matrices,untar_inner:GSE214508/matrices:GSM6607486_MCF7_control_mir1.tar.gz;GSM6607488_MCF7_mir874.tar.gz	586721280	ecfa4ebdfd13947ca2908eb737f1900f
 machinery	Replogle2022_K562_GW	replogle2022/K562_gwps_raw_singlecell_01.h5ad	https://ndownloader.figshare.com/files/35775507		65830941948	887e3e6a8c8df6eadf7a3030a53c9546

@@ -1,3 +1,2 @@
 comparison_id	dataset	category	mirna_or_gene	orientation	treated_arm	control_arm	min_cells	target_gene_id	caveats
 mimic-365_vs_antimiR-365_healthy_iPSC-CM_48h	GSE185688	raise	hsa-miR-365a-3p	OE	mimic-365_healthy	antimiR-365_healthy	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; no neutral control: raising against lowering the same miRNA, so effects are not one-sided
-antimiR-365_vs_antimiR-Ctrl_LQT1_iPSC-CM_48h	GSE185688	lower	hsa-miR-365a-3p	KO	antimiR-365_LQT1	antimiR-Ctrl_LQT1	20		one library per arm: three technical pseudo-replicates, labels mean changed in this culture; hashed in one lane; arms unbalanced 3:1
