@@ -62,6 +62,39 @@ uv run funmirbench --config benchmark.yaml
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
 
+## Inspect Response Vectors
+
+Run the exploratory vector analysis on the same inputs and filters as the benchmark:
+
+```bash
+uv run funmirbench-vectors --config benchmark.yaml
+```
+
+This command uses continuous estimates and does not require response-state labels.
+It keeps flagged OE comparisons, skips KO and set-aside comparisons, and writes to
+`results/<date_time>/response_vectors/` (under the configured `out_dir`):
+
+- `vectors/*.tsv.gz`: aligned cognate prediction and observed response values for every gene,
+  with separate response-eligibility and predictor-coverage masks;
+- `vector_files.tsv`: maps each experiment and predictor to its vector file;
+- `candidate_alignment.tsv`: Spearman alignment, overall and within control-expression tenths,
+  for every registry miRNA, including unavailable alignments and their reasons;
+- `specificity.tsv`: cognate alignment versus finite different-seed candidates, with midrank ties,
+  decoy counts, descriptive ranks, fraction of decoys better and a decoy z-score;
+- copies of the config, selected/skipped comparisons and registries, and `README.txt` with definitions.
+
+The observed vector is the oriented shrunken log2FC (positive means repression in OE).
+Missing responses remain missing; unscored predictions form one bottom tie. The dot product
+of the exported centered unit rank vectors equals Spearman on the common response mask.
+Predictor scores are not calibrated log2FC estimates, so their lengths are not predicted effect sizes.
+
+Specificity is relative to the available miRNA registry and predictor coverage, not a calibrated
+p-value or a rank among all human seed families. Same-seed members are excluded as decoys;
+different-seed families with multiple registry members contribute multiple candidates. Candidate
+counts are reported explicitly. Fewer than two usable decoys or zero decoy variation gives an NA
+z-score with a reason. Replicate stability, controls-only contrasts and a seed-count baseline are
+not yet computed: these need additional inputs beyond the per-gene benchmark tables.
+
 ## Predictors
 
 A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `miRNA_ID`, `miRNA_Name` and `Score`, on Ensembl 115 (GRCh38) and miRBase 22.1. To add your own predictor, put its file under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and add it to `predictors` in `benchmark.yaml`.
