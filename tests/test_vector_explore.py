@@ -16,7 +16,7 @@ import yaml
 from funmirbench.benchmark import load_predictions
 from funmirbench.response_vectors import alignment, build_vectors, control_expression_tenths
 from funmirbench.vector_engine import PredictionPanel, batch_alignment, load_matrix, response_view
-from funmirbench.vector_sources import download, unpack_tables
+from funmirbench.vector_sources import download, registry, unpack_tables
 from funmirbench.vector_explore import replot, run_exploration
 
 
@@ -101,6 +101,56 @@ class Response:
 
 
 class SourceTests(unittest.TestCase):
+    def http_error(self, status):
+        response = requests.Response()
+        response.status_code = status
+        return requests.HTTPError(f"HTTP {status}", response=response)
+
+    def test_metadata_retries_transient_errors_then_caches_success(self):
+        payload = {"example.zip": {"checksum": "md5:example"}}
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch("funmirbench.vector_sources.fetch_zenodo_file_registry",
+                      side_effect=[self.http_error(500), requests.Timeout(), payload]) as fetch, \
+                patch("funmirbench.vector_sources.time.sleep") as sleep:
+            root = pathlib.Path(tmp)
+            self.assertEqual(registry("23839843", root), payload)
+            self.assertEqual(registry("23839843", root), payload)
+            self.assertEqual(fetch.call_count, 3)
+            self.assertEqual([c.args[0] for c in sleep.call_args_list], [2, 4])
+
+    def test_metadata_outage_uses_pinned_public_files_with_verified_checksums(self):
+        for record, name, checksum in (
+                ("23839843", "benchmark_data.zip", "42bd622a8760671ca80c477e7fa81b87"),
+                ("21671476", "fun-miRBench_standardized_predictions.zip", "9e619a17668ea780fa3f4de85a7f5476")):
+            with self.subTest(record=record), tempfile.TemporaryDirectory() as tmp, \
+                    patch("funmirbench.vector_sources.fetch_zenodo_file_registry",
+                          side_effect=self.http_error(500)) as fetch, \
+                    patch("funmirbench.vector_sources.time.sleep"):
+                root = pathlib.Path(tmp)
+                files = registry(record, root)
+                self.assertEqual(files[name]["checksum"], "md5:" + checksum)
+                self.assertIn(f"/records/{record}/files/{name}?download=1", files[name]["url"])
+                self.assertEqual(registry(record, root), files)
+                self.assertEqual(fetch.call_count, 3)
+
+    def test_metadata_missing_record_fails_without_retry_or_substitution(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch("funmirbench.vector_sources.fetch_zenodo_file_registry",
+                      side_effect=self.http_error(404)) as fetch, \
+                patch("funmirbench.vector_sources.time.sleep") as sleep:
+            with self.assertRaises(requests.HTTPError):
+                registry("23839843", pathlib.Path(tmp))
+            self.assertEqual(fetch.call_count, 1)
+            sleep.assert_not_called()
+
+    def test_metadata_unknown_record_has_no_pinned_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch("funmirbench.vector_sources.fetch_zenodo_file_registry", side_effect=self.http_error(503)), \
+                patch("funmirbench.vector_sources.time.sleep"):
+            with self.assertRaises(requests.HTTPError):
+                registry("99999999", pathlib.Path(tmp))
+            self.assertFalse((pathlib.Path(tmp) / "zenodo/99999999/registry.json").exists())
+
     def meta(self, payload):
         return {"filename": "data.zip", "size": len(payload),
                 "checksum": "md5:" + hashlib.md5(payload).hexdigest(), "url": "https://example.test/data.zip"}

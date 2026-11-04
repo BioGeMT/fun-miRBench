@@ -32,6 +32,12 @@ The first download is approximately 2.22 GB for all five predictors: 85.7 MB of 
 120.4 MB of TargetScan predictions and a 2.01 GB prediction archive. No raw reads or
 alignments are downloaded. Archives are checksum-verified, retained and reused.
 
+Metadata requests retry transient network/API errors three times. If the API remains
+unavailable, the two supported records use bundled file sizes and checksums verified
+on 2026-11-04, with public file download URLs. This fallback is logged and cached;
+downloaded bytes still require checksum verification. Other record IDs have no bundled
+fallback. A persistent outage of the file downloads themselves still prevents a first run.
+
 Without `--published-only`, existing files referenced by the predictor registry are reused
 when present. Their provenance is explicitly labelled local and not verified against Zenodo.
 Custom predictors need a local standardized TSV and registry entry.

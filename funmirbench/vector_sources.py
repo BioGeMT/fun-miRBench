@@ -19,6 +19,19 @@ from funmirbench.zenodo_store import compute_md5, fetch_zenodo_file_registry
 
 logger = logging.getLogger(__name__)
 PREDICTOR_RECORD = "21671476"
+# File sizes/checksums verified against these published records on 2026-11-04.
+# Public file routes avoid depending on the metadata API during an outage.
+PINNED_FILES = {
+    "23839843": {
+        "benchmark_data.zip": (85741740, "42bd622a8760671ca80c477e7fa81b87"),
+        "targetscan_family_expanded_standardized.tsv.gz":
+            (120368347, "6110bb5d9b025793f84960c095114c7f"),
+    },
+    "21671476": {
+        "fun-miRBench_standardized_predictions.zip":
+            (2011298508, "9e619a17668ea780fa3f4de85a7f5476"),
+    },
+}
 
 
 def atomic_json(path, value):
@@ -40,10 +53,34 @@ def digest(value):
 
 
 def registry(record, cache, *, refresh=False, timeout=120):
+    record = str(record)
     path = cache / "zenodo" / str(record) / "registry.json"
     if path.is_file() and not refresh:
         return json.loads(path.read_text())
-    result = fetch_zenodo_file_registry(record=str(record), timeout=timeout)
+    for attempt in range(3):
+        try:
+            result = fetch_zenodo_file_registry(record=record, timeout=timeout)
+            if not result:
+                raise ValueError(f"empty file registry for Zenodo {record}")
+            break
+        except (requests.RequestException, ValueError) as exc:
+            # Invalid/private record IDs need correction, rather than a fallback.
+            if isinstance(exc, requests.HTTPError) and exc.response is not None:
+                status = exc.response.status_code
+                if 400 <= status < 500 and status not in (408, 429):
+                    raise
+            if attempt < 2:
+                delay = 2 ** (attempt + 1)
+                logger.warning("Zenodo %s metadata unavailable (%s); retry %d/3 in %ss",
+                               record, exc, attempt + 2, delay)
+                time.sleep(delay)
+                continue
+            if record not in PINNED_FILES:
+                raise
+            logger.warning("Zenodo %s API unavailable; using bundled checksum-pinned file registry", record)
+            result = {name: {"filename": name, "size": size, "checksum": "md5:" + checksum,
+                             "url": f"https://zenodo.org/records/{record}/files/{name}?download=1"}
+                      for name, (size, checksum) in PINNED_FILES[record].items()}
     atomic_json(path, result)
     return result
 
