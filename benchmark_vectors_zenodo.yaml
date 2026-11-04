@@ -1,0 +1,13 @@
+# Standalone exploration; published inputs stay separate from RNA-seq outputs.
+zenodo_record: '23839843'
+cache_dir: data/vector_explore
+mirnas_tsv: metadata/benchmark_mirnas.tsv
+predictions_tsv: metadata/predictions_info.tsv
+predictors:
+  tool_id: [targetscan_family_expanded, mirdb_mirtarget, microt_cnn, mirbind2, miraw]
+experiments: null
+exploration:
+  dpi: 130
+  detail_experiments: 3
+  export_vectors: false
+out_dir: results/vector_explore

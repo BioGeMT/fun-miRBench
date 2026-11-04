@@ -64,6 +64,17 @@ Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `rec
 
 ## Inspect Response Vectors
 
+For a complete **standalone exploratory run from Zenodo**, including cached analyses, plots
+and English HTML/PDF reports, use:
+
+```bash
+uv run funmirbench-vector-explore --config benchmark_vectors_zenodo.yaml --published-only
+```
+
+See [the exploration workflow](docs/vector_exploration.md) for input sources, first-run download
+sizes, background runs, rank definitions, filters and fast report-only repeats. This workflow
+uses a separate cache and does not replace local RNA-seq outputs or the main benchmark report.
+
 Run the exploratory vector analysis on the same inputs and filters as the benchmark:
 
 ```bash
