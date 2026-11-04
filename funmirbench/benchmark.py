@@ -90,8 +90,13 @@ def binned_spearman(x: np.ndarray, y: np.ndarray, bins: np.ndarray, min_size: in
 
 
 def expression_tenths(expression: pd.Series) -> pd.Series:
-    ranks = expression.rank(method="first")
-    return np.ceil(10 * ranks / len(ranks)).clip(1, 10).astype(int)
+    """Rank-based tenths that keep ties together; unknown baseline has no bin."""
+    expression = pd.to_numeric(expression, errors="raise").astype(float)
+    if (expression < 0).any():
+        raise ValueError("control expression must be nonnegative")
+    expression = expression.where(np.isfinite(expression))
+    ranks = expression.rank(method="average")
+    return np.ceil(10 * ranks / expression.notna().sum()).clip(1, 10)
 
 
 def score_metrics(score: pd.Series, table: pd.DataFrame, *, min_per_state: int) -> dict:
@@ -155,7 +160,7 @@ def load_predictions(path: pathlib.Path, direction: str, mirnas: set[str], genes
         if len(chunk):
             chunk = chunk.assign(gene_id=chunk.Ensembl_ID.astype(str).map(strip_ensembl_version),
                                  score=sign * pd.to_numeric(chunk.Score, errors="coerce"))
-            parts.append(chunk.loc[chunk.gene_id.isin(genes) & chunk.score.notna(), ["miRNA_Name", "gene_id", "score"]])
+            parts.append(chunk.loc[chunk.gene_id.isin(genes) & np.isfinite(chunk.score), ["miRNA_Name", "gene_id", "score"]])
     if not parts:
         return {}
     allp = pd.concat(parts).groupby(["miRNA_Name", "gene_id"]).score.max()
@@ -219,7 +224,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     for exp in comps.experiment_id:
         t = pd.read_csv(input_dir / final.loc[exp, "table"], sep="\t", usecols=TABLE_COLUMNS).set_index("gene_id")
         t["eligible"] = t.eligible.astype(bool)
-        t["expression_tenth"] = expression_tenths(t.control_mean_normalized_count.fillna(0.0))
+        t["expression_tenth"] = expression_tenths(t.control_mean_normalized_count)
         tables[exp] = t
     universe = next(iter(tables.values())).index
     if any(not t.index.equals(universe) for t in tables.values()):

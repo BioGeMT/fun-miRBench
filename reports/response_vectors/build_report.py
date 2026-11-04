@@ -81,7 +81,7 @@ def build(out: pathlib.Path):
 
     doc.add_heading("Gene level response vectors and miRNA specificity", level=0)
     p("Version of 2 November 2026. Companion to the expression-space and BulkFormer report. "
-      "Methods and first implementation; the biological analysis has not yet been run.")
+      "Methods and implementation after code review; the biological analysis has not yet been run.")
     h("Why keep the genes")
     p("The earlier report found that the direction of an experiment's whole-transcriptome movement "
       "can be poorly reproducible even when the perturbed miRNA's seed family can be recovered. "
@@ -132,19 +132,20 @@ def build(out: pathlib.Path):
       "half weight: rank = 1 + better decoys + half of tied decoys. A rank of 1 means no decoy "
       "does as well. The z-score is NA with fewer than two usable decoys or no decoy variation.")
     h("Accounting for control expression")
-    p("We repeat alignment within tenths of control expression, using the benchmark's existing "
-      "definition. Bins need at least 20 usable genes and a defined correlation; correlations are "
-      "averaged with weights equal to their gene counts. Specificity is then recalculated from "
-      "these alignments. This checks whether agreement survives comparison among genes of "
-      "similar baseline expression; it does not establish that all expression-related confounding "
-      "has been removed.")
+    p("We repeat alignment within rank-based tenths of control expression. Equal expression "
+      "values stay together; unknown expression has no bin. Bins need at least 20 usable genes "
+      "and a defined correlation, averaged with weights equal to their gene counts. For specificity, "
+      "we compare only decoys using exactly the same bins as the cognate, and report exclusions. "
+      "This checks agreement among genes of similar baseline expression; it does not remove "
+      "all expression-related confounding.")
 
     doc.add_page_break()
     h("What can be concluded so far")
-    p("The vector construction and specificity calculations are implemented. All 40 Python tests "
+    p("The vector construction and specificity calculations are implemented. All 49 Python tests "
       "passed at this version, including a synthetic end-to-end run and checks of gene alignment, "
-      "missing values, same-seed exclusion and ties. The exported rank-vector dot product was "
-      "checked against Spearman correlation.")
+      "missing values, same-seed exclusion and ties. The review added checks of reordered and "
+      "versioned gene IDs, equal baseline values, non-finite scores and matching decoy bin support. "
+      "The exported rank-vector dot product was checked against Spearman correlation.")
     p("These are software checks, not biological results. We have not yet run this command on "
       "the full benchmark inputs. There is therefore no new evidence here that one predictor "
       "outperforms another, or that the vector analysis improves on the existing benchmark.")
@@ -170,8 +171,9 @@ def build(out: pathlib.Path):
       "agreement does not establish direct binding.")
     h("Implementation and reproducibility")
     p("The analysis starts from PR #141 at commit 39be410 and is implemented on "
-      "feature/response-vector-analysis at commit 2cca628. Run: "
-      "uv run funmirbench-vectors --config benchmark.yaml. The normal benchmark is unchanged.")
+      "feature/response-vector-analysis, first implemented at commit 2cca628. Run: "
+      "uv run funmirbench-vectors --config benchmark.yaml. The main benchmark shares the "
+      "corrected handling of expression ties and missing baseline values.")
     p("Each run saves the vector files, candidate alignments, specificity table, selected and "
       "skipped comparisons, registries and configuration under results/<date_time>/response_vectors/. "
       "This companion report will be updated with the biological run's figures and findings.")

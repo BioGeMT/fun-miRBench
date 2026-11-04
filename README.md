@@ -73,6 +73,7 @@ uv run funmirbench-vectors --config benchmark.yaml
 This command uses continuous estimates and does not require response-state labels.
 It keeps flagged OE comparisons, skips KO and set-aside comparisons, and writes to
 `results/<date_time>/response_vectors/` (under the configured `out_dir`):
+Repeated runs in the same second get a numeric suffix on the timestamp folder.
 
 - `vectors/*.tsv.gz`: aligned cognate prediction and observed response values for every gene,
   with separate response-eligibility and predictor-coverage masks;
@@ -87,12 +88,25 @@ The observed vector is the oriented shrunken log2FC (positive means repression i
 Missing responses remain missing; unscored predictions form one bottom tie. The dot product
 of the exported centered unit rank vectors equals Spearman on the common response mask.
 Predictor scores are not calibrated log2FC estimates, so their lengths are not predicted effect sizes.
+Response gene IDs are normalized in the same way as predictor IDs; duplicate genes after
+normalization are rejected. Experiments may list the shared gene universe in different orders.
+
+Expression tenths keep equal baseline values together, so gene order cannot determine the bins.
+The same corrected binning is used by the main benchmark.
+Missing or non-finite baseline values have no expression bin; they still contribute to overall
+alignment if their response is usable. Zero is a measured baseline value, not a missing value.
+As a result, tied or unknown expression can give fewer than ten populated bins. Each bin needs
+at least 20 usable genes and a defined correlation. The exported vectors include `expression_tenth`;
+candidate rows list `within_tenths_bins` and `n_within_tenths_genes`.
 
 Specificity is relative to the available miRNA registry and predictor coverage, not a calibrated
 p-value or a rank among all human seed families. Same-seed members are excluded as decoys;
 different-seed families with multiple registry members contribute multiple candidates. Candidate
 counts are reported explicitly. Fewer than two usable decoys or zero decoy variation gives an NA
-z-score with a reason. Replicate stability, controls-only contrasts and a seed-count baseline are
+z-score with a reason. Within-tenth specificity uses only decoys whose contributing bins match
+the cognate's exactly, ensuring the same genes and bin weights are compared;
+`n_decoys_excluded_support` counts finite decoys excluded for different support.
+Replicate stability, controls-only contrasts and a seed-count baseline are
 not yet computed: these need additional inputs beyond the per-gene benchmark tables.
 
 ## Predictors
