@@ -12,6 +12,10 @@ pipelines/processing/run.sh
 
 - `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/processing/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. It also gets the miRBase names the pipeline checks configs against. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
 - `download.sh` runs steps 1 and 2. With `--references-only` it stops after the genome and GTF. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE124411`).
+  FASTQ downloads retry temporary connection/proxy errors, HTTP 408/429/5xx and size/checksum failures,
+  with increasing delays capped at 30 seconds (`--attempts 5` by default). A failed transfer restarts
+  that file; verified files are kept. Other files continue even if one exhausts its attempts.
+  For an intermittent proxy, use `bash pipelines/processing/download.sh --study GSE154968 --workers 1 --attempts 8`.
 - `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/processing/work/fits.tsv` and runs step 5 into `data/benchmark_data` (or `BENCHMARK_DATA_DIR`). Its arguments limit the runs to those comparisons; the benchmark tables need all 21.
 
 ## Steps
