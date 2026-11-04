@@ -21,7 +21,7 @@ from funmirbench.plots import tool_colors
 from funmirbench.vector_sources import atomic_json
 
 logger = logging.getLogger(__name__)
-PLOT_VERSION = "explore-figures-2"
+PLOT_VERSION = "explore-figures-3"
 
 
 def read_results(directory):
@@ -102,7 +102,7 @@ def figures(data, directory, *, dpi=130, details=3):
             cm.set_bad("#D9D9D9")
             image = ax.imshow(np.ma.masked_invalid(wide.to_numpy(float)), aspect="auto", cmap=cm,
                               vmin=limits[0], vmax=limits[1])
-            ax.set_xticks(range(len(ids)), tick_labels, fontsize=9)
+            ax.set_xticks(range(len(ids)), tick_labels, fontsize=8, rotation=30, ha="right")
             row_labels = [f"[{start + i + 1:02d}] {r.study} {r.mirna_name.removeprefix('hsa-')}" +
                           (" *" if r.action != "keep" else "") if hasattr(r, "study") else r.experiment_id
                           for i, r in enumerate(subset.itertuples(index=False))]
