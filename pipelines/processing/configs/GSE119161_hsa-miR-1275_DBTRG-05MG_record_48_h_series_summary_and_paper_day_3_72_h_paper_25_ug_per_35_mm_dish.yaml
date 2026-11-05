@@ -1,0 +1,33 @@
+dataset_id: GSE119161_hsa-miR-1275_DBTRG-05MG_record_48_h_series_summary_and_paper_day_3_72_h_paper_25_ug_per_35_mm_dish
+gse: GSE119161
+mirna_name: hsa-miR-1275
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3359879
+    reads_1: data/experiments/raw/GSE119161/SRR7763531/SRR7763531.fastq.gz
+  - sample_id: GSM3359880
+    reads_1: data/experiments/raw/GSE119161/SRR7763532/SRR7763532.fastq.gz
+  - sample_id: GSM3359881
+    reads_1: data/experiments/raw/GSE119161/SRR7763533/SRR7763533.fastq.gz
+  treated_samples:
+  - sample_id: GSM3359885
+    reads_1: data/experiments/raw/GSE119161/SRR7763537/SRR7763537.fastq.gz
+  - sample_id: GSM3359886
+    reads_1: data/experiments/raw/GSE119161/SRR7763538/SRR7763538.fastq.gz
+  - sample_id: GSM3359887
+    reads_1: data/experiments/raw/GSE119161/SRR7763539/SRR7763539.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: DBTRG-05MG
+  treatment_dose: 25 ug per 35 mm dish
+  treatment: Overexpression of hsa-miR-1275 (miR-1275 mimic (RiboBio)) against negative control mimic (NC)
+  method: RNA-seq

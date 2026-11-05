@@ -1,0 +1,40 @@
+dataset_id: GSE295502_hsa-miR-526b-3p_MCF7_stable_H2O2_48_h
+gse: GSE295502
+mirna_name: hsa-miR-526b-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM9127800
+    reads_1: data/experiments/raw/GSE295502/SRR34691024/SRR34691024_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR34691024/SRR34691024_2.fastq.gz
+  - sample_id: GSM9127801
+    reads_1: data/experiments/raw/GSE295502/SRR34691023/SRR34691023_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR34691023/SRR34691023_2.fastq.gz
+  - sample_id: GSM9127802
+    reads_1: data/experiments/raw/GSE295502/SRR34691022/SRR34691022_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR34691022/SRR34691022_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM9127803
+    reads_1: data/experiments/raw/GSE295502/SRR34691021/SRR34691021_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR34691021/SRR34691021_2.fastq.gz
+  - sample_id: GSM9127804
+    reads_1: data/experiments/raw/GSE295502/SRR34691019/SRR34691019_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR34691019/SRR34691019_2.fastq.gz
+  - sample_id: GSM9127805
+    reads_1: data/experiments/raw/GSE295502/SRR34691018/SRR34691018_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR34691018/SRR34691018_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: MCF7 stable line, H2O2 216 uM
+  treatment_dose: H2O2 216 uM
+  treatment: Overexpression of hsa-miR-526b-3p (stable pCMV-MIR plasmid line expressing miR-526b, G418 maintained) against
+    parental MCF7 under the same treatment
+  method: RNA-seq

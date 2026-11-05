@@ -1,0 +1,46 @@
+dataset_id: PRJNA531758_hsa-let-7d-5p_HUVEC_not_stated_not_stated
+gse: PRJNA531758
+mirna_name: hsa-let-7d-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: MC-0
+    reads_1: data/experiments/raw/PRJNA531758/SRR8873618/SRR8873618_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA531758/SRR8873618/SRR8873618_2.fastq.gz
+  - sample_id: MC-1
+    reads_1: data/experiments/raw/PRJNA531758/SRR8873621/SRR8873621_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA531758/SRR8873621/SRR8873621_2.fastq.gz
+  - sample_id: MC-2
+    reads_1: data/experiments/raw/PRJNA531758/SRR8873622/SRR8873622_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA531758/SRR8873622/SRR8873622_2.fastq.gz
+  treated_samples:
+  - sample_id: M-0
+    reads_1: data/experiments/raw/PRJNA531758/SRR8873619/SRR8873619_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA531758/SRR8873619/SRR8873619_2.fastq.gz
+  - sample_id: M-1
+    reads_1: data/experiments/raw/PRJNA531758/SRR8873620/SRR8873620_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA531758/SRR8873620/SRR8873620_2.fastq.gz
+  - sample_id: M-2
+    reads_1: data/experiments/raw/PRJNA531758/SRR8873617/SRR8873617_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA531758/SRR8873617/SRR8873617_2.fastq.gz
+  batch_by_sample:
+    M-0: batch1
+    M-1: batch2
+    M-2: batch3
+    MC-0: batch1
+    MC-1: batch2
+    MC-2: batch3
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HUVEC
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-let-7d-5p (let-7d mimic) against let-7d mimic control
+  method: RNA-seq

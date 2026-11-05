@@ -1,0 +1,59 @@
+dataset_id: GSE109108_miR-138-5p_DDC_day7
+gse: GSE109108
+mirna_name: hsa-miR-138-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM2931817
+    reads_1:
+    - data/experiments/raw/GSE109108/SRR6464766/SRR6464766.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464767/SRR6464767.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464768/SRR6464768.fastq.gz
+  - sample_id: GSM2931823
+    reads_1:
+    - data/experiments/raw/GSE109108/SRR6464784/SRR6464784.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464785/SRR6464785.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464786/SRR6464786.fastq.gz
+  - sample_id: GSM2931829
+    reads_1:
+    - data/experiments/raw/GSE109108/SRR6464802/SRR6464802.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464803/SRR6464803.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464804/SRR6464804.fastq.gz
+  treated_samples:
+  - sample_id: GSM2931813
+    reads_1:
+    - data/experiments/raw/GSE109108/SRR6464754/SRR6464754.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464755/SRR6464755.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464756/SRR6464756.fastq.gz
+  - sample_id: GSM2931819
+    reads_1:
+    - data/experiments/raw/GSE109108/SRR6464772/SRR6464772.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464773/SRR6464773.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464774/SRR6464774.fastq.gz
+  - sample_id: GSM2931825
+    reads_1:
+    - data/experiments/raw/GSE109108/SRR6464790/SRR6464790.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464791/SRR6464791.fastq.gz
+    - data/experiments/raw/GSE109108/SRR6464792/SRR6464792.fastq.gz
+  batch_by_sample:
+    GSM2931813: cs128
+    GSM2931819: cs131
+    GSM2931825: cs142
+    GSM2931817: cs128
+    GSM2931823: cs131
+    GSM2931829: cs142
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: de-differentiated chondrocytes from osteoarthritic cartilage, osteogenic induction
+  treatment_dose: MOI 20
+  treatment: Overexpression of hsa-miR-138-5p (lentivirus pLemiR expressing pri-miR-138) against lentivirus pLemiR expressing
+    non-silencing RNA (LV-NS)
+  method: RNA-seq

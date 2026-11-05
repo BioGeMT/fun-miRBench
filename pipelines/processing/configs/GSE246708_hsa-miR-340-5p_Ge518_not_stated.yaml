@@ -1,0 +1,33 @@
+dataset_id: GSE246708_hsa-miR-340-5p_Ge518_not_stated
+gse: GSE246708
+mirna_name: hsa-miR-340-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM7875103
+    reads_1: data/experiments/raw/GSE246708/SRR26621556/SRR26621556.fastq.gz
+  - sample_id: GSM7875104
+    reads_1: data/experiments/raw/GSE246708/SRR26621555/SRR26621555.fastq.gz
+  - sample_id: GSM7875105
+    reads_1: data/experiments/raw/GSE246708/SRR26621554/SRR26621554.fastq.gz
+  treated_samples:
+  - sample_id: GSM7875109
+    reads_1: data/experiments/raw/GSE246708/SRR26621562/SRR26621562.fastq.gz
+  - sample_id: GSM7875110
+    reads_1: data/experiments/raw/GSE246708/SRR26621561/SRR26621561.fastq.gz
+  - sample_id: GSM7875111
+    reads_1: data/experiments/raw/GSE246708/SRR26621560/SRR26621560.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Ge518 patient-derived glioblastoma cells
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-340-5p (miR-340 mimic) against nontargeting scrambled control (miCtrl)
+  method: RNA-seq

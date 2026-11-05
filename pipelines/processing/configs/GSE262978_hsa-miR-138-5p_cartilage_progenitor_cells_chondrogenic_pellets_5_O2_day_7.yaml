@@ -1,0 +1,86 @@
+dataset_id: GSE262978_hsa-miR-138-5p_cartilage_progenitor_cells_chondrogenic_pellets_5_O2_day_7
+gse: GSE262978
+mirna_name: hsa-miR-138-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8182653
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523406/SRR28523406_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523407/SRR28523407_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523406/SRR28523406_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523407/SRR28523407_2.fastq.gz
+  - sample_id: GSM8182654
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523404/SRR28523404_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523405/SRR28523405_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523404/SRR28523404_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523405/SRR28523405_2.fastq.gz
+  - sample_id: GSM8182655
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523402/SRR28523402_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523403/SRR28523403_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523402/SRR28523402_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523403/SRR28523403_2.fastq.gz
+  - sample_id: GSM8182656
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523400/SRR28523400_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523401/SRR28523401_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523400/SRR28523400_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523401/SRR28523401_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8182657
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523398/SRR28523398_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523399/SRR28523399_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523398/SRR28523398_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523399/SRR28523399_2.fastq.gz
+  - sample_id: GSM8182658
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523396/SRR28523396_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523397/SRR28523397_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523396/SRR28523396_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523397/SRR28523397_2.fastq.gz
+  - sample_id: GSM8182659
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523394/SRR28523394_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523395/SRR28523395_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523394/SRR28523394_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523395/SRR28523395_2.fastq.gz
+  - sample_id: GSM8182660
+    reads_1:
+    - data/experiments/raw/GSE262978/SRR28523392/SRR28523392_1.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523393/SRR28523393_1.fastq.gz
+    reads_2:
+    - data/experiments/raw/GSE262978/SRR28523392/SRR28523392_2.fastq.gz
+    - data/experiments/raw/GSE262978/SRR28523393/SRR28523393_2.fastq.gz
+  batch_by_sample:
+    GSM8182657: cpc316
+    GSM8182658: cpc339
+    GSM8182659: cpc362
+    GSM8182660: cpc400
+    GSM8182653: cpc316
+    GSM8182654: cpc339
+    GSM8182655: cpc362
+    GSM8182656: cpc400
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: cartilage progenitor cells, chondrogenic pellets, 5% O2
+  treatment_dose: ''
+  treatment: Overexpression of hsa-miR-138-5p (lentivirus pre-miR-138) against lentivirus non-silencing control RNA
+  method: RNA-seq

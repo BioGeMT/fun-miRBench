@@ -1,0 +1,40 @@
+dataset_id: GSE295502_hsa-miR-655-3p_MCF7_stable_DMSO_48_h
+gse: GSE295502
+mirna_name: hsa-miR-655-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8951601
+    reads_1: data/experiments/raw/GSE295502/SRR33298953/SRR33298953_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298953/SRR33298953_2.fastq.gz
+  - sample_id: GSM8951602
+    reads_1: data/experiments/raw/GSE295502/SRR33298952/SRR33298952_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298952/SRR33298952_2.fastq.gz
+  - sample_id: GSM8951603
+    reads_1: data/experiments/raw/GSE295502/SRR33298951/SRR33298951_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298951/SRR33298951_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8951613
+    reads_1: data/experiments/raw/GSE295502/SRR33298940/SRR33298940_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298940/SRR33298940_2.fastq.gz
+  - sample_id: GSM8951614
+    reads_1: data/experiments/raw/GSE295502/SRR33298939/SRR33298939_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298939/SRR33298939_2.fastq.gz
+  - sample_id: GSM8951615
+    reads_1: data/experiments/raw/GSE295502/SRR33298938/SRR33298938_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298938/SRR33298938_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: MCF7 stable line, DMSO vehicle
+  treatment_dose: DMSO vehicle
+  treatment: Overexpression of hsa-miR-655-3p (stable pCMV-MIR plasmid line expressing miR-655, G418 maintained) against parental
+    MCF7 under the same treatment
+  method: RNA-seq

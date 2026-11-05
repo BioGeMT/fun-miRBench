@@ -1,0 +1,41 @@
+dataset_id: GSE161095_miR-150-5p_memoryT_input_24h
+gse: GSE161095
+mirna_name: hsa-miR-150-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM4889539
+    reads_1: data/experiments/raw/GSE161095/SRR13010524/SRR13010524.fastq.gz
+  - sample_id: GSM4889543
+    reads_1: data/experiments/raw/GSE161095/SRR13010528/SRR13010528.fastq.gz
+  - sample_id: GSM4889547
+    reads_1: data/experiments/raw/GSE161095/SRR13010532/SRR13010532.fastq.gz
+  treated_samples:
+  - sample_id: GSM4889538
+    reads_1: data/experiments/raw/GSE161095/SRR13010523/SRR13010523.fastq.gz
+  - sample_id: GSM4889542
+    reads_1: data/experiments/raw/GSE161095/SRR13010527/SRR13010527.fastq.gz
+  - sample_id: GSM4889546
+    reads_1: data/experiments/raw/GSE161095/SRR13010531/SRR13010531.fastq.gz
+  batch_by_sample:
+    GSM4889538: donor1
+    GSM4889542: donor2
+    GSM4889546: donor3
+    GSM4889539: donor1
+    GSM4889543: donor2
+    GSM4889547: donor3
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: primary human CD4+ memory T cells, activated 5 days
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-150-5p (biotinylated miR-150 mimic (Exiqon), input RNA before pull-down) against biotinylated
+    negative control mimic (Exiqon), input RNA
+  method: RNA-seq

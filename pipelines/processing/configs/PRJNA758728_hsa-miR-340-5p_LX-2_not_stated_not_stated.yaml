@@ -1,0 +1,39 @@
+dataset_id: PRJNA758728_hsa-miR-340-5p_LX-2_not_stated_not_stated
+gse: PRJNA758728
+mirna_name: hsa-miR-340-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: LX2_control_r1
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667186/SRR15667186_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667186/SRR15667186_2.fastq.gz
+  - sample_id: LX2_control_r2
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667185/SRR15667185_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667185/SRR15667185_2.fastq.gz
+  - sample_id: LX2_control_r3
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667184/SRR15667184_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667184/SRR15667184_2.fastq.gz
+  treated_samples:
+  - sample_id: LX2_340_mimic_r1
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667179/SRR15667179_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667179/SRR15667179_2.fastq.gz
+  - sample_id: LX2_340_mimic_r2
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667178/SRR15667178_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667178/SRR15667178_2.fastq.gz
+  - sample_id: LX2_340_mimic_r3
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667177/SRR15667177_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667177/SRR15667177_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: LX-2
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-340-5p (miRNA mimic, Hieff Trans) against control (oligo not named)
+  method: RNA-seq

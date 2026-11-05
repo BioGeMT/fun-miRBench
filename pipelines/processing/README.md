@@ -1,6 +1,6 @@
 # Processing
 
-From reads to the per-gene benchmark tables for the 21 fun-miRBench OE test comparisons.
+From reads to the per-gene benchmark tables for the 72 fun-miRBench OE test comparisons.
 
 ## Run
 
@@ -12,11 +12,11 @@ pipelines/processing/run.sh
 
 - `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/processing/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. It also gets the miRBase names the pipeline checks configs against. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
 - `download.sh` runs steps 1 and 2. With `--references-only` it stops after the genome and GTF. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE124411`).
-- `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/processing/work/fits.tsv` and runs step 5 into `data/benchmark_data` (or `BENCHMARK_DATA_DIR`). Its arguments limit the runs to those comparisons; the benchmark tables need all 21.
+- `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/processing/work/fits.tsv` and runs step 5 into `data/benchmark_data` (or `BENCHMARK_DATA_DIR`). Its arguments limit the runs to those comparisons; the benchmark tables need all 72.
 
 ## Steps
 
-1. **Reads.** `pipelines/processing/src/download_reads.py` downloads the 178 FASTQ files (317.7 GB) listed in `pipelines/processing/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
+1. **Reads.** `pipelines/processing/src/download_reads.py` downloads the 722 FASTQ files (1,281.7 GB) listed in `pipelines/processing/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
 2. **References.** Download the soft-masked genome `Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz` (https://ftp.ensembl.org/pub/release-115/fasta/homo_sapiens/dna/) and `Homo_sapiens.GRCh38.115.gtf.gz` (https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/) into `data/experiments/raw/refs/ensembl_v115/`, decompress both, and save the genome as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the name the configs point to. This is the genome the reruns used, and the one `funmirbench-experiments-download-examples` fetches.
 3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/processing/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks).
 
@@ -26,7 +26,7 @@ pipelines/processing/run.sh
 
 Step 3 writes each run to `pipelines/processing/work/runs/<timestamp>_<id>/`, with `complete_analysis.rds` and `run_manifest.json`, and the DE table to `data/experiments/processed/<id>.tsv`.
 
-To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXPERIMENT.md).
+To add one experiment without rebuilding the 72, see [ADD_EXPERIMENT.md](ADD_EXPERIMENT.md).
 
 ## Config of one comparison
 
@@ -91,11 +91,11 @@ The same rules apply to every comparison. Metrics are computed on the benchmark 
 | `gc_shift` | Spearman ρ between log2FC and CDS GC beyond ±0.3 |
 | `qc_samples_k_of_n` | k samples with STAR unique mapping below 60% or featureCounts assignment below 20% |
 
-Result: 9 comparisons are kept and 12 flagged.
-- QC samples: all 6 GSE115646 and both GSE129076. GSE115646 libraries have heavy multimapping but still 7–10 million assigned reads per sample.
-- GC shift: 5 comparisons.
-- Global shift and most genes changed: GSE168484.
+Result: 49 comparisons are kept and 23 flagged.
+- QC samples: 7 comparisons, 5 of them GSE115646. GSE115646 libraries have heavy multimapping but still 7–10 million assigned reads per sample.
+- GC shift: 16 comparisons.
+- Most genes changed: GSE168484.
 
 ## Provenance
 
-The tables were built on 2026-10-17 from the fresh reruns of 2026-10-11 and the input QC review, and the states redone on 2026-10-31 with s-values in the direction of repression.
+The tables were built on 2026-11-05, with size factors from the control samples, from the counts of reruns that used the reads, references and tools of this pipeline.

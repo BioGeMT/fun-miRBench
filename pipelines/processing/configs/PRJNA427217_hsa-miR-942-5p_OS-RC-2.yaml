@@ -1,0 +1,39 @@
+dataset_id: PRJNA427217_hsa-miR-942-5p_OS-RC-2
+gse: PRJNA427217
+mirna_name: hsa-miR-942-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: SRR6410972
+    reads_1: data/experiments/raw/PRJNA427217/SRR6410972/SRR6410972_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA427217/SRR6410972/SRR6410972_2.fastq.gz
+  - sample_id: SRR6410973
+    reads_1: data/experiments/raw/PRJNA427217/SRR6410973/SRR6410973_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA427217/SRR6410973/SRR6410973_2.fastq.gz
+  - sample_id: SRR6410970
+    reads_1: data/experiments/raw/PRJNA427217/SRR6410970/SRR6410970_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA427217/SRR6410970/SRR6410970_2.fastq.gz
+  treated_samples:
+  - sample_id: SRR6410971
+    reads_1: data/experiments/raw/PRJNA427217/SRR6410971/SRR6410971_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA427217/SRR6410971/SRR6410971_2.fastq.gz
+  - sample_id: SRR6410968
+    reads_1: data/experiments/raw/PRJNA427217/SRR6410968/SRR6410968_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA427217/SRR6410968/SRR6410968_2.fastq.gz
+  - sample_id: SRR6410969
+    reads_1: data/experiments/raw/PRJNA427217/SRR6410969/SRR6410969_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA427217/SRR6410969/SRR6410969_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: OS-RC-2 renal cell carcinoma
+  treatment_dose: Not stated
+  treatment: Overexpression of hsa-miR-942-5p (miR-942 mimic) against negative control (type not stated)
+  method: RNA-seq

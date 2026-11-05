@@ -1,0 +1,40 @@
+dataset_id: E-MTAB-10350_hsa-miR-99b-5p_PC-3_24h
+gse: E-MTAB-10350
+mirna_name: hsa-miR-99b-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: ERS6234817
+    reads_1: data/experiments/raw/E-MTAB-10350/ERR5696156/ERR5696156_1.fastq.gz
+    reads_2: data/experiments/raw/E-MTAB-10350/ERR5696156/ERR5696156_2.fastq.gz
+  - sample_id: ERS6234818
+    reads_1: data/experiments/raw/E-MTAB-10350/ERR5696157/ERR5696157_1.fastq.gz
+    reads_2: data/experiments/raw/E-MTAB-10350/ERR5696157/ERR5696157_2.fastq.gz
+  - sample_id: ERS6234819
+    reads_1: data/experiments/raw/E-MTAB-10350/ERR5696158/ERR5696158_1.fastq.gz
+    reads_2: data/experiments/raw/E-MTAB-10350/ERR5696158/ERR5696158_2.fastq.gz
+  treated_samples:
+  - sample_id: ERS6234814
+    reads_1: data/experiments/raw/E-MTAB-10350/ERR5696153/ERR5696153_1.fastq.gz
+    reads_2: data/experiments/raw/E-MTAB-10350/ERR5696153/ERR5696153_2.fastq.gz
+  - sample_id: ERS6234815
+    reads_1: data/experiments/raw/E-MTAB-10350/ERR5696154/ERR5696154_1.fastq.gz
+    reads_2: data/experiments/raw/E-MTAB-10350/ERR5696154/ERR5696154_2.fastq.gz
+  - sample_id: ERS6234816
+    reads_1: data/experiments/raw/E-MTAB-10350/ERR5696155/ERR5696155_1.fastq.gz
+    reads_2: data/experiments/raw/E-MTAB-10350/ERR5696155/ERR5696155_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: PC-3
+  treatment_dose: not stated
+  treatment: 'Overexpression of hsa-miR-99b-5p (mirVana miR-99b-5p mimic (Cat 4464066), Lipofectamine 2000) against mirVana
+    negative control mimic #1 (Cat 4464058)'
+  method: RNA-seq

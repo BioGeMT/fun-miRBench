@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download the Ensembl 115 genome and GTF and the FASTQ files of the 21 OE test comparisons. Complete files are kept,
+# Download the Ensembl 115 genome and GTF and the FASTQ files of the 72 OE test comparisons. Complete files are kept,
 # so the script can be rerun after an interruption. --references-only stops after the genome and GTF; other arguments go
 # to download_reads.py (for example --study GSE124411).
 set -euo pipefail

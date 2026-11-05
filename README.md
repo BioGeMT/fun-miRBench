@@ -21,7 +21,7 @@ uv sync
 - `pipelines/processing/`: from reads to the per-gene benchmark tables
 - `pipelines/standardized_predictors/`: one pipeline per predictor
 - `tests/`: the tests
-- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
+- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 72 OE test experiments
 
 Not tracked by git:
 

@@ -1,22 +1,73 @@
 experiment_id	study	mirna_name	perturbation	cell_line	split	design	dependency_group	action	flags
+E-MTAB-10350_hsa-miR-99b-5p_PC-3_24h	E-MTAB-10350	hsa-miR-99b-5p	OE	PC-3	test	~ condition	group_0f0ba8fd4d26	keep	
+GSE109108_miR-138-5p_DDC_day2	GSE109108	hsa-miR-138-5p	OE	de-differentiated chondrocytes from osteoarthritic cartilage, osteogenic induction	test	~ batch + condition	group_2fb8a7bb9972	keep	
+GSE109108_miR-138-5p_DDC_day7	GSE109108	hsa-miR-138-5p	OE	de-differentiated chondrocytes from osteoarthritic cartilage, osteogenic induction	test	~ batch + condition	group_e9ca83f1c70b	keep	
 GSE112859_OE_miR_574_5p	GSE112859	hsa-miR-574-5p	OE	MGC-803	test	~ condition	group_fd4683b833bb	keep	
+GSE115361_hsa-miR-340-5p_A549_24_h	GSE115361	hsa-miR-340-5p	OE	A549	test	~ condition	group_b83b83fa12d1	flag	gc_shift
 GSE115646_OE_miR-101-3p_HepG2	GSE115646	hsa-miR-101-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_8_of_10
 GSE115646_OE_miR-133a-3p_HepG2	GSE115646	hsa-miR-133a-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_8_of_10
-GSE115646_OE_miR-140-3p_HepG2	GSE115646	hsa-miR-140-3p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_6_of_8
 GSE115646_OE_miR-140-5p_HepG2	GSE115646	hsa-miR-140-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	gc_shift;qc_samples_7_of_8
 GSE115646_OE_miR-18a-5p_HepG2	GSE115646	hsa-miR-18a-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_9_of_12
 GSE115646_OE_miR-211-5p_HepG2	GSE115646	hsa-miR-211-5p	OE	HepG2	test	~ batch + condition	group_98818c45cd54	flag	qc_samples_7_of_10
+GSE119161_hsa-miR-1275_DBTRG-05MG_record_48_h_series_summary_and_paper_day_3_72_h_paper_25_ug_per_35_mm_dish	GSE119161	hsa-miR-1275	OE	DBTRG-05MG	test	~ condition	group_7e440bce2bc4	keep	
+GSE123680_miR-139-5p_CAL62_96h	GSE123680	hsa-miR-139-5p	OE	CAL62	test	~ batch + condition	group_e30657d3c1a2	keep	
 GSE124411_OE_miR_150_5p_1	GSE124411	hsa-miR-150-5p	OE	LX-2	test	~ condition	group_3b2be30d4cf4	flag	gc_shift
+GSE125602_hsa-miR-375-3p_fibrolamellar_carcinoma_cell_line_prFLC_48_h_50_nM	GSE125602	hsa-miR-375-3p	OE	fibrolamellar carcinoma cell line (prFLC)	test	~ condition	group_594d2d585564	keep	
+GSE127502_miR-138-5p_293T_40nM_24h	GSE127502	hsa-miR-138-5p	OE	293T	test	~ condition	group_206517ea3507	keep	
 GSE129076_OE_miR_450a_5p_1	GSE129076	hsa-miR-450a-5p	OE	A2780	test	~ condition	group_b61e55166ae3	flag	qc_samples_3_of_6
-GSE129076_OE_miR_450a_5p_2	GSE129076	hsa-miR-450a-5p	OE	SKOV-3	test	~ condition	group_b61e55166ae3	flag	gc_shift;qc_samples_4_of_6
+GSE139947_miR-126-3p_HMEC-1_50nM_48h	GSE139947	hsa-miR-126-3p	OE	HMEC-1	test	~ condition	group_db9a1137fbe1	keep	
+GSE139947_miR-143-3p_HMEC-1_50nM_48h	GSE139947	hsa-miR-143-3p	OE	HMEC-1	test	~ condition	group_db9a1137fbe1	keep	
+GSE141129_hsa-miR-126-3p_HLMVEC_air_control_5_nM_16_h	GSE141129	hsa-miR-126-3p	OE	primary human lung microvascular endothelial cells, air control	test	~ batch + condition	group_02044546c660	keep	
+GSE142895_miR-133a-3p_T-REx-293_batch2_7d	GSE142895	hsa-miR-133a-3p	OE	Flp-In T-REx 293	test	~ condition	group_21448aae94c3	keep	
+GSE142895_miR-302a-3p_T-REx-293_batch2_7d	GSE142895	hsa-miR-302a-3p	OE	Flp-In T-REx 293	test	~ condition	group_21448aae94c3	keep	
+GSE142895_miR-372-3p_T-REx-293_batch2_7d	GSE142895	hsa-miR-372-3p	OE	Flp-In T-REx 293	test	~ condition	group_21448aae94c3	keep	
+GSE142895_miR-373-3p_T-REx-293_batch2_7d	GSE142895	hsa-miR-373-3p	OE	Flp-In T-REx 293	test	~ condition	group_21448aae94c3	keep	
 GSE148827_OE_miR_1271_5p	GSE148827	hsa-miR-1271-5p	OE	SH-SY5Y	test	~ condition	group_824543c377f9	flag	gc_shift
 GSE154968_OE_miR_21_3p	GSE154968	hsa-miR-21-3p	OE	HaCaT	test	~ condition	group_7f7df5eec01a	keep	
-GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	OE	HepG2	test	~ condition	group_543aabc66d1a	flag	global_shift;most_genes_changed
+GSE158317_hsa-miR-330-3p_COV318_not_stated_paper_50_to_60_nM	GSE158317	hsa-miR-330-3p	OE	COV318	test	~ condition	group_a539ce9bbb67	flag	gc_shift
+GSE161095_miR-150-5p_memoryT_input_24h	GSE161095	hsa-miR-150-5p	OE	primary human CD4+ memory T cells, activated 5 days	test	~ batch + condition	group_730cdb067866	keep	
+GSE168484_OE_miR_20b_5p	GSE168484	hsa-miR-20b-5p	OE	HepG2	test	~ condition	group_543aabc66d1a	flag	most_genes_changed
 GSE175729_OE_miR-100-3p_Kelly	GSE175729	hsa-miR-100-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
-GSE175729_OE_miR-1915-3p_Kelly	GSE175729	hsa-miR-1915-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
 GSE175729_OE_miR-380-3p_Kelly	GSE175729	hsa-miR-380-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
 GSE175729_OE_miR-485-3p_Kelly	GSE175729	hsa-miR-485-3p	OE	Kelly	test	~ condition	group_019ec7350dd7	keep	
 GSE175729_OE_miR-99b-5p_Kelly	GSE175729	hsa-miR-99b-5p	OE	Kelly	test	~ condition	group_019ec7350dd7	flag	gc_shift
+GSE180331_miR-101-3p_143BTK_120h	GSE180331	hsa-miR-101-3p	OE	143BTK- osteosarcoma cells in galactose medium	test	~ condition	group_f147d739b3cc	keep	
 GSE202135_OE_miR_130a_3p	GSE202135	hsa-miR-130a-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	group_49b966b28e24	keep	
 GSE202135_OE_miR_130b_3p	GSE202135	hsa-miR-130b-3p	OE	bone-marrow mesenchymal stem cells	test	~ condition	group_49b966b28e24	keep	
+GSE203172_miR-139-5p_iPSC-MN_day34	GSE203172	hsa-miR-139-5p	OE	iPSC-derived motor neurons	test	~ condition	group_0443e24e8b69	flag	qc_samples_3_of_6
+GSE204669_hsa-miR-3648_AGS_not_stated_qPCR_at_48_h_not_stated	GSE204669	hsa-miR-3648	OE	AGS	test	~ condition	group_fe3b39b5dc43	flag	gc_shift
+GSE204705_miR-130b-3p_HUVEC_48h	GSE204705	hsa-miR-130b-3p	OE	HUVEC	test	~ condition	group_395aaaaf143e	keep	
 GSE210778_OE_miR_375_3p	GSE210778	hsa-miR-375-3p	OE	HUV-EC-C	test	~ condition	group_67cd69a310a6	keep	
+GSE220728_ISO-miR-1246_G_Caco-2_5_isoform_100_pmol_mL	GSE220728	hsa-miR-1246	OE	Caco-2	test	~ batch + condition	group_6318c7f89c87	flag	gc_shift
+GSE220728_ISO-miR-1246_a_Caco-2_5_isoform_100_pmol_mL	GSE220728	hsa-miR-1246	OE	Caco-2	test	~ batch + condition	group_6318c7f89c87	flag	gc_shift
+GSE220728_hsa-miR-1246_Caco-2_canonical_100_pmol_mL	GSE220728	hsa-miR-1246	OE	Caco-2	test	~ batch + condition	group_6318c7f89c87	flag	gc_shift
+GSE246708_hsa-miR-17-3p_Ge518_not_stated	GSE246708	hsa-miR-17-3p	OE	Ge518 patient-derived glioblastoma cells	test	~ condition	group_3091fd3f10da	keep	
+GSE246708_hsa-miR-340-5p_Ge518_not_stated	GSE246708	hsa-miR-340-5p	OE	Ge518 patient-derived glioblastoma cells	test	~ condition	group_3091fd3f10da	keep	
+GSE262978_hsa-miR-138-5p_cartilage_progenitor_cells_chondrogenic_pellets_5_O2_day_7	GSE262978	hsa-miR-138-5p	OE	cartilage progenitor cells, chondrogenic pellets, 5% O2	test	~ batch + condition	group_01365768edad	keep	
+GSE267283_hsa-miR-1229-5p_Ishikawa_not_stated_not_stated	GSE267283	hsa-miR-1229-5p	OE	Ishikawa	test	~ condition	group_dc190dffc3ce	keep	
+GSE274053_hsa-miR-637_HPASMC_hypoxia	GSE274053	hsa-miR-637	OE	HPASMC in hypoxia (1% O2, 5% CO2)	test	~ condition	group_2f74832af0e7	keep	
+GSE274053_hsa-miR-661_HPASMC_hypoxia	GSE274053	hsa-miR-661	OE	HPASMC in hypoxia (1% O2, 5% CO2)	test	~ condition	group_2f74832af0e7	flag	gc_shift
+GSE293683_hsa-miR-369-5p_HMVEC-D_50_nM_24_h	GSE293683	hsa-miR-369-5p	OE	HMVEC-D, Lonza CC-2543	test	~ condition	group_2e2d3c34b050	flag	gc_shift
+GSE293683_hsa-miR-369-5p_HMVEC-D_50_nM_48_h	GSE293683	hsa-miR-369-5p	OE	HMVEC-D, Lonza CC-2543	test	~ condition	group_04612d1f995a	keep	
+GSE295502_hsa-miR-526b-3p_MCF7_stable_DMSO_48_h	GSE295502	hsa-miR-526b-3p	OE	MCF7 stable line, DMSO vehicle	test	~ condition	group_df6cdc4d1226	keep	
+GSE295502_hsa-miR-526b-3p_MCF7_stable_DOX_48_h	GSE295502	hsa-miR-526b-3p	OE	MCF7 stable line, doxorubicin 0.8 uM	test	~ condition	group_c6afbbf3a295	keep	
+GSE295502_hsa-miR-526b-3p_MCF7_stable_H2O2_48_h	GSE295502	hsa-miR-526b-3p	OE	MCF7 stable line, H2O2 216 uM	test	~ condition	group_479dbce8489a	keep	
+GSE295502_hsa-miR-655-3p_MCF7_stable_DMSO_48_h	GSE295502	hsa-miR-655-3p	OE	MCF7 stable line, DMSO vehicle	test	~ condition	group_df6cdc4d1226	keep	
+GSE295502_hsa-miR-655-3p_MCF7_stable_DOX_48_h	GSE295502	hsa-miR-655-3p	OE	MCF7 stable line, doxorubicin 0.8 uM	test	~ condition	group_c6afbbf3a295	keep	
+GSE295502_hsa-miR-655-3p_MCF7_stable_H2O2_48_h	GSE295502	hsa-miR-655-3p	OE	MCF7 stable line, H2O2 216 uM	test	~ condition	group_479dbce8489a	keep	
+GSE296044_hsa-miR-451a_HL-60_LPS180min	GSE296044	hsa-miR-451a	OE	HL-60 stable, LPS 180 minutes in both arms	test	~ condition	group_9f413e167d2c	keep	
+GSE296044_hsa-miR-451a_HL-60_untreated	GSE296044	hsa-miR-451a	OE	HL-60 stable, untreated	test	~ condition	group_d8d26256e9aa	keep	
+GSE303559_hsa-let-7a-5p_HEK293T_50nM	GSE303559	hsa-let-7a-5p	OE	HEK293T	test	~ condition	group_60fbbe0100a1	keep	
+GSE78078_hsa-miR-126-3p_huCB-progenitor_CD133pos-CD38pos_72h	GSE78078	hsa-miR-126-3p	OE	Human cord blood CD34+ CD133+ CD38+ progenitors	test	~ condition	group_57213113641e	flag	gc_shift
+GSE78078_hsa-miR-126-3p_huCB-stem_CD133pos-CD38neg_72h	GSE78078	hsa-miR-126-3p	OE	Human cord blood CD34+ CD133+ CD38- stem cells	test	~ condition	group_715a300de482	flag	gc_shift
+GSE81417_hsa-miR-372-3p_U1810_30h	GSE81417	hsa-miR-372-3p	OE	U1810	test	~ condition	group_ad3f1c01add5	keep	
+GSE87785_hsa-miR-1271-5p_MKN74	GSE87785	hsa-miR-1271-5p	OE	MKN74	test	~ batch + condition	group_e2ab284ac6c1	keep	
+GSE87785_hsa-miR-1271-5p_SNU601	GSE87785	hsa-miR-1271-5p	OE	SNU-601	test	~ batch + condition	group_9b72d2ddaca0	keep	
+PRJNA427217_hsa-miR-942-5p_OS-RC-2	PRJNA427217	hsa-miR-942-5p	OE	OS-RC-2 renal cell carcinoma	test	~ condition	group_642bbecf736b	keep	
+PRJNA531758_hsa-let-7d-5p_HUVEC_not_stated_not_stated	PRJNA531758	hsa-let-7d-5p	OE	HUVEC	test	~ batch + condition	group_169994b750ca	keep	
+PRJNA758728_hsa-miR-20a-5p_LX-2_not_stated_not_stated	PRJNA758728	hsa-miR-20a-5p	OE	LX-2	test	~ condition	group_54d203ffbb1f	flag	gc_shift
+PRJNA758728_hsa-miR-20a-5p_THP-1_not_stated_not_stated	PRJNA758728	hsa-miR-20a-5p	OE	THP-1	test	~ condition	group_37d6b6de8db7	keep	
+PRJNA758728_hsa-miR-340-5p_LX-2_not_stated_not_stated	PRJNA758728	hsa-miR-340-5p	OE	LX-2	test	~ condition	group_54d203ffbb1f	flag	gc_shift
+PRJNA758728_hsa-miR-340-5p_THP-1_not_stated_not_stated	PRJNA758728	hsa-miR-340-5p	OE	THP-1	test	~ condition	group_37d6b6de8db7	keep	
+PRJNA760808_hsa-miR-638_SPC-A1	PRJNA760808	hsa-miR-638	OE	SPC-A1 lung cancer line	test	~ batch + condition	group_3ffda9646427	keep	
+PRJNA992921_hsa-miR-574-5p_HUVEC	PRJNA992921	hsa-miR-574-5p	OE	HUVEC	test	~ condition	group_77d959beeeaa	keep	

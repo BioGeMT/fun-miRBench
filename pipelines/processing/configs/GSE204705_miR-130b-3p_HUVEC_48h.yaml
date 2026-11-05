@@ -1,0 +1,39 @@
+dataset_id: GSE204705_miR-130b-3p_HUVEC_48h
+gse: GSE204705
+mirna_name: hsa-miR-130b-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM6186124
+    reads_1: data/experiments/raw/GSE204705/SRR19379109/SRR19379109_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204705/SRR19379109/SRR19379109_2.fastq.gz
+  - sample_id: GSM6186125
+    reads_1: data/experiments/raw/GSE204705/SRR19379108/SRR19379108_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204705/SRR19379108/SRR19379108_2.fastq.gz
+  - sample_id: GSM6186126
+    reads_1: data/experiments/raw/GSE204705/SRR19379107/SRR19379107_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204705/SRR19379107/SRR19379107_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM6186127
+    reads_1: data/experiments/raw/GSE204705/SRR19379106/SRR19379106_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204705/SRR19379106/SRR19379106_2.fastq.gz
+  - sample_id: GSM6186128
+    reads_1: data/experiments/raw/GSE204705/SRR19379105/SRR19379105_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204705/SRR19379105/SRR19379105_2.fastq.gz
+  - sample_id: GSM6186129
+    reads_1: data/experiments/raw/GSE204705/SRR19379104/SRR19379104_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204705/SRR19379104/SRR19379104_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HUVEC
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-130b-3p (mimic, Lipofectamine 2000) against non-specific control mimic (INS samples)
+  method: RNA-seq
