@@ -8,7 +8,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from scipy.integrate import trapezoid
-from scipy.stats import pearsonr
 
 from funmirbench.metric_helpers import auroc, spearman
 
@@ -73,11 +72,6 @@ def metrics(table: pd.DataFrame, raw: pd.DataFrame, ranking: pd.Series, tool: st
            "prevalence": n_pos / (n_pos + n_neg) if n_pos + n_neg else np.nan,
            "spearman": rho,
            "spearman_na_reason": continuous_note,
-           "pearson": float(pearsonr(x, y).statistic) if variable else np.nan,
-           "pearson_na_reason": continuous_note,
-           "pearson_note": ("FPS Pearson includes the artificial minimum_score - 1 value for unscored genes; its magnitude depends on that floor distance."
-                            if universe == "fps" and n_scored < int(selected.sum())
-                            else "Pearson is on the observed score scale and is scale-sensitive."),
            "average_precision": np.nan, "pr_auc": np.nan, "auroc": np.nan, "enrichment_score": np.nan,
            "classification_note": ""}
     if min(n_pos, n_neg) < max(1, min_per_state):
