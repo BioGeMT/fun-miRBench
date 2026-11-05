@@ -166,7 +166,7 @@ def group_bootstrap(values: pd.Series, groups: pd.Series, *, n: int, rng: np.ran
     """95% percentile interval of the mean over comparisons, resampling dependency groups."""
     ok = values.notna()
     values, groups = values[ok], groups[ok]
-    labels = groups.unique()
+    labels = np.sort(groups.unique())  # the draws do not depend on the row order
     if len(labels) < 2:
         return np.nan, np.nan
     by_group = {g: values[groups == g].to_numpy() for g in labels}
@@ -283,13 +283,13 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     metrics = ["spearman_shrunk", "spearman_within_tenths_shrunk", "auroc_d05", "auroc_within_tenths_d05",
                "decoy_z_shrunk", "coverage"]
     summary = []
-    boot_rng = np.random.default_rng(seed + 1)
     for subset, sub in (("all", per), ("unflagged", per[per.action == "keep"])):
         for name, g in sub.groupby("predictor"):
             gi = g.set_index("experiment_id")
             for metric in metrics:
                 v = gi[metric]
-                lo, hi = group_bootstrap(v, gi.dependency_group, n=bootstrap, rng=boot_rng)
+                # a generator of its own, so the interval does not depend on the other predictors and metrics of the run
+                lo, hi = group_bootstrap(v, gi.dependency_group, n=bootstrap, rng=np.random.default_rng(seed + 1))
                 summary.append({"subset": subset, "predictor": name, "metric": metric,
                                 "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
                                 "n_comparisons": int(v.notna().sum()),
