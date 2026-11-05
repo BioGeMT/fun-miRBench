@@ -78,13 +78,15 @@ fit <- data.frame(
   FDR = std$padj,
   control_mean_normalized_count = rowMeans(norm[, ctrl, drop = FALSE]),
   treated_mean_normalized_count = rowMeans(norm[, trt, drop = FALSE]),
+  setNames(as.data.frame(norm[, ctrl, drop = FALSE]), paste0("control_normalized_count_", colnames(norm)[ctrl])),
+  setNames(as.data.frame(norm[, trt, drop = FALSE]), paste0("treated_normalized_count_", colnames(norm)[trt])),
   control_nonzero_samples = rowSums(raw[, ctrl, drop = FALSE] > 0),
   treated_nonzero_samples = rowSums(raw[, trt, drop = FALSE] > 0),
   logFC_shrunk = shrunk$log2FoldChange,
   lfcSE_shrunk = shrunk$lfcSE,
   svalue = shrunk$svalue,
   apeglm_conv = diag[, "conv"],
-  stringsAsFactors = FALSE
+  stringsAsFactors = FALSE, check.names = FALSE
 )
 fit$analysis_status <- "tested_with_adjusted_pvalue"
 fit$analysis_status[!is.na(std$pvalue) & is.na(std$padj)] <- "independent_filtering"

@@ -90,6 +90,10 @@ if (qr(design_matrix)$rank < ncol(design_matrix) || nrow(design_matrix) <= ncol(
 
 dds <- DESeqDataSetFromMatrix(countData = count_matrix, colData = col_data, design = design_formula)
 dds <- dds[rowSums(counts(dds)) > 0, ]
+# Size factors against the controls only, so a control's normalised counts do not depend on the treated samples:
+# DESeq2's median of ratios to the controls' geometric means, rescaled to a geometric mean of 1 over the controls.
+dds <- estimateSizeFactors(dds, geoMeans = exp(rowMeans(log(counts(dds)[, control_columns, drop = FALSE]))))
+sizeFactors(dds) <- sizeFactors(dds) / exp(mean(log(sizeFactors(dds)[control_columns])))
 dds <- DESeq(dds)
 res <- results(dds, contrast = c("condition", "treated", "control"))
 raw_counts <- counts(dds, normalized = FALSE)
@@ -201,5 +205,5 @@ capture.output(sessionInfo(), file = file.path(output_dir, "sessionInfo.txt"))
 capture.output(list(design = design(dds), contrast = c("condition", "treated", "control"),
                     results_metadata = metadata(res), assays = assayNames(dds),
                     coefficient_names = resultsNames(dds),
-                    note = "Descriptive control normalization uses both groups; SD/SEM are not lfcSE."),
+                    note = "Size factors from the control samples only; SD/SEM are not lfcSE."),
                file = file.path(output_dir, "analysis_metadata.txt"))
