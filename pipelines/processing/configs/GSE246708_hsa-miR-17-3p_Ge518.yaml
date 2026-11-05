@@ -1,4 +1,4 @@
-dataset_id: GSE246708_hsa-miR-17-3p_Ge518_not_stated
+dataset_id: GSE246708_hsa-miR-17-3p_Ge518
 gse: GSE246708
 mirna_name: hsa-miR-17-3p
 experiment_type: Overexpression

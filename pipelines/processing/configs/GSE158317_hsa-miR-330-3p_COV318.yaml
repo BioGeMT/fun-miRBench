@@ -1,4 +1,4 @@
-dataset_id: GSE158317_hsa-miR-330-3p_COV318_not_stated_paper_50_to_60_nM
+dataset_id: GSE158317_hsa-miR-330-3p_COV318
 gse: GSE158317
 mirna_name: hsa-miR-330-3p
 experiment_type: Overexpression

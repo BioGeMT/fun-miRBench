@@ -1,4 +1,4 @@
-dataset_id: GSE267283_hsa-miR-1229-5p_Ishikawa_not_stated_not_stated
+dataset_id: GSE267283_hsa-miR-1229-5p_Ishikawa
 gse: GSE267283
 mirna_name: hsa-miR-1229-5p
 experiment_type: Overexpression

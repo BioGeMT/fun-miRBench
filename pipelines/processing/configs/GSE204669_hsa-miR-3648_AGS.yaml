@@ -1,4 +1,4 @@
-dataset_id: GSE204669_hsa-miR-3648_AGS_not_stated_qPCR_at_48_h_not_stated
+dataset_id: GSE204669_hsa-miR-3648_AGS
 gse: GSE204669
 mirna_name: hsa-miR-3648
 experiment_type: Overexpression

@@ -1,4 +1,4 @@
-dataset_id: GSE119161_hsa-miR-1275_DBTRG-05MG_record_48_h_series_summary_and_paper_day_3_72_h_paper_25_ug_per_35_mm_dish
+dataset_id: GSE119161_hsa-miR-1275_DBTRG-05MG
 gse: GSE119161
 mirna_name: hsa-miR-1275
 experiment_type: Overexpression

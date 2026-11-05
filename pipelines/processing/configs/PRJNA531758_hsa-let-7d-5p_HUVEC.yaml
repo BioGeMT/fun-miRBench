@@ -1,4 +1,4 @@
-dataset_id: PRJNA531758_hsa-let-7d-5p_HUVEC_not_stated_not_stated
+dataset_id: PRJNA531758_hsa-let-7d-5p_HUVEC
 gse: PRJNA531758
 mirna_name: hsa-let-7d-5p
 experiment_type: Overexpression

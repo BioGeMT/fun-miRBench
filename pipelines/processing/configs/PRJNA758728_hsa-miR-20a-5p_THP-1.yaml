@@ -1,6 +1,6 @@
-dataset_id: PRJNA758728_hsa-miR-340-5p_THP-1_not_stated_not_stated
+dataset_id: PRJNA758728_hsa-miR-20a-5p_THP-1
 gse: PRJNA758728
-mirna_name: hsa-miR-340-5p
+mirna_name: hsa-miR-20a-5p
 experiment_type: Overexpression
 source:
   mode: reads
@@ -22,18 +22,18 @@ comparison:
     reads_1: data/experiments/raw/PRJNA758728/SRR15667174/SRR15667174_1.fastq.gz
     reads_2: data/experiments/raw/PRJNA758728/SRR15667174/SRR15667174_2.fastq.gz
   treated_samples:
-  - sample_id: THP1_340_mimic_r1
-    reads_1: data/experiments/raw/PRJNA758728/SRR15667169/SRR15667169_1.fastq.gz
-    reads_2: data/experiments/raw/PRJNA758728/SRR15667169/SRR15667169_2.fastq.gz
-  - sample_id: THP1_340_mimic_r2
-    reads_1: data/experiments/raw/PRJNA758728/SRR15667168/SRR15667168_1.fastq.gz
-    reads_2: data/experiments/raw/PRJNA758728/SRR15667168/SRR15667168_2.fastq.gz
-  - sample_id: THP1_340_mimic_r3
-    reads_1: data/experiments/raw/PRJNA758728/SRR15667167/SRR15667167_1.fastq.gz
-    reads_2: data/experiments/raw/PRJNA758728/SRR15667167/SRR15667167_2.fastq.gz
+  - sample_id: THP1_20a_mimic_r1
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667173/SRR15667173_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667173/SRR15667173_2.fastq.gz
+  - sample_id: THP1_20a_mimic_r2
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667172/SRR15667172_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667172/SRR15667172_2.fastq.gz
+  - sample_id: THP1_20a_mimic_r3
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667170/SRR15667170_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667170/SRR15667170_2.fastq.gz
 metadata:
   organism: Homo sapiens
   tested_cell_line: THP-1
   treatment_dose: not stated
-  treatment: Overexpression of hsa-miR-340-5p (miRNA mimic, Hieff Trans) against control (oligo not named)
+  treatment: Overexpression of hsa-miR-20a-5p (miRNA mimic, Hieff Trans) against control (oligo not named)
   method: RNA-seq
