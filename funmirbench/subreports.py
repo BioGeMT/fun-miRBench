@@ -7,7 +7,6 @@ import logging
 import pathlib
 import re
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
@@ -15,12 +14,13 @@ from matplotlib.backends.backend_pdf import PdfPages
 from funmirbench import subreport_plots as plots
 from funmirbench.plots import draw_box, drawn_tools, tool_colors, two_panels
 from funmirbench.report_pdf import (
-    BOTTOM, INVENTORY_WRAP_SCALE, LEFT, ROW_HEIGHT, TOP, WIDTH,
+    BLOCK_GAP, BOTTOM, INVENTORY_WRAP_SCALE, LEFT, REPORT_TABLE_SIZE, ROW_HEIGHT, TOP, WIDTH,
     _bullet_block, _draw_basic_table, _header, _new_page, _paginate_table_rows,
     _save_page, _table_row_weight, draw_plot,
 )
 from funmirbench.subreport_metrics import (
-    UNIVERSES, UNIVERSE_LABELS, coverage_frontier, metrics, threshold_curves, top_weights, weighted_cdf,
+    UNIVERSES, UNIVERSE_LABELS, coverage_frontier, metrics, percentile_ensemble, threshold_curves, top_weights,
+    weighted_cdf,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,20 +43,71 @@ def number(value) -> str:
     return "NA" if pd.isna(value) else f"{value:.3f}"
 
 
-def pdf_report(path, title, settings, specs, frame, *, links=()):
+def key_results(frame: pd.DataFrame, predictor_labels: dict[str, str] | None = None) -> list[str]:
+    """Summarize primary FPS results using the main report's comparison style."""
+    predictor_labels = predictor_labels or {}
+    fps = frame[frame.universe == "fps"]
+    if fps.empty:
+        return ["No FPS metric rows are available."]
+
+    metrics = (("average_precision", "AP"), ("auroc", "AUROC"), ("spearman", "Spearman"))
+    predictors, experiments = fps.predictor.nunique(), fps.experiment_id.nunique()
+    if predictors == 1 and experiments == 1:
+        row = fps.iloc[0]
+        lines = [f"FPS {label}: {number(row[column])}." for column, label in metrics]
+        if pd.isna(row.average_precision):
+            lines.append(f"Classification unavailable: {row.classification_note}.")
+        if pd.isna(row.spearman):
+            lines.append(f"Continuous metrics unavailable: {row.spearman_na_reason}.")
+        return lines
+
+    if predictors == 1:
+        tool = fps.predictor.iloc[0]
+        label = predictor_labels.get(tool, tool)
+        lines = []
+        for column, name in metrics:
+            values = fps[column].dropna()
+            if len(values):
+                lines.append(f"Mean FPS {name}: {number(values.mean())} over {len(values)} comparisons ({label}).")
+            else:
+                reason = fps.classification_note.iloc[0] if column in {"average_precision", "auroc"} else fps.spearman_na_reason.iloc[0]
+                lines.append(f"No FPS {name} is available: {reason}.")
+        return lines
+
+    means = fps.groupby("predictor")[[column for column, _ in metrics]].mean()
+    lines = []
+    for column, name in metrics:
+        available = means[column].dropna()
+        if len(available):
+            winner = available.idxmax()
+            lines.append(f"Highest mean FPS {name}: {predictor_labels.get(winner, winner)} ({number(available[winner])}).")
+        else:
+            reason_column = "classification_note" if column in {"average_precision", "auroc"} else "spearman_na_reason"
+            reasons = [str(value) for value in fps[reason_column].dropna().unique() if str(value)]
+            lines.append(f"No FPS {name} is available: {reasons[0] if reasons else 'no usable comparisons'}.")
+    return lines
+
+
+def pdf_report(path, title, settings, specs, frame, *, links=(), predictor_labels=None):
     """Use the main PDF's pages, bullets, tables, margins and image placement."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with PdfPages(path) as pdf:
         fig, ax = _new_page()
         y = _header(ax, title)
-        y = _bullet_block(ax, "Run settings", settings, y=y)
+        setting_rows = [setting.split(": ", 1) if ": " in setting else ["Description", setting]
+                        for setting in settings]
+        setting_height = ROW_HEIGHT * (len(setting_rows) + 1)
+        _draw_basic_table(ax, setting_rows, columns=["Run setting", "Value"], col_widths=[.27, .73],
+                          bbox=[LEFT, y - setting_height, WIDTH, setting_height], font_size=REPORT_TABLE_SIZE)
+        y -= setting_height + BLOCK_GAP
         y = _bullet_block(ax, "Evaluation design", [
-            "Positive: responsive at d = 0.5. Negative: no response above margin; unresolved genes are excluded.",
-            "FPS ranks unscored genes last; IPS uses pairs scored by every selected predictor in this experiment.",
-            "Own-scored curves use different gene sets and baselines; they are coverage diagnostics.",
-            "Continuous diagnostics use eligible shrunken estimates. Enrichment is descriptive, without an NES or p-value.",
+            "Positives: responsive. Negatives: no_response_above_margin. Unresolved genes are excluded from PR and ROC.",
+            "FPS uses the fixed gene universe and ranks missing predictions last; IPS and own-scored are supplementary.",
+            "Continuous metrics use eligible, finite oriented shrunken log2FC. Enrichment is descriptive, without an NES or p-value.",
+            "Pearson is scale-sensitive; the FPS missing-score floor affects its value. See pearson_note in metrics.tsv.",
         ], y=y)
-        _bullet_block(ax, "Output tables", ["metrics.tsv and the plot-data TSVs beside each figure contain the plotted numbers.",
+        y = _bullet_block(ax, "Key results", key_results(frame, predictor_labels), y=y)
+        _bullet_block(ax, "Output tables", ["metrics.tsv and plot-data TSVs contain the plotted values and unavailable-metric reasons.",
                      "Average precision (AP) and trapezoidal PR-AUC are distinct; AP is the primary PR summary."], y=y)
         _save_page(pdf, fig)
         for start in range(0, len(specs), 2):
@@ -68,15 +119,19 @@ def pdf_report(path, title, settings, specs, frame, *, links=()):
                     raise ValueError(f"Report page overflow: {path}: {label}")
             _save_page(pdf, fig)
         columns = ["Experiment", "Predictor", "Pair set", "n (+ / -)", "AP", "AUROC", "Spearman"]
-        rows = [[r.experiment_id, r.predictor, r.universe, f"{r.n_responsive} / {r.n_no_response}", number(r.average_precision),
+        pair_set = {"fps": "FPS", "ips": "IPS", "own_scored": "Own"}
+        rows = [[str(r.experiment_id).replace("_", "_ ") if len(str(r.experiment_id)) > 22 else r.experiment_id,
+                 (predictor_labels or {}).get(r.predictor, r.predictor), pair_set[r.universe],
+                 f"{r.n_responsive} / {r.n_no_response}", number(r.average_precision),
                  number(r.auroc), number(r.spearman)] for r in frame.itertuples(index=False)]
-        widths = [.29, .17, .1, .14, .1, .1, .1]
-        for page in _paginate_table_rows(rows, col_widths=widths, max_weight=18):
+        widths = [.30, .14, .09, .15, .09, .09, .14]
+        for page in _paginate_table_rows(rows, col_widths=widths, wrap_scale=74, max_weight=18):
             fig, ax = _new_page()
             y = _header(ax, "Metric details")
-            weight = 1 + sum(_table_row_weight(row, col_widths=widths, wrap_scale=96) for row in page)
+            weight = 1 + sum(_table_row_weight(row, col_widths=widths, wrap_scale=74) for row in page)
             h = min(y - BOTTOM, ROW_HEIGHT * weight)
-            _draw_basic_table(ax, page, columns=columns, col_widths=widths, bbox=[LEFT, y - h, WIDTH, h])
+            _draw_basic_table(ax, page, columns=columns, col_widths=widths, bbox=[LEFT, y - h, WIDTH, h],
+                              wrap_scale=74)
             _save_page(pdf, fig)
         if links:
             report_index_pages(pdf, links, base=path.parent)
@@ -119,10 +174,13 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
         pos = table.loc[labelled, "state_d05"].eq("responsive").to_numpy()
         if min(pos.sum(), (~pos).sum()) >= max(1, min_per_state) and len(labels) <= 8:
             # An exploratory max-percentile ensemble, not a trained/validated model.
-            own_percentiles = raw.rank(method="average", pct=True).fillna(0)
+            # Rank observed scores within each tool, combine the available ranks,
+            # then apply the FPS floor to genes unscored by every member.
+            percentiles = raw.rank(method="average", pct=True)
             for count in range(1, len(labels) + 1):
                 for members in itertools.combinations(labels, count):
-                    curve = threshold_curves(own_percentiles.loc[labelled, list(members)].max(axis=1).to_numpy(), pos)
+                    combo = rank_last(percentile_ensemble(percentiles, list(members)), table.index)
+                    curve = threshold_curves(combo.loc[labelled].to_numpy(), pos)
                     combination_records.append({"experiment_id": exp, "members": "+".join(members), "n_members": count,
                                                 "action": comparison.action, "coverage": raw[list(members)].notna().any(axis=1).mean(),
                                                 "average_precision": float(np.sum(np.diff(np.r_[0, curve.recall]) * curve.precision))})
@@ -135,7 +193,7 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
                 recs[tool], curves[tool] = rec, curve
                 records.append(rec); exp_records.append(rec)
                 export(curve, folder / "plots" / f"{universe}_{component(tool)}_curves.tsv")
-            image = plots.classification(curves, recs, labels, folder / "plots", f"{universe}_classification", universe)
+            image = plots.classification(curves, recs, labels, folder / "plots", f"{universe}_classification")
             specs.append((image, UNIVERSE_LABELS[universe], ["PR baselines are dashed; tied genes enter at one threshold.",
                           "Missing curves have too few labelled genes; counts and reasons are in metrics.tsv."]))
             image = plots.enrichment(curves, labels, folder / "plots", f"{universe}_enrichment_burden")
@@ -147,8 +205,8 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
                     pair_frame = pd.DataFrame([recs[tool]])
                     single = {tool: labels[tool]}
                     first = plots.classification({tool: curves[tool]}, {tool: recs[tool]}, single, pair / "plots",
-                                                 "classification", universe, palette=colors)
-                    second = plots.scatter_and_enrichment(table, raw[tool], ranked[tool], curves[tool], tool,
+                                                 "classification", palette=colors)
+                    second = plots.scatter_and_enrichment(table, ranked[tool], curves[tool], tool,
                                                            labels[tool], colors[tool], pair / "plots")
                     export(pair_frame, pair / "metrics.tsv")
                     export(curves[tool], pair / "plots" / "classification.tsv")
@@ -157,9 +215,11 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
                                          "state": table.state_d05}), pair / "plots" / "score_and_enrichment.tsv")
                     pdf_report(pair / "REPORT.pdf", "Predictor-experiment report",
                                [f"Experiment: {exp}", f"miRNA: {comparison.mirna_name}; predictor: {labels[tool]}",
-                                f"QC action: {comparison.action}; pair set: FPS"],
+                                f"QC action: {comparison.action}; pair set: FPS",
+                                f"Minimum genes per classification state: {max(1, min_per_state)}"],
                                [(first, "Classification", ["Unresolved genes are excluded from PR and ROC."]),
-                                (second, "Score and enrichment", ["Coloured points: responsive; grey: no-response or unresolved."])], pair_frame)
+                                (second, "Score and enrichment", ["Coloured points: responsive; grey: no-response or unresolved."])],
+                               pair_frame, predictor_labels=labels)
                     pair_links.append({"kind": "predictor_experiment", "name": labels[tool], "path": pair / "REPORT.pdf"})
         cdfs = {"background": weighted_cdf(table.loc[table.eligible, "oriented_logFC_shrunk"].to_numpy(float))}
         recovery = []
@@ -184,7 +244,8 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
         usable = table.eligible.to_numpy(bool) & np.isfinite(table.oriented_logFC_shrunk)
         gene_heatmaps = []
         for positive_only in [False, True]:
-            candidate = local.loc[table.state_d05 == "responsive"] if positive_only else local.loc[usable]
+            candidate = (local.loc[usable & (table.state_d05 == "responsive")]
+                         if positive_only else local.loc[usable])
             if positive_only:
                 candidate = candidate.loc[candidate.ge(.9).any(axis=1)]
             order = pd.DataFrame({"strength": candidate.max(axis=1), "gene": candidate.index.astype(str)}, index=candidate.index)
@@ -210,7 +271,9 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
         pdf_report(folder / "REPORT.pdf", "Experiment report", [f"Experiment: {exp}",
                    f"miRNA: {comparison.mirna_name}; cell line: {comparison.cell_line}",
                    f"QC action: {comparison.action}; dependency group: {comparison.dependency_group}",
-                   f"Genes: {len(table):,}; top-effect budget: {top_n}"], specs, exp_frame, links=pair_links)
+                   f"Genes: {len(table):,}; top-effect budget: {top_n}",
+                   f"Minimum genes per classification state: {max(1, min_per_state)}"],
+                   specs, exp_frame, links=pair_links, predictor_labels=labels)
         index.append({"kind": "experiment", "name": exp, "path": folder / "REPORT.pdf"})
         pair_records.extend(pair_links)
     frame = pd.DataFrame(records)
@@ -261,10 +324,13 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
                 ax.plot(frontier.coverage, frontier.average_precision, "--", color="#1F2937", linewidth=1)
             ax.set(xlabel="Mean scored-pair coverage", ylabel="Mean average precision", title=subset.title())
         image = plots.finish(fig, axes, labels, report_root / "diagnostics" / "plots", "combination_frontier")
-        overview_specs.append((image, "Exploratory predictor combinations", ["Diamonds: maximum within-tool scored percentile across a subset; circles: single tools.",
-                              "FPS labels stay fixed. No fitted ensemble or statistical claim of superiority; at most eight tools."]))
-    pdf_report(report_root / "diagnostics" / "REPORT.pdf", "Supplementary diagnostics", [f"Comparisons: {len(comps)}; predictors: {len(labels)}",
-               "FPS is primary; IPS and own-scored sets are sensitivity analyses."], overview_specs, frame)
+        overview_specs.append((image, "Exploratory predictor combinations", ["Diamonds: maximum available within-tool percentile; circles: single tools.",
+                              "Genes with no member score share the FPS floor. Labels stay fixed; at most eight tools; no fitted ensemble."]))
+    pdf_report(report_root / "diagnostics" / "REPORT.pdf", "Supplementary diagnostics", [
+               f"Comparisons: {len(comps)}; predictors: {len(labels)}",
+               f"Minimum genes per classification state: {max(1, min_per_state)}",
+               "FPS is primary; IPS and own-scored sets are sensitivity analyses."], overview_specs, frame,
+               predictor_labels=labels)
     index.append({"kind": "diagnostics", "name": "Supplementary diagnostics", "path": report_root / "diagnostics" / "REPORT.pdf"})
     for tool, label in labels.items():
         folder = report_root / "predictors" / component(tool)
@@ -273,7 +339,9 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
         links = [{"name": c.experiment_id, "path": report_root / "experiments" / component(c.experiment_id) / "predictors" / component(tool) / "REPORT.pdf"}
                  for c in comps.itertuples(index=False)]
         pdf_report(folder / "REPORT.pdf", "Predictor report", [f"Predictor: {label}", f"Comparisons: {len(comps)}",
-                   "Each experiment has its own detailed classification, score and enrichment report."], [], tool_frame, links=links)
+                   f"Minimum genes per classification state: {max(1, min_per_state)}",
+                   "Each experiment has its own detailed classification, score and enrichment report."], [], tool_frame,
+                   links=links, predictor_labels=labels)
         index.append({"kind": "predictor", "name": label, "path": folder / "REPORT.pdf"})
     manifest = [{"kind": e["kind"], "name": e["name"], "report": str(e["path"].relative_to(out))} for e in index + pair_records]
     export(pd.DataFrame(manifest), report_root / "index.tsv")

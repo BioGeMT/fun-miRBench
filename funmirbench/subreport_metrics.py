@@ -8,7 +8,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from scipy.integrate import trapezoid
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr
+
+from funmirbench.metric_helpers import auroc, spearman
 
 UNIVERSES = ("fps", "ips", "own_scored")
 UNIVERSE_LABELS = {"fps": "Full pair set", "ips": "Intersection pair set", "own_scored": "Own scored pairs"}
@@ -22,6 +24,11 @@ def masks(scores: pd.DataFrame, tool: str, universe: str) -> np.ndarray:
     if universe == "own_scored":
         return scores[tool].notna().to_numpy()
     raise ValueError(f"Unknown pair universe: {universe}")
+
+
+def percentile_ensemble(percentiles: pd.DataFrame, members: list[str]) -> pd.Series:
+    """Maximum within-tool percentile among available scores; missing pairs remain missing."""
+    return percentiles[members].max(axis=1)
 
 
 def threshold_curves(score: np.ndarray, positive: np.ndarray) -> pd.DataFrame:
@@ -46,16 +53,31 @@ def metrics(table: pd.DataFrame, raw: pd.DataFrame, ranking: pd.Series, tool: st
     labelled = selected & np.isin(states, ["responsive", "no_response_above_margin"])
     positive = states[labelled] == "responsive"
     n_pos, n_neg = int(positive.sum()), int((~positive).sum())
-    usable = selected & table.eligible.to_numpy(bool) & np.isfinite(table.oriented_logFC_shrunk.to_numpy(float))
-    x, y = ranking.to_numpy(float)[usable], table.oriented_logFC_shrunk.to_numpy(float)[usable]
-    variable = len(x) >= 3 and np.ptp(x) > 0 and np.ptp(y) > 0
+    effects = table.oriented_logFC_shrunk.to_numpy(float)
+    continuous = selected & table.eligible.to_numpy(bool) & np.isfinite(effects)
+    usable = continuous & np.isfinite(ranking.to_numpy(float))
+    x, y = ranking.to_numpy(float)[usable], effects[usable]
+    rho = spearman(x, y)
+    variable = np.isfinite(rho)
+    if len(x) < 3:
+        continuous_note = "Needs at least 3 eligible genes with finite scores and effects"
+    elif not variable:
+        continuous_note = "Score or oriented effect is constant"
+    else:
+        continuous_note = ""
+    n_scored = int((selected & raw[tool].notna().to_numpy()).sum())
     rec = {"predictor": tool, "universe": universe, "n_genes": int(selected.sum()), "n_usable": int(usable.sum()),
-           "n_scored": int((selected & raw[tool].notna().to_numpy()).sum()),
+           "n_scored": n_scored,
            "n_responsive": n_pos, "n_no_response": n_neg,
            "n_unresolved": int((selected & (states == "unresolved")).sum()),
            "prevalence": n_pos / (n_pos + n_neg) if n_pos + n_neg else np.nan,
-           "spearman": float(spearmanr(x, y).statistic) if variable else np.nan,
+           "spearman": rho,
+           "spearman_na_reason": continuous_note,
            "pearson": float(pearsonr(x, y).statistic) if variable else np.nan,
+           "pearson_na_reason": continuous_note,
+           "pearson_note": ("FPS Pearson includes the artificial minimum_score - 1 value for unscored genes; its magnitude depends on that floor distance."
+                            if universe == "fps" and n_scored < int(selected.sum())
+                            else "Pearson is on the observed score scale and is scale-sensitive."),
            "average_precision": np.nan, "pr_auc": np.nan, "auroc": np.nan, "enrichment_score": np.nan,
            "classification_note": ""}
     if min(n_pos, n_neg) < max(1, min_per_state):
@@ -65,7 +87,7 @@ def metrics(table: pd.DataFrame, raw: pd.DataFrame, ranking: pd.Series, tool: st
     recall, precision = curve.recall.to_numpy(), curve.precision.to_numpy()
     rec["average_precision"] = float(np.sum(np.diff(np.r_[0, recall]) * precision))
     rec["pr_auc"] = float(trapezoid(np.r_[1, precision], np.r_[0, recall]))
-    rec["auroc"] = float(trapezoid(np.r_[0, recall], np.r_[0, curve.fpr]))
+    rec["auroc"] = auroc(ranking.to_numpy(float)[labelled], positive)
     rec["enrichment_score"] = float(curve.running_es.iloc[np.abs(curve.running_es.to_numpy()).argmax()])
     return rec, curve
 
