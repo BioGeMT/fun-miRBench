@@ -9,7 +9,7 @@ uv run funmirbench-add --config my_experiment.yaml
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-add` adds the table and its rows to `data/benchmark_data/`. To score it next to the published experiments, run `funmirbench-download-data` first; otherwise the folder holds only your experiments. The config lists the input files and which samples are control and treated, under any file names.
+`funmirbench-add` adds the table and its rows to `data/benchmark_data/`. To score it next to the published experiments, run `funmirbench-download-data` first; otherwise the folder holds only your experiments. The config lists the input files and which samples are control and treated, under any file names. The folder's tables must have been built with size factors from the control samples (README.md, Normalisation); otherwise `funmirbench-add` stops before any work.
 
 With raw reads:
 

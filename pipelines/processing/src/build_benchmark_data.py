@@ -32,6 +32,9 @@ D_GRID = {"d00": 0.0, "d01": 0.1, "d025": 0.25, "d05": 0.5, "d075": 0.75, "d10":
 STATES = ("responsive", "no_response_above_margin", "unresolved")
 
 
+SIZE_FACTORS = "median of ratios to the control samples"  # SIZE_FACTOR_METHOD in size_factors.R
+
+
 def sha256(path: pathlib.Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -44,7 +47,10 @@ def run_one(row, *, genes: pathlib.Path, out: pathlib.Path, rscript: str) -> dic
     prefix = out / "genes" / row.experiment_id
     log = out / "logs" / f"{row.experiment_id}.log"
     with open(log, "w") as fh:
-        subprocess.run([rscript, str(HERE / "label_states.R"), str(row.fit_rds), str(genes), str(prefix)], stdout=fh, stderr=subprocess.STDOUT, check=True)
+        done = subprocess.run([rscript, str(HERE / "label_states.R"), str(row.fit_rds), str(genes), str(prefix)],
+                              stdout=fh, stderr=subprocess.STDOUT)
+    if done.returncode != 0:
+        raise RuntimeError(f"label_states.R failed for {row.experiment_id}: {log.read_text().strip().splitlines()[-2:]} (log: {log})")
     for suffix in ("_events.tsv", "_metadata.txt"):
         pathlib.Path(f"{prefix}{suffix}").replace(out / "logs" / f"{row.experiment_id}{suffix}")
     table = pathlib.Path(f"{prefix}.tsv.gz")
@@ -66,6 +72,7 @@ def build_manifest(genes: pathlib.Path, comparisons: pathlib.Path, tables: dict[
     return {
         "built": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "gene_list": str(genes), "gene_list_sha256": sha256(genes),
+        "size_factors": SIZE_FACTORS,
         "label_states_R_sha256": sha256(HERE / "label_states.R"),
         "states": {"responsive": "oriented shrunken log2FC > 0 and FSOS s-value against d < 0.05 (repression direction, over listed genes), and not no_response_above_margin",
                    "no_response_above_margin": "oriented shrunken log2FC + 1.959964 * lfcSE_shrunk < d",

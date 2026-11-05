@@ -30,7 +30,8 @@ class AddExperimentTests(unittest.TestCase):
         fasta.parent.mkdir(parents=True)
         fasta.write_text(">hsa-miR-new-5p MIMAT1 Homo sapiens miR-new-5p\nUGGAAUGUAAAGAAGUAUGUAU\n")
         (self.root / add.GENES).touch()
-        (self.data / "manifest.json").write_text(json.dumps({"experiments": 1, "tables": {"E1": "x"}}))
+        (self.data / "manifest.json").write_text(json.dumps({"experiments": 1, "tables": {"E1": "x"},
+                                                             "size_factors": add.SIZE_FACTORS}))
 
     def run_add(self, config=CONFIG, eligible=7):
         def label(row, *, genes, out, rscript):
@@ -39,7 +40,8 @@ class AddExperimentTests(unittest.TestCase):
                     "table_sha256": "abc", "d05_responsive": 1, "d05_no_response_above_margin": 2, "d05_unresolved": 4}
 
         path = self.root / "config.yaml"
-        with patch.object(add, "load_yaml", return_value=config), patch.object(add, "run_ingestion_config", return_value={"run_dir": str(self.root)}), \
+        with patch.object(add, "load_yaml", return_value=config), \
+                patch.object(add, "run_ingestion_config", return_value={"run_dir": str(self.root)}) as self.ingest, \
                 patch.object(add, "run_one", side_effect=label), patch.object(add.shutil, "which", return_value="Rscript"):
             return add.add_experiment(path, self.data, self.root)
 
@@ -58,6 +60,22 @@ class AddExperimentTests(unittest.TestCase):
     def test_an_id_already_in_the_tables_is_refused(self):
         with self.assertRaisesRegex(ValueError, "already in"):
             self.run_add({**CONFIG, "dataset_id": "E1"})
+
+    def test_tables_built_with_other_size_factors_are_refused(self):
+        manifest = json.loads((self.data / "manifest.json").read_text())
+        for value in (None, "median of ratios to all samples"):
+            with self.subTest(value):
+                (self.data / "manifest.json").write_text(json.dumps({**manifest, "size_factors": value}))
+                with self.assertRaisesRegex(ValueError, "not built with"):
+                    self.run_add()
+                self.ingest.assert_not_called()
+                self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1"])
+        with self.subTest("interrupted first addition made the old way"):
+            (self.data / "comparisons.tsv").unlink()
+            (self.data / "manifest.json").write_text(json.dumps({**manifest, "size_factors": None}))
+            with self.assertRaisesRegex(ValueError, "not built with"):
+                self.run_add()
+            self.ingest.assert_not_called()
 
     def test_counts_without_a_usable_gene_add_nothing(self):
         with self.assertRaisesRegex(ValueError, "Ensembl gene IDs"):
@@ -87,6 +105,16 @@ class AddExperimentTests(unittest.TestCase):
         self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
         self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["E1", "my_experiment"])
         self.assertEqual(sorted(json.loads((self.data / "manifest.json").read_text())["tables"]), ["E1", "my_experiment"])
+
+    def test_a_failed_first_addition_to_a_new_folder_can_be_retried(self):
+        for name in ("experiments.tsv", "comparisons.tsv", "manifest.json"):
+            (self.data / name).unlink()
+        with self.fail_replacing("manifest.json"), self.assertRaises(OSError):
+            self.run_add()
+        self.assertFalse((self.data / "comparisons.tsv").exists())
+        self.run_add()
+        self.assertEqual(list(pd.read_csv(self.data / "comparisons.tsv", sep="\t").experiment_id), ["my_experiment"])
+        self.assertEqual(list(pd.read_csv(self.data / "experiments.tsv", sep="\t").experiment_id), ["my_experiment"])
 
     def test_without_published_tables_a_new_folder_is_started(self):
         for name in ("experiments.tsv", "comparisons.tsv", "manifest.json"):
