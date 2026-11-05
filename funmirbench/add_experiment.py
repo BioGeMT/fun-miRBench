@@ -23,7 +23,7 @@ from funmirbench.experiments_pipeline import load_yaml, repo_root, run_ingestion
 from funmirbench.logger import parse_log_level, setup_logging
 
 sys.path.insert(0, str(repo_root() / "pipelines/processing/src"))  # the labelling step is shared with the full rebuild
-from build_benchmark_data import SIZE_FACTORS, build_manifest, run_one, sha256  # noqa: E402
+from build_benchmark_data import build_manifest, run_one, sha256  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -71,18 +71,6 @@ def add_mirna(name: str, mirnas_path: pathlib.Path, mature_fasta: pathlib.Path) 
     return True
 
 
-def check_same_size_factors(benchmark_data: pathlib.Path) -> None:
-    """A table is only added to a folder whose tables were normalised the same way."""
-    manifest_path = benchmark_data / "manifest.json"
-    if not manifest_path.is_file() and not (benchmark_data / "comparisons.tsv").is_file():
-        return  # nothing added yet, or a retryable partial first addition
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
-    if manifest.get("size_factors") != SIZE_FACTORS:
-        raise ValueError(f"The tables in {benchmark_data} were not built with size factors from the control samples. "
-                         "Get the current tables (`uv run funmirbench-download-data`) or rebuild them "
-                         "(pipelines/processing/README.md) first.")
-
-
 def comparison_row(config: dict) -> dict:
     dataset_id = config["dataset_id"]
     return {"experiment_id": dataset_id, "study": config.get("gse") or dataset_id, "mirna_name": config["mirna_name"],
@@ -107,7 +95,6 @@ def add_experiment(config_path: pathlib.Path, benchmark_data: pathlib.Path, repo
     comparisons = benchmark_data / "comparisons.tsv"
     if comparisons.is_file() and dataset_id in set(pd.read_csv(comparisons, sep="\t").experiment_id):
         raise ValueError(f"{dataset_id} is already in {benchmark_data}; choose another dataset_id.")
-    check_same_size_factors(benchmark_data)
     env_bin = pathlib.Path(os.environ.get("ENV_PREFIX", repo / "pipelines/processing/work/env")) / "bin"
     os.environ["PATH"] = f"{env_bin}{os.pathsep}{os.environ['PATH']}"
     rscript = shutil.which("Rscript")

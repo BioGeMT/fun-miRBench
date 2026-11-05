@@ -18,7 +18,7 @@ pipelines/processing/run.sh
 
 1. **Reads.** `pipelines/processing/src/download_reads.py` downloads the 178 FASTQ files (317.7 GB) listed in `pipelines/processing/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
 2. **References.** Download the soft-masked genome `Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz` (https://ftp.ensembl.org/pub/release-115/fasta/homo_sapiens/dna/) and `Homo_sapiens.GRCh38.115.gtf.gz` (https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/) into `data/experiments/raw/refs/ensembl_v115/`, decompress both, and save the genome as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the name the configs point to. This is the genome the reruns used, and the one `funmirbench-experiments-download-examples` fetches.
-3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/processing/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks). DESeq2 uses size factors from the comparison's control samples (see Normalisation).
+3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/processing/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks).
 
    GSE210778 includes the unpaired reads of two samples. DESeq2 writes `complete_analysis.rds` with the fitted object.
 4. **Gene list.** `src/build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/benchmark_genes.tsv.gz`.
@@ -43,7 +43,7 @@ To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXP
 | Columns | Meaning |
 |---|---|
 | `logFC`, `lfcSE`, `stat`, `PValue`, `FDR` | DESeq2 Wald test against 0; FDR over the listed genes |
-| `control_mean_normalized_count`, `treated_mean_normalized_count`, `*_nonzero_samples` | expression: mean over the group's samples of the counts divided by each sample's size factor (see Normalisation) |
+| `control_mean_normalized_count`, `treated_mean_normalized_count`, `*_nonzero_samples` | expression |
 | `logFC_shrunk`, `lfcSE_shrunk`, `svalue`, `apeglm_conv` | apeglm shrinkage (prior from the full fit); `lfcSE_shrunk` is the posterior SD |
 | `oriented_logFC`, `oriented_ci95_low/high`, `oriented_logFC_shrunk`, `oriented_ci95_low/high_shrunk` | sign flipped, so positive means "moved like a target" |
 | `svalue_<d>` | FSOS ("false sign or small") s-value against d in the direction of repression, over the listed genes, for d in `d00`, `d01`, `d025`, `d05`, `d075`, `d10`, `d15`, `d20`, `d30` (0 to 3) |
@@ -59,13 +59,11 @@ To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXP
 
 **Raw states** (`state_raw_d05`, `state_raw_d10`): responsive if the raw threshold test passes at FDR < 0.05; no response if the whole raw 95% interval is below d.
 
-Genes with zero counts in every sample keep a row, with no statistics and expression 0.
+Genes with zero counts in every sample keep a row, with no statistics.
 
 ## Normalisation
 
-- Each comparison is normalised against its own control samples. Every sample, control or treated, gets one size factor: the median, over the genes counted above 0 in every control and in the sample, of the log ratio of its count to the geometric mean of the controls, exponentiated (`src/size_factors.R`). This is DESeq2's median-of-ratios formula with the controls as the reference, instead of all samples; DESeq2 then uses these size factors as given.
-- A size factor depends only on the sample's own counts and the comparison's controls, so the controls' size factors and normalised counts do not depend on the treated samples. A control shared by comparisons with the same control set has the same normalised counts in each; a different control set gives a different reference. Before, DESeq2 compared every sample with all samples of the comparison, so a control's normalised counts depended on the treated samples it was fitted with. `normalized_counts.tsv` in each run holds the normalised counts of every sample and gene.
-- Each fit records how its size factors were made, and the benchmark manifest records it too (`size_factors`). Tables are only built from fits made this way: `label_states.R` refuses older fits (move the run away and rerun it), and `funmirbench-add` refuses to add to tables built before.
+Each comparison is normalised against its own control samples. DESeq2's size factors are computed against the geometric mean of the controls instead of all samples, and rescaled to a geometric mean of 1 over the controls. A control's normalised counts therefore do not depend on the treated samples, and a control shared by comparisons with the same controls has the same normalised counts in each. `label_states.R` refuses fits made before this change: `run.sh` skips comparisons that already have a fit, so move old runs away before rerunning.
 
 ## Metadata
 

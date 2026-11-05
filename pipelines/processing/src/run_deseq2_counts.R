@@ -28,8 +28,6 @@ treated_columns <- split_columns(read_arg("--treated-columns"))
 output_path <- read_arg("--output")
 
 suppressPackageStartupMessages(library(DESeq2))
-script_path <- sub("^--file=", "", grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE))
-source(file.path(dirname(normalizePath(script_path)), "size_factors.R"))
 
 counts_df <- read_table_auto(counts_path)
 all_columns <- c(control_columns, treated_columns)
@@ -90,12 +88,13 @@ if (qr(design_matrix)$rank < ncol(design_matrix) || nrow(design_matrix) <= ncol(
   stop("DE design is confounded or has no residual replication.", call. = FALSE)
 }
 
-size_factors <- control_size_factors(count_matrix, control_columns)
 dds <- DESeqDataSetFromMatrix(countData = count_matrix, colData = col_data, design = design_formula)
 dds <- dds[rowSums(counts(dds)) > 0, ]
-sizeFactors(dds) <- setNames(size_factors$size_factor, size_factors$sample_id)
+# Size factors against the controls only, so a control's normalised counts do not depend on the treated samples:
+# DESeq2's median of ratios to the controls' geometric means, rescaled to a geometric mean of 1 over the controls.
+dds <- estimateSizeFactors(dds, geoMeans = exp(rowMeans(log(counts(dds)[, control_columns, drop = FALSE]))))
+sizeFactors(dds) <- sizeFactors(dds) / exp(mean(log(sizeFactors(dds)[control_columns])))
 dds <- DESeq(dds)
-stopifnot(isTRUE(all.equal(unname(sizeFactors(dds)), size_factors$size_factor, tolerance = 0)))
 res <- results(dds, contrast = c("condition", "treated", "control"))
 raw_counts <- counts(dds, normalized = FALSE)
 normalized_counts <- counts(dds, normalized = TRUE)
@@ -133,7 +132,7 @@ write.table(data.frame(gene_id = rownames(all_normalized), all_normalized, check
             file = file.path(output_dir, "normalized_counts.tsv"),
             sep = "\t", quote = FALSE, row.names = FALSE)
 write.table(data.frame(sample_id = all_columns, condition = condition,
-                       size_factor = sizeFactors(dds), reference_genes_used = size_factors$reference_genes_used),
+                       size_factor = sizeFactors(dds)),
             file = file.path(output_dir, "sample_size_factors.tsv"),
             sep = "\t", quote = FALSE, row.names = FALSE)
 control_values <- all_normalized[, control_columns, drop = FALSE]
@@ -198,7 +197,7 @@ sample_summary <- data.frame(sample_id = all_columns, as.data.frame(colData(dds)
 write_tsv(sample_summary, "sample_statistics.tsv")
 saveRDS(list(dds = dds, results = res,
              diagnostic_results_without_results_filters = diagnostic_results,
-             all_input_counts = count_matrix, sample_metadata = col_data, size_factor_method = SIZE_FACTOR_METHOD,
+             all_input_counts = count_matrix, sample_metadata = col_data, size_factors = "controls",
              control_columns = control_columns, treated_columns = treated_columns,
              session_info = sessionInfo()),
         file.path(output_dir, "complete_analysis.rds"), compress = "gzip")
@@ -206,6 +205,5 @@ capture.output(sessionInfo(), file = file.path(output_dir, "sessionInfo.txt"))
 capture.output(list(design = design(dds), contrast = c("condition", "treated", "control"),
                     results_metadata = metadata(res), assays = assayNames(dds),
                     coefficient_names = resultsNames(dds),
-                    size_factors = SIZE_FACTOR_METHOD,
-                    note = "Size factors from the control samples only (size_factors.R); SD/SEM are not lfcSE."),
+                    note = "Size factors from the control samples only; SD/SEM are not lfcSE."),
                file = file.path(output_dir, "analysis_metadata.txt"))

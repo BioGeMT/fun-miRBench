@@ -1,7 +1,7 @@
 # Final per-gene table for one comparison, from its saved DESeq2 analysis (complete_analysis.rds).
 #
 # Every gene of the benchmark gene list gets one row. Genes the fit did not include (zero counts in
-# every sample) are kept, with no statistics, the reason and expression 0.
+# every sample) are kept, with no statistics and the reason.
 #
 #  1. Standard test against 0 and the one-sided tests against each margin d (altHypothesis
 #     "less") are run on the fitted object restricted to the listed genes, so DESeq2's
@@ -31,11 +31,8 @@ suppressPackageStartupMessages({
 analysis <- readRDS(args[[1]])
 genes <- read.delim(args[[2]], stringsAsFactors = FALSE)
 prefix <- args[[3]]
-script_path <- sub("^--file=", "", grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE))
-source(file.path(dirname(normalizePath(script_path)), "size_factors.R"))
-if (!identical(analysis$size_factor_method, SIZE_FACTOR_METHOD)) {
-  stop(sprintf("%s was fitted before size factors from the control samples; refit it with run_deseq2_counts.R.", args[[1]]),
-       call. = FALSE)
+if (!identical(analysis$size_factors, "controls")) {
+  stop(args[[1]], " was fitted before size factors from the control samples; rerun DESeq2 for it.", call. = FALSE)
 }
 MARGINS <- c(d05 = 0.5, d10 = 1.0)
 D_GRID <- c(d00 = 0, d01 = 0.1, d025 = 0.25, d05 = 0.5, d075 = 0.75, d10 = 1.0, d15 = 1.5, d20 = 2.0, d30 = 3.0)
@@ -114,13 +111,6 @@ for (tag in names(MARGINS)) {
 out <- merge(genes[, c("gene_id", "gene_name")], fit, by = "gene_id", all.x = TRUE, sort = FALSE)
 out <- out[match(genes$gene_id, out$gene_id), ]
 out$analysis_status[is.na(out$analysis_status)] <- "not_fitted_all_zero"
-# A gene counted but zero in every sample has a measured expression of 0; one missing from the counts stays NA.
-counted_zero <- out$analysis_status == "not_fitted_all_zero" &
-  out$gene_id %in% sub("\\.[0-9]+$", "", rownames(analysis$all_input_counts))
-for (column in c("control_mean_normalized_count", "treated_mean_normalized_count", "control_nonzero_samples",
-                 "treated_nonzero_samples")) {
-  out[[column]][counted_zero] <- 0
-}
 out$oriented_logFC <- sign * out$logFC
 out$oriented_ci95_low <- out$oriented_logFC - Z95 * out$lfcSE
 out$oriented_ci95_high <- out$oriented_logFC + Z95 * out$lfcSE
