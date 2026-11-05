@@ -44,6 +44,7 @@ To add one experiment without rebuilding the 21, see [ADD_EXPERIMENT.md](ADD_EXP
 |---|---|
 | `logFC`, `lfcSE`, `stat`, `PValue`, `FDR` | DESeq2 Wald test against 0; FDR over the listed genes |
 | `control_mean_normalized_count`, `treated_mean_normalized_count`, `*_nonzero_samples` | expression |
+| `control_normalized_count_<sample>`, `treated_normalized_count_<sample>` | normalised count of each sample, one column per sample (so the number of columns differs between comparisons); the means above average them |
 | `logFC_shrunk`, `lfcSE_shrunk`, `svalue`, `apeglm_conv` | apeglm shrinkage (prior from the full fit); `lfcSE_shrunk` is the posterior SD |
 | `oriented_logFC`, `oriented_ci95_low/high`, `oriented_logFC_shrunk`, `oriented_ci95_low/high_shrunk` | sign flipped, so positive means "moved like a target" |
 | `svalue_<d>` | FSOS ("false sign or small") s-value against d in the direction of repression, over the listed genes, for d in `d00`, `d01`, `d025`, `d05`, `d075`, `d10`, `d15`, `d20`, `d30` (0 to 3) |

@@ -48,6 +48,13 @@ class SizeFactorTests(unittest.TestCase):
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("fitted before size factors from the control samples", refused.stderr)
         subprocess.run([*label, str(fit), str(root / "genes.tsv"), str(root / "new")], check=True, capture_output=True)
+        table = pd.read_csv(root / "new.tsv.gz", sep="\t", index_col="gene_id").dropna(subset="control_mean_normalized_count")
+        for group, samples, mean in (("control", ["c1", "c2", "c3"], table.control_mean_normalized_count),
+                                     ("treated", ["t1", "t2", "t3"], table.treated_mean_normalized_count)):
+            per_sample = table[[f"{group}_normalized_count_{s}" for s in samples]]
+            np.testing.assert_allclose(per_sample.mean(axis=1), mean, rtol=1e-12)
+        np.testing.assert_allclose(table[[f"control_normalized_count_{s}" for s in ["c1", "c2", "c3"]]],
+                                   normalized["a"].loc[table.index], rtol=1e-12)
 
 
 if __name__ == "__main__":
