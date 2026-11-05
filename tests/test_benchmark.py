@@ -46,6 +46,16 @@ class MetricTests(unittest.TestCase):
         self.assertGreaterEqual(lo, 1.0)
         self.assertLessEqual(hi, 3.0)
 
+    def test_group_bootstrap_does_not_depend_on_row_order(self):
+        v = pd.Series([0.1, 0.4, 0.2, 0.9, 0.5, 0.3])
+        g = pd.Series(["a", "b", "b", "c", "d", "d"])
+        order = [5, 2, 0, 4, 1, 3]
+        first = benchmark.group_bootstrap(v, g, n=200, rng=np.random.default_rng(1))
+        shuffled = benchmark.group_bootstrap(v[order].reset_index(drop=True), g[order].reset_index(drop=True), n=200,
+                                             rng=np.random.default_rng(1))
+        for x, y in zip(first, shuffled):  # equal up to the order of summation
+            self.assertAlmostEqual(x, y, places=12)
+
 
 class RecoveryTests(unittest.TestCase):
 
