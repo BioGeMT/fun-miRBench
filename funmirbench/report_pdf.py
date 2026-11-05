@@ -44,7 +44,7 @@ PERFORMANCE = ("oe_all_genes", "Performance",
           ["AUROC: chance that a responsive gene scores above a no-response gene; 0.5 is chance.",
            "Spearman rho: agreement of the score's ranking with the shrunken log2FC; 0 is none.",
            "Decoy z-score: Spearman for the tested miRNA against different-seed miRNAs, in SDs.",
-           "Experiments won: experiments where the tool has the highest AUROC or Spearman rho."])
+           "Experiments ranked first: the number of experiments where each tool has the highest AUROC or Spearman rho."])
 RECOVERY = ("recovery", "Recovery",
           ["Recall: share of responsive genes in the top genes of the full ranking, mean over experiments.",
            "Best precision / random: best tool's precision at 50% recall over responsive share.",
@@ -249,8 +249,8 @@ def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFram
          [[labels[t], pct(c.genes_covered[t] / c.genes_measured[t]), f"{c.experiments_retained[t]}/{c.experiments_total[t]}",
            pct(c.responsive_scored[t] / c.responsive_total[t]), pct(c.no_response_scored[t] / c.no_response_total[t])]
           for t in tool_ids]),
-        ("Performance", ["Predictor", "Mean AUROC", "Mean Spearman", "Mean decoy z-score", "Won, AUROC", "Won, Spearman"],
-         [0.22, 0.156, 0.156, 0.156, 0.156, 0.156],
+        ("Performance", ["Predictor", "Mean AUROC", "Mean Spearman", "Mean decoy z-score", "Ranked first, AUROC", "Ranked first, Spearman"],
+         [0.20, 0.13, 0.13, 0.16, 0.19, 0.19],
          [[labels[t], _format_summary_value(means.auroc_d05[labels[t]]), _format_summary_value(means.spearman_shrunk[labels[t]]),
            _format_summary_value(means.decoy_z_shrunk[labels[t]]), str(won_auroc[t]), str(won_spearman[t])] for t in tool_ids]),
     ]
@@ -258,7 +258,7 @@ def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFram
         budget = recovery.budget.max()
         recall = recovery[recovery.budget == budget].groupby("predictor").recall.mean()
         best = best_per_experiment(precision, labels).predictor.value_counts()
-        tables.append(("Recovery", ["Predictor", f"Mean recall at {budget:,} genes", "Experiments won at 50% recall"],
+        tables.append(("Recovery", ["Predictor", f"Mean recall at {budget:,} genes", "Ranked first at 50% recall"],
                        [0.24, 0.38, 0.38],
                        [[labels[t], _format_summary_value(recall[t]), str(best.get(t, 0))] for t in tool_ids]))
     return tables
