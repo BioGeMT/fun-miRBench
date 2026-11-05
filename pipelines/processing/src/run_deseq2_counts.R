@@ -197,7 +197,7 @@ sample_summary <- data.frame(sample_id = all_columns, as.data.frame(colData(dds)
 write_tsv(sample_summary, "sample_statistics.tsv")
 saveRDS(list(dds = dds, results = res,
              diagnostic_results_without_results_filters = diagnostic_results,
-             all_input_counts = count_matrix, sample_metadata = col_data, size_factors = "controls",
+             all_input_counts = count_matrix, sample_metadata = col_data,
              control_columns = control_columns, treated_columns = treated_columns,
              session_info = sessionInfo()),
         file.path(output_dir, "complete_analysis.rds"), compress = "gzip")

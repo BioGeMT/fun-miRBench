@@ -64,7 +64,7 @@ Genes with zero counts in every sample keep a row, with no statistics.
 
 ## Normalisation
 
-Each comparison is normalised against its own control samples. DESeq2's size factors are computed against the geometric mean of the controls instead of all samples, and rescaled to a geometric mean of 1 over the controls. A control's normalised counts therefore do not depend on the treated samples, and a control shared by comparisons with the same controls has the same normalised counts in each. `label_states.R` refuses fits made before this change: `run.sh` skips comparisons that already have a fit, so move old runs away before rerunning.
+Each comparison is normalised against its own control samples. DESeq2's size factors are computed against the geometric mean of the controls instead of all samples, and rescaled to a geometric mean of 1 over the controls. A control's normalised counts therefore do not depend on the treated samples, and a control shared by comparisons with the same controls has the same normalised counts in each.
 
 ## Metadata
 

@@ -31,9 +31,6 @@ suppressPackageStartupMessages({
 analysis <- readRDS(args[[1]])
 genes <- read.delim(args[[2]], stringsAsFactors = FALSE)
 prefix <- args[[3]]
-if (!identical(analysis$size_factors, "controls")) {
-  stop(args[[1]], " was fitted before size factors from the control samples; rerun DESeq2 for it.", call. = FALSE)
-}
 MARGINS <- c(d05 = 0.5, d10 = 1.0)
 D_GRID <- c(d00 = 0, d01 = 0.1, d025 = 0.25, d05 = 0.5, d075 = 0.75, d10 = 1.0, d15 = 1.5, d20 = 2.0, d30 = 3.0)
 Z95 <- qnorm(0.975)
