@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from funmirbench.plots import LARGE, SMALL, save, tool_colors, tool_legend, two_panels
+from funmirbench.plots import LARGE, PAIR_SIZE, SMALL, save, tool_colors, tool_legend, two_panels
 from funmirbench.subreport_metrics import weighted_cdf
 
 
@@ -114,6 +114,30 @@ def heatmaps(matrices, titles, tools, out, stem):
         ax.title.set_fontsize(LARGE)
     save(fig, out, stem)
     return out / f"{stem}.png"
+
+
+def responsive_gene_heatmap(matrix: pd.DataFrame, tools: dict[str, str], out: pathlib.Path):
+    """Plot selected responsive genes against predictor percentile ranks."""
+    fig = plt.figure(figsize=PAIR_SIZE)
+    ax = fig.add_axes([0.25, 0.19, 0.64, 0.70])
+    ax.grid(False)
+    ax.set_title("Predictor ranks for responsive genes", fontsize=LARGE)
+    if matrix.empty:
+        ax.text(.5, .5, "No eligible responsive genes", transform=ax.transAxes, ha="center", fontsize=SMALL)
+        ax.set_axis_off()
+    else:
+        image = ax.imshow(matrix.to_numpy(float), aspect="auto", interpolation="nearest",
+                          cmap="viridis", vmin=0, vmax=1)
+        ax.set_yticks(range(len(matrix.index)), [str(gene) for gene in matrix.index], fontsize=SMALL * 0.7)
+        ax.set_xticks(range(len(matrix.columns)), [tools.get(tool, tool) for tool in matrix.columns],
+                      fontsize=SMALL * 0.75)
+        ax.set_xlabel("Predictor", fontsize=SMALL)
+        colorbar = fig.colorbar(image, ax=ax, fraction=0.025, pad=0.025)
+        colorbar.set_label("Predictor percentile across all genes", fontsize=SMALL)
+        colorbar.ax.tick_params(labelsize=SMALL * 0.8)
+    with plt.rc_context({"font.family": "DejaVu Sans"}):
+        save(fig, out, "responsive_gene_ranks")
+    return out / "responsive_gene_ranks.png"
 
 
 def scatter_and_enrichment(table, ranking, curve, tool, label, color, out):

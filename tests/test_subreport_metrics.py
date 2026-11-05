@@ -10,11 +10,37 @@ from sklearn.metrics import average_precision_score, precision_recall_curve, roc
 from funmirbench.subreport_metrics import (
     coverage_frontier, masks, metrics, percentile_ensemble, threshold_curves, top_weights, weighted_cdf,
 )
-from funmirbench.subreports import component, key_results
+from funmirbench.subreports import component, key_results, responsive_gene_rank_data
 from funmirbench.benchmark import rank_last, run_benchmark, score_metrics
 
 
 class DetailedMetricTests(unittest.TestCase):
+    def test_responsive_gene_heatmap_selects_effect_ordered_truth_positives(self):
+        table = pd.DataFrame({
+            "state_d05": ["responsive", "responsive", "responsive", "no_response_above_margin", "responsive"],
+            "eligible": [True, True, True, True, False],
+            "oriented_logFC_shrunk": [2., 3., 2., 9., 20.],
+        }, index=["g1", "g2", "g3", "g4", "g5"])
+        percentiles = pd.DataFrame({"tool_a": [.1, .9, .5, .8, 1.], "tool_b": [.8, .4, .7, .9, 1.]},
+                                   index=table.index)
+
+        matrix, effects = responsive_gene_rank_data(table, percentiles, limit=3)
+
+        self.assertEqual(list(matrix.index), ["g2", "g1", "g3"])
+        self.assertEqual(list(matrix.columns), ["tool_a", "tool_b"])
+        self.assertEqual(effects.to_dict(), {"g2": 3., "g1": 2., "g3": 2.})
+        self.assertEqual(matrix.loc["g2", "tool_a"], .9)
+
+    def test_responsive_gene_heatmap_handles_empty_and_invalid_limit(self):
+        table = pd.DataFrame({"state_d05": ["responsive"], "eligible": [False],
+                              "oriented_logFC_shrunk": [1.]}, index=["g1"])
+        percentiles = pd.DataFrame({"tool": [.5]}, index=table.index)
+        matrix, effects = responsive_gene_rank_data(table, percentiles)
+        self.assertTrue(matrix.empty)
+        self.assertTrue(effects.empty)
+        with self.assertRaisesRegex(ValueError, "limit"):
+            responsive_gene_rank_data(table, percentiles, limit=0)
+
     def test_report_key_results_use_primary_fps_and_explain_unavailable_metrics(self):
         frame = pd.DataFrame([
             {"universe": "fps", "experiment_id": "E1", "predictor": "a", "average_precision": .5,
