@@ -24,7 +24,6 @@ import shutil
 import numpy as np
 import pandas as pd
 import yaml
-from scipy.stats import rankdata, spearmanr
 
 from funmirbench.benchmark_config import (
     build_run_dir_name,
@@ -34,6 +33,7 @@ from funmirbench.benchmark_config import (
 )
 from funmirbench.gene_ids import strip_ensembl_version
 from funmirbench.logger import parse_log_level, setup_logging
+from funmirbench.metric_helpers import auroc, spearman
 from funmirbench.plots import plot_all_genes, plot_coverage, plot_recovery
 from funmirbench.report_pdf import write_report
 
@@ -51,14 +51,6 @@ def rank_last(score: pd.Series, genes: pd.Index) -> pd.Series:
     return s.fillna(floor)
 
 
-def auroc(score: np.ndarray, positive: np.ndarray) -> float:
-    n_pos, n_neg = int(positive.sum()), int((~positive).sum())
-    if n_pos == 0 or n_neg == 0:
-        return np.nan
-    ranks = rankdata(score)
-    return (ranks[positive].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
-
-
 def binned_auroc(score: np.ndarray, positive: np.ndarray, bins: np.ndarray) -> float:
     """Mann-Whitney AUROC over positive/negative pairs within the same bin (weights n_pos * n_neg)."""
     num = den = 0.0
@@ -69,12 +61,6 @@ def binned_auroc(score: np.ndarray, positive: np.ndarray, bins: np.ndarray) -> f
             num += auroc(score[m], positive[m]) * p * n
             den += p * n
     return num / den if den else np.nan
-
-
-def spearman(x: np.ndarray, y: np.ndarray) -> float:
-    if len(x) < 3 or np.all(x == x[0]) or np.all(y == y[0]):
-        return np.nan
-    return float(spearmanr(x, y).statistic)
 
 
 def binned_spearman(x: np.ndarray, y: np.ndarray, bins: np.ndarray, min_size: int = 20) -> float:
@@ -99,9 +85,11 @@ def score_metrics(score: pd.Series, table: pd.DataFrame, *, min_per_state: int) 
     s = score.reindex(table.index).to_numpy(float)
     est = table.eligible.to_numpy(bool)
     bins = table.expression_tenth.to_numpy()
-    shrunk = table.oriented_logFC_shrunk.to_numpy(float)[est]
-    rec = {"spearman_shrunk": spearman(s[est], shrunk),
-           "spearman_within_tenths_shrunk": binned_spearman(s[est], shrunk, bins[est])}
+    effects = table.oriented_logFC_shrunk.to_numpy(float)
+    continuous = est & np.isfinite(effects) & np.isfinite(s)
+    shrunk = effects[continuous]
+    rec = {"spearman_shrunk": spearman(s[continuous], shrunk),
+           "spearman_within_tenths_shrunk": binned_spearman(s[continuous], shrunk, bins[continuous])}
     state = table.state_d05.to_numpy()
     labelled = (state == "responsive") | (state == "no_response_above_margin")
     pos = state[labelled] == "responsive"
@@ -183,6 +171,17 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     with config_path.open(encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
     root = config_path.parent
+    report_config = config.get("reports")
+    if report_config is None:
+        report_config = {}
+    if not isinstance(report_config, dict) or not isinstance(report_config.get("detailed", True), bool):
+        raise ValueError("reports must be a mapping with a boolean detailed setting")
+    try:
+        top_n = int(report_config.get("top_n", 100))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("reports.top_n must be a positive integer") from exc
+    if isinstance(report_config.get("top_n"), bool) or top_n < 1 or top_n != float(report_config.get("top_n", 100)):
+        raise ValueError("reports.top_n must be a positive integer")
     input_dir = resolve_predictor_output_path(config["input_dir"], root)
     if not (input_dir / "comparisons.tsv").is_file():
         raise FileNotFoundError(f"no benchmark tables in {input_dir}; run `uv run funmirbench-download-data`")
@@ -316,9 +315,15 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     plot_all_genes(per, tools, plots)
     if len(recovery):  # otherwise no selected comparison has enough genes in each state
         plot_recovery(recovery, precision, tools, plots)
+    detailed_reports = []
+    if report_config.get("detailed", True):
+        from funmirbench.subreports import write_subreports
+        logger.info("Writing detailed experiment and predictor reports...")
+        detailed_reports = write_subreports(tables, comps, preds, tools, out, min_per_state=min_per_state,
+                                            top_n=top_n, bootstrap=bootstrap, seed=seed)
     write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
                  recovery=recovery, precision=precision, tools=tools,
-                 n_genes=len(universe), min_per_state=min_per_state, plots=plots)
+                 n_genes=len(universe), min_per_state=min_per_state, plots=plots, detailed_reports=detailed_reports)
     logger.info("wrote %s", out)
     return out
 
