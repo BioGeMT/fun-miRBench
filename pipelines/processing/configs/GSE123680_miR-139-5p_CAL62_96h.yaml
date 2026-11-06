@@ -1,0 +1,47 @@
+dataset_id: GSE123680_miR-139-5p_CAL62_96h
+gse: GSE123680
+mirna_name: hsa-miR-139-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3509423
+    reads_1: data/experiments/raw/GSE123680/SRR8313015/SRR8313015_1.fastq.gz
+    reads_2: data/experiments/raw/GSE123680/SRR8313015/SRR8313015_2.fastq.gz
+  - sample_id: GSM3509424
+    reads_1: data/experiments/raw/GSE123680/SRR8313016/SRR8313016_1.fastq.gz
+    reads_2: data/experiments/raw/GSE123680/SRR8313016/SRR8313016_2.fastq.gz
+  - sample_id: GSM3509425
+    reads_1: data/experiments/raw/GSE123680/SRR8313017/SRR8313017_1.fastq.gz
+    reads_2: data/experiments/raw/GSE123680/SRR8313017/SRR8313017_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM3509417
+    reads_1: data/experiments/raw/GSE123680/SRR8313009/SRR8313009_1.fastq.gz
+    reads_2: data/experiments/raw/GSE123680/SRR8313009/SRR8313009_2.fastq.gz
+  - sample_id: GSM3509418
+    reads_1: data/experiments/raw/GSE123680/SRR8313010/SRR8313010_1.fastq.gz
+    reads_2: data/experiments/raw/GSE123680/SRR8313010/SRR8313010_2.fastq.gz
+  - sample_id: GSM3509419
+    reads_1: data/experiments/raw/GSE123680/SRR8313011/SRR8313011_1.fastq.gz
+    reads_2: data/experiments/raw/GSE123680/SRR8313011/SRR8313011_2.fastq.gz
+  batch_by_sample:
+    GSM3509417: A
+    GSM3509418: B
+    GSM3509419: C
+    GSM3509423: A
+    GSM3509424: B
+    GSM3509425: C
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: CAL62
+  treatment_dose: doxycycline 1 ug/ml
+  treatment: Overexpression of hsa-miR-139-5p (doxycycline-inducible expression of mature miR-139-5p in a stable line) against
+    isogenic CAL62 line expressing scrambled control, doxycycline 96 h
+  method: RNA-seq

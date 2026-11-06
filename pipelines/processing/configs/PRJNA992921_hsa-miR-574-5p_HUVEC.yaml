@@ -1,0 +1,39 @@
+dataset_id: PRJNA992921_hsa-miR-574-5p_HUVEC
+gse: PRJNA992921
+mirna_name: hsa-miR-574-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: SRR25209377
+    reads_1: data/experiments/raw/PRJNA992921/SRR25209377/SRR25209377_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA992921/SRR25209377/SRR25209377_2.fastq.gz
+  - sample_id: SRR25209376
+    reads_1: data/experiments/raw/PRJNA992921/SRR25209376/SRR25209376_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA992921/SRR25209376/SRR25209376_2.fastq.gz
+  - sample_id: SRR25209375
+    reads_1: data/experiments/raw/PRJNA992921/SRR25209375/SRR25209375_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA992921/SRR25209375/SRR25209375_2.fastq.gz
+  treated_samples:
+  - sample_id: SRR25209374
+    reads_1: data/experiments/raw/PRJNA992921/SRR25209374/SRR25209374_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA992921/SRR25209374/SRR25209374_2.fastq.gz
+  - sample_id: SRR25209373
+    reads_1: data/experiments/raw/PRJNA992921/SRR25209373/SRR25209373_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA992921/SRR25209373/SRR25209373_2.fastq.gz
+  - sample_id: SRR25209372
+    reads_1: data/experiments/raw/PRJNA992921/SRR25209372/SRR25209372_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA992921/SRR25209372/SRR25209372_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HUVEC
+  treatment_dose: Not stated
+  treatment: Overexpression of hsa-miR-574-5p (miR-574-5p overexpression; agent not stated) against NC (type not stated)
+  method: RNA-seq

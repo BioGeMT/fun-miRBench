@@ -1,0 +1,38 @@
+dataset_id: GSE180331_miR-101-3p_143BTK_120h
+gse: GSE180331
+mirna_name: hsa-miR-101-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM5460903
+    reads_1: data/experiments/raw/GSE180331/SRR15186042/SRR15186042.fastq.gz
+  - sample_id: GSM5460904
+    reads_1: data/experiments/raw/GSE180331/SRR15186043/SRR15186043.fastq.gz
+  - sample_id: GSM5460905
+    reads_1: data/experiments/raw/GSE180331/SRR15186044/SRR15186044.fastq.gz
+  - sample_id: GSM5460906
+    reads_1: data/experiments/raw/GSE180331/SRR15186045/SRR15186045.fastq.gz
+  treated_samples:
+  - sample_id: GSM5460899
+    reads_1: data/experiments/raw/GSE180331/SRR15186038/SRR15186038.fastq.gz
+  - sample_id: GSM5460900
+    reads_1: data/experiments/raw/GSE180331/SRR15186039/SRR15186039.fastq.gz
+  - sample_id: GSM5460901
+    reads_1: data/experiments/raw/GSE180331/SRR15186040/SRR15186040.fastq.gz
+  - sample_id: GSM5460902
+    reads_1: data/experiments/raw/GSE180331/SRR15186041/SRR15186041.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: 143BTK- osteosarcoma cells in galactose medium
+  treatment_dose: 80 pmol per 10 cm dish, twice
+  treatment: 'Overexpression of hsa-miR-101-3p (mirVana mimic MC11414 (4464066), RNAiMAX, transfected at 0 h and 48 h) against
+    mirVana miRNA mimic Negative Control #1 (4464058)'
+  method: RNA-seq

@@ -1,0 +1,46 @@
+dataset_id: PRJNA760808_hsa-miR-638_SPC-A1
+gse: PRJNA760808
+mirna_name: hsa-miR-638
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: SRR15840884
+    reads_1: data/experiments/raw/PRJNA760808/SRR15840884/SRR15840884_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA760808/SRR15840884/SRR15840884_2.fastq.gz
+  - sample_id: SRR18212588
+    reads_1: data/experiments/raw/PRJNA760808/SRR18212588/SRR18212588_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA760808/SRR18212588/SRR18212588_2.fastq.gz
+  - sample_id: SRR18212587
+    reads_1: data/experiments/raw/PRJNA760808/SRR18212587/SRR18212587_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA760808/SRR18212587/SRR18212587_2.fastq.gz
+  treated_samples:
+  - sample_id: SRR15840883
+    reads_1: data/experiments/raw/PRJNA760808/SRR15840883/SRR15840883_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA760808/SRR15840883/SRR15840883_2.fastq.gz
+  - sample_id: SRR18212586
+    reads_1: data/experiments/raw/PRJNA760808/SRR18212586/SRR18212586_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA760808/SRR18212586/SRR18212586_2.fastq.gz
+  - sample_id: SRR18212585
+    reads_1: data/experiments/raw/PRJNA760808/SRR18212585/SRR18212585_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA760808/SRR18212585/SRR18212585_2.fastq.gz
+  batch_by_sample:
+    SRR15840883: sub2021
+    SRR18212586: sub2022
+    SRR18212585: sub2022
+    SRR15840884: sub2021
+    SRR18212588: sub2022
+    SRR18212587: sub2022
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: SPC-A1 lung cancer line
+  treatment_dose: Not stated
+  treatment: Overexpression of hsa-miR-638 (hsa-miR-638 mimics) against NC mimics
+  method: RNA-seq

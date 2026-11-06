@@ -1,0 +1,40 @@
+dataset_id: GSE293683_hsa-miR-369-5p_HMVEC-D_50_nM_24_h
+gse: GSE293683
+mirna_name: hsa-miR-369-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8888338
+    reads_1: data/experiments/raw/GSE293683/SRR32964036/SRR32964036_1.fastq.gz
+    reads_2: data/experiments/raw/GSE293683/SRR32964036/SRR32964036_2.fastq.gz
+  - sample_id: GSM8888341
+    reads_1: data/experiments/raw/GSE293683/SRR32964033/SRR32964033_1.fastq.gz
+    reads_2: data/experiments/raw/GSE293683/SRR32964033/SRR32964033_2.fastq.gz
+  - sample_id: GSM8888344
+    reads_1: data/experiments/raw/GSE293683/SRR32964030/SRR32964030_1.fastq.gz
+    reads_2: data/experiments/raw/GSE293683/SRR32964030/SRR32964030_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8888339
+    reads_1: data/experiments/raw/GSE293683/SRR32964035/SRR32964035_1.fastq.gz
+    reads_2: data/experiments/raw/GSE293683/SRR32964035/SRR32964035_2.fastq.gz
+  - sample_id: GSM8888342
+    reads_1: data/experiments/raw/GSE293683/SRR32964032/SRR32964032_1.fastq.gz
+    reads_2: data/experiments/raw/GSE293683/SRR32964032/SRR32964032_2.fastq.gz
+  - sample_id: GSM8888345
+    reads_1: data/experiments/raw/GSE293683/SRR32964029/SRR32964029_1.fastq.gz
+    reads_2: data/experiments/raw/GSE293683/SRR32964029/SRR32964029_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HMVEC-D, Lonza CC-2543
+  treatment_dose: 50 nM
+  treatment: 'Overexpression of hsa-miR-369-5p (Dharmacon miRIDIAN hsa-miR-369-5p mimic, Lipofectamine RNAiMAX) against miRIDIAN
+    mimic negative control #1, based on cel-miR-67'
+  method: RNA-seq

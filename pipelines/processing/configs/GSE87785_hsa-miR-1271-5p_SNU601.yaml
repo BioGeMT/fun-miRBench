@@ -1,0 +1,46 @@
+dataset_id: GSE87785_hsa-miR-1271-5p_SNU601
+gse: GSE87785
+mirna_name: hsa-miR-1271-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM2340242
+    reads_1: data/experiments/raw/GSE87785/SRR4409208/SRR4409208_1.fastq.gz
+    reads_2: data/experiments/raw/GSE87785/SRR4409208/SRR4409208_2.fastq.gz
+  - sample_id: GSM2731763
+    reads_1: data/experiments/raw/GSE87785/SRR5894233/SRR5894233_1.fastq.gz
+    reads_2: data/experiments/raw/GSE87785/SRR5894233/SRR5894233_2.fastq.gz
+  - sample_id: GSM2731764
+    reads_1: data/experiments/raw/GSE87785/SRR5894234/SRR5894234_1.fastq.gz
+    reads_2: data/experiments/raw/GSE87785/SRR5894234/SRR5894234_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM2340244
+    reads_1: data/experiments/raw/GSE87785/SRR4409210/SRR4409210_1.fastq.gz
+    reads_2: data/experiments/raw/GSE87785/SRR4409210/SRR4409210_2.fastq.gz
+  - sample_id: GSM2731765
+    reads_1: data/experiments/raw/GSE87785/SRR5894235/SRR5894235_1.fastq.gz
+    reads_2: data/experiments/raw/GSE87785/SRR5894235/SRR5894235_2.fastq.gz
+  - sample_id: GSM2731766
+    reads_1: data/experiments/raw/GSE87785/SRR5894236/SRR5894236_1.fastq.gz
+    reads_2: data/experiments/raw/GSE87785/SRR5894236/SRR5894236_2.fastq.gz
+  batch_by_sample:
+    GSM2340244: HiSeq2000_2016
+    GSM2731765: NextSeq500_2017
+    GSM2731766: NextSeq500_2017
+    GSM2340242: HiSeq2000_2016
+    GSM2731763: NextSeq500_2017
+    GSM2731764: NextSeq500_2017
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: SNU-601
+  treatment_dose: 100 pmol per well of a 6-well plate
+  treatment: Overexpression of hsa-miR-1271-5p (miR-1271 mimic (Thermo Fisher), RNAiMAX) against nonsilencing control
+  method: RNA-seq

@@ -1,0 +1,34 @@
+dataset_id: GSE142895_miR-372-3p_T-REx-293_batch2_7d
+gse: GSE142895
+mirna_name: hsa-miR-372-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM4247196
+    reads_1: data/experiments/raw/GSE142895/SRR10821384/SRR10821384.fastq.gz
+  - sample_id: GSM4247197
+    reads_1: data/experiments/raw/GSE142895/SRR10821385/SRR10821385.fastq.gz
+  - sample_id: GSM4247198
+    reads_1: data/experiments/raw/GSE142895/SRR10821386/SRR10821386.fastq.gz
+  treated_samples:
+  - sample_id: GSM4247208
+    reads_1: data/experiments/raw/GSE142895/SRR10821396/SRR10821396.fastq.gz
+  - sample_id: GSM4247209
+    reads_1: data/experiments/raw/GSE142895/SRR10821397/SRR10821397.fastq.gz
+  - sample_id: GSM4247210
+    reads_1: data/experiments/raw/GSE142895/SRR10821398/SRR10821398.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Flp-In T-REx 293
+  treatment_dose: doxycycline 1 ug/ml in both arms
+  treatment: Overexpression of hsa-miR-372-3p (lentivirus, doxycycline-inducible synthetic hairpin in an A5 backbone, stably
+    integrated, geneticin selected) against parent vector without a miRNA hairpin (empty vector), same batch
+  method: RNA-seq

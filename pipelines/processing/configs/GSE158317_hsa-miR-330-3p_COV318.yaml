@@ -1,0 +1,41 @@
+dataset_id: GSE158317_hsa-miR-330-3p_COV318
+gse: GSE158317
+mirna_name: hsa-miR-330-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM4797387
+    reads_1: data/experiments/raw/GSE158317/SRR12684565/SRR12684565_1.fastq.gz
+    reads_2: data/experiments/raw/GSE158317/SRR12684565/SRR12684565_2.fastq.gz
+  - sample_id: GSM4797388
+    reads_1: data/experiments/raw/GSE158317/SRR12684566/SRR12684566_1.fastq.gz
+    reads_2: data/experiments/raw/GSE158317/SRR12684566/SRR12684566_2.fastq.gz
+  - sample_id: GSM4797389
+    reads_1: data/experiments/raw/GSE158317/SRR12684567/SRR12684567_1.fastq.gz
+    reads_2: data/experiments/raw/GSE158317/SRR12684567/SRR12684567_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM4797391
+    reads_1: data/experiments/raw/GSE158317/SRR12684569/SRR12684569_1.fastq.gz
+    reads_2: data/experiments/raw/GSE158317/SRR12684569/SRR12684569_2.fastq.gz
+  - sample_id: GSM4797392
+    reads_1: data/experiments/raw/GSE158317/SRR12684570/SRR12684570_1.fastq.gz
+    reads_2: data/experiments/raw/GSE158317/SRR12684570/SRR12684570_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE158317/SRR12684570/SRR12684570.fastq.gz
+  - sample_id: GSM4797393
+    reads_1: data/experiments/raw/GSE158317/SRR12684571/SRR12684571_1.fastq.gz
+    reads_2: data/experiments/raw/GSE158317/SRR12684571/SRR12684571_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE158317/SRR12684571/SRR12684571.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: COV318
+  treatment_dose: 50 to 60 nM
+  treatment: Overexpression of hsa-miR-330-3p (miR-330-3p mimic (RiboBio), RNAiMAX) against untreated control
+  method: RNA-seq

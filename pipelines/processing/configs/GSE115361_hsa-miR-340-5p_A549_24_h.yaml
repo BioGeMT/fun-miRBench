@@ -1,0 +1,39 @@
+dataset_id: GSE115361_hsa-miR-340-5p_A549_24_h
+gse: GSE115361
+mirna_name: hsa-miR-340-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3176551
+    reads_1: data/experiments/raw/GSE115361/SRR7264145/SRR7264145_1.fastq.gz
+    reads_2: data/experiments/raw/GSE115361/SRR7264145/SRR7264145_2.fastq.gz
+  - sample_id: GSM3176552
+    reads_1: data/experiments/raw/GSE115361/SRR7264146/SRR7264146_1.fastq.gz
+    reads_2: data/experiments/raw/GSE115361/SRR7264146/SRR7264146_2.fastq.gz
+  - sample_id: GSM3176553
+    reads_1: data/experiments/raw/GSE115361/SRR7264147/SRR7264147_1.fastq.gz
+    reads_2: data/experiments/raw/GSE115361/SRR7264147/SRR7264147_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM3176554
+    reads_1: data/experiments/raw/GSE115361/SRR7264148/SRR7264148_1.fastq.gz
+    reads_2: data/experiments/raw/GSE115361/SRR7264148/SRR7264148_2.fastq.gz
+  - sample_id: GSM3176555
+    reads_1: data/experiments/raw/GSE115361/SRR7264149/SRR7264149_1.fastq.gz
+    reads_2: data/experiments/raw/GSE115361/SRR7264149/SRR7264149_2.fastq.gz
+  - sample_id: GSM3176556
+    reads_1: data/experiments/raw/GSE115361/SRR7264150/SRR7264150_1.fastq.gz
+    reads_2: data/experiments/raw/GSE115361/SRR7264150/SRR7264150_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: A549
+  treatment_dose: 1 to 2 ug plasmid
+  treatment: Overexpression of hsa-miR-340-5p (pcDNA3.1+ plasmid with the hsa-mir-340 precursor) against empty pcDNA3.1+ vector
+  method: RNA-seq

@@ -1,0 +1,40 @@
+dataset_id: GSE295502_hsa-miR-655-3p_MCF7_stable_DOX_48_h
+gse: GSE295502
+mirna_name: hsa-miR-655-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8951604
+    reads_1: data/experiments/raw/GSE295502/SRR33298950/SRR33298950_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298950/SRR33298950_2.fastq.gz
+  - sample_id: GSM8951605
+    reads_1: data/experiments/raw/GSE295502/SRR33298948/SRR33298948_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298948/SRR33298948_2.fastq.gz
+  - sample_id: GSM8951606
+    reads_1: data/experiments/raw/GSE295502/SRR33298947/SRR33298947_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298947/SRR33298947_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8951616
+    reads_1: data/experiments/raw/GSE295502/SRR33298941/SRR33298941_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298941/SRR33298941_2.fastq.gz
+  - sample_id: GSM8951617
+    reads_1: data/experiments/raw/GSE295502/SRR33298937/SRR33298937_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298937/SRR33298937_2.fastq.gz
+  - sample_id: GSM8951618
+    reads_1: data/experiments/raw/GSE295502/SRR33298936/SRR33298936_1.fastq.gz
+    reads_2: data/experiments/raw/GSE295502/SRR33298936/SRR33298936_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: MCF7 stable line, doxorubicin 0.8 uM
+  treatment_dose: doxorubicin 0.8 uM
+  treatment: Overexpression of hsa-miR-655-3p (stable pCMV-MIR plasmid line expressing miR-655, G418 maintained) against parental
+    MCF7 under the same treatment
+  method: RNA-seq

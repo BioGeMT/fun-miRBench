@@ -1,8 +1,8 @@
 """Plots of the benchmark, OE comparisons, written by funmirbench to plots/ as PNG.
 
 coverage: genes each tool scores and the responsive and no-response pairs it covers.
-oe_all_genes: AUROC of responsive against no-response genes at d = 0.5, Spearman with the shrunken log2FC, the decoy
-z-score and the experiments each tool wins, every tool on all genes (a gene a tool does not score ranks last). The y
+oe_all_genes: AUROC of responsive against no-response genes at d = 0.5, Spearman with the shrunken log2FC, the Spearman
+rho above decoys and the number of experiments in which each tool ranks first, every tool on all genes (a gene a tool does not score ranks last). The y
 axes follow the values of the run.
 recovery: recall by prediction budget and each experiment's best precision at 50% recall, relative to random.
 """
@@ -19,11 +19,11 @@ from matplotlib.ticker import FuncFormatter, NullLocator
 CURVE_COLORS = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#17BECF", "#E377C2", "#BCBD22", "#8C564B"]
 
 METRICS = (("auroc_d05", "AUROC"), ("spearman_shrunk", "Spearman rho"))
-DECOY = ("decoy_z_shrunk", "Decoy z-score")
+DECOY = ("spearman_above_decoys_shrunk", "Spearman rho above decoys")
 SLOT, ROW_GAP = 0.75, 1.0  # inches per box at least, and between the rows of panels
 RIGHT, TOP, BOTTOM, LEGEND_GAP = 0.2, 1.05, 0.95, 0.3  # inches around the panels
 SMALL, LARGE = 17, 22  # font sizes: ticks and counts; panel titles and legend
-BAR_HEIGHT, BAR_LABEL_SPACE = 0.45, 0.4  # experiments-won bars, in units of the distance between the two bars
+BAR_HEIGHT, BAR_LABEL_SPACE = 0.45, 0.4  # ranked-first bars, in units of the distance between the two bars
 BAR_ALPHA = 0.58
 PAIR_SIZE, PAIR_LEFT, PAIR_GAP, PAIR_TOP, PAIR_BOTTOM = (14.0, 6.4), 1.0, 1.3, 1.05, 1.5  # two-panel figures, inches
 MARKERS = ("o", "s", "^", "D", "P", "X", "v", "<", ">", "*")
@@ -115,7 +115,7 @@ def plot_all_genes(per: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) ->
         draw_box(ax, per, tool_ids, colors, metric)
         if (metric, label) == DECOY:
             ax.axhline(0.0, color="#9CA3AF", linewidth=1.0, zorder=0)
-    draw_won(panel(right_column, BOTTOM, "Experiments won"), per, tool_ids, colors)
+    draw_won(panel(right_column, BOTTOM, "Experiments ranked first"), per, tool_ids, colors)
     handles = [plt.Rectangle((0, 0), 1, 1, color=colors[t], alpha=BAR_ALPHA) for t in tool_ids]
     fig.legend(handles, labels.values(), loc="upper center", frameon=False, borderaxespad=0.0, borderpad=0.0,
                fontsize=SMALL, handlelength=1.6, mode="expand", ncol=len(handles),

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the experiments pipeline for each test comparison, then build the per-gene benchmark tables.
-# Arguments: the comparisons to run (default: all 21). Finished runs are skipped; the benchmark tables are built once
+# Arguments: the comparisons to run (default: all 72). Finished runs are skipped; the benchmark tables are built once
 # every comparison has a finished run.
 set -euo pipefail
 

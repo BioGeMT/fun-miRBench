@@ -1,0 +1,53 @@
+dataset_id: GSE141129_hsa-miR-126-3p_HLMVEC_air_control_5_nM_16_h
+gse: GSE141129
+mirna_name: hsa-miR-126-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM4195870
+    reads_1:
+    - data/experiments/raw/GSE141129/SRR10546755/SRR10546755.fastq.gz
+    - data/experiments/raw/GSE141129/SRR10546756/SRR10546756.fastq.gz
+  - sample_id: GSM4195873
+    reads_1:
+    - data/experiments/raw/GSE141129/SRR10546761/SRR10546761.fastq.gz
+    - data/experiments/raw/GSE141129/SRR10546762/SRR10546762.fastq.gz
+  - sample_id: GSM4195876
+    reads_1:
+    - data/experiments/raw/GSE141129/SRR10546767/SRR10546767.fastq.gz
+    - data/experiments/raw/GSE141129/SRR10546768/SRR10546768.fastq.gz
+  treated_samples:
+  - sample_id: GSM4195871
+    reads_1:
+    - data/experiments/raw/GSE141129/SRR10546757/SRR10546757.fastq.gz
+    - data/experiments/raw/GSE141129/SRR10546758/SRR10546758.fastq.gz
+  - sample_id: GSM4195874
+    reads_1:
+    - data/experiments/raw/GSE141129/SRR10546763/SRR10546763.fastq.gz
+    - data/experiments/raw/GSE141129/SRR10546764/SRR10546764.fastq.gz
+  - sample_id: GSM4195877
+    reads_1:
+    - data/experiments/raw/GSE141129/SRR10546769/SRR10546769.fastq.gz
+    - data/experiments/raw/GSE141129/SRR10546770/SRR10546770.fastq.gz
+  batch_by_sample:
+    GSM4195871: donor31653
+    GSM4195874: donor29055
+    GSM4195877: donor29492
+    GSM4195870: donor31653
+    GSM4195873: donor29055
+    GSM4195876: donor29492
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: primary human lung microvascular endothelial cells, air control
+  treatment_dose: 5 nM
+  treatment: Overexpression of hsa-miR-126-3p (synthetic miR-126-3p mimic, Lipofectamine RNAiMAX) against non-targeting scramble
+    control
+  method: RNA-seq
