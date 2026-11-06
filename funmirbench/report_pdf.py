@@ -43,7 +43,7 @@ COVERAGE = ("coverage", "Coverage",
 PERFORMANCE = ("oe_all_genes", "Performance",
           ["AUROC: chance that a responsive gene scores above a no-response gene; 0.5 is chance.",
            "Spearman rho: agreement of the score's ranking with the shrunken log2FC; 0 is none.",
-           "Decoy z-score: Spearman for the tested miRNA against different-seed miRNAs, in SDs.",
+           "Spearman rho above decoys: Spearman rho for the tested miRNA minus the mean for different-seed miRNAs.",
            "Experiments ranked first: the number of experiments where each tool has the highest AUROC or Spearman rho."])
 RECOVERY = ("recovery", "Recovery",
           ["Recall: share of responsive genes in the top genes of the full ranking, mean over experiments.",
@@ -181,11 +181,11 @@ def _draw_basic_table(ax, rows, *, columns, col_widths, bbox, font_size=REPORT_T
 
 
 def tool_means(summary: pd.DataFrame, tools: pd.DataFrame) -> pd.DataFrame:
-    """Mean AUROC, Spearman and decoy z-score over all comparisons; one row per drawn tool, indexed by its label."""
+    """Mean AUROC, Spearman and Spearman rho above decoys over all comparisons; one row per drawn tool, indexed by its label."""
     labels = drawn_tools(tools)
     rows = summary[(summary.subset == "all") & summary.predictor.isin(labels)]
     wide = rows.pivot(index="predictor", columns="metric", values="mean")
-    return wide.loc[list(labels), ["auroc_d05", "spearman_shrunk", "decoy_z_shrunk"]].rename(index=labels)
+    return wide.loc[list(labels), ["auroc_d05", "spearman_shrunk", "spearman_above_decoys_shrunk"]].rename(index=labels)
 
 
 def coverage_lines(responsive_pairs: pd.Series) -> list[str]:
@@ -249,10 +249,10 @@ def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFram
          [[labels[t], pct(c.genes_covered[t] / c.genes_measured[t]), f"{c.experiments_retained[t]}/{c.experiments_total[t]}",
            pct(c.responsive_scored[t] / c.responsive_total[t]), pct(c.no_response_scored[t] / c.no_response_total[t])]
           for t in tool_ids]),
-        ("Performance", ["Predictor", "Mean AUROC", "Mean Spearman", "Mean decoy z-score", "Ranked first, AUROC", "Ranked first, Spearman"],
-         [0.20, 0.13, 0.13, 0.16, 0.19, 0.19],
+        ("Performance", ["Predictor", "Mean AUROC", "Mean Spearman", "Mean Spearman rho above decoys", "Ranked first, AUROC", "Ranked first, Spearman"],
+         [0.186, 0.09, 0.124, 0.2286, 0.186, 0.186],
          [[labels[t], _format_summary_value(means.auroc_d05[labels[t]]), _format_summary_value(means.spearman_shrunk[labels[t]]),
-           _format_summary_value(means.decoy_z_shrunk[labels[t]]), str(won_auroc[t]), str(won_spearman[t])] for t in tool_ids]),
+           _format_summary_value(means.spearman_above_decoys_shrunk[labels[t]]), str(won_auroc[t]), str(won_spearman[t])] for t in tool_ids]),
     ]
     if len(recovery):
         budget = recovery.budget.max()
