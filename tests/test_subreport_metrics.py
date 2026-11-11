@@ -118,7 +118,7 @@ class DetailedMetricTests(unittest.TestCase):
         self.assertTrue(np.isnan(rec["auroc"]))
         self.assertIn("Needs at least", rec["classification_note"])
         self.assertIn("at least 3", rec["spearman_na_reason"])
-        self.assertEqual(rec["pearson_na_reason"], rec["spearman_na_reason"])
+        self.assertNotIn("pearson", rec)
 
     def test_fps_metrics_match_main_with_missing_scores_ties_and_unresolved_genes(self):
         genes = pd.Index([f"g{i}" for i in range(8)])

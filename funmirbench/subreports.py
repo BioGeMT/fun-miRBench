@@ -119,7 +119,6 @@ def pdf_report(path, title, settings, specs, frame, *, links=(), predictor_label
             "Positives: responsive. Negatives: no_response_above_margin. Unresolved genes are excluded from PR and ROC.",
             "FPS uses the fixed gene universe and ranks missing predictions last; IPS and own-scored are supplementary.",
             "Continuous metrics use eligible, finite oriented shrunken log2FC. Enrichment is descriptive, without an NES or p-value.",
-            "Pearson is scale-sensitive; the FPS missing-score floor affects its value. See pearson_note in metrics.tsv.",
         ], y=y)
         y = _bullet_block(ax, "Key results", key_results(frame, predictor_labels), y=y)
         _bullet_block(ax, "Output tables", ["metrics.tsv and plot-data TSVs contain the plotted values and unavailable-metric reasons.",
@@ -294,7 +293,7 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
     rng = np.random.default_rng(seed)
     for subset, sub in [("all", frame), ("unflagged", frame[frame.action == "keep"])]:
         for (tool, universe), group in sub.groupby(["predictor", "universe"]):
-            for metric in ["average_precision", "pr_auc", "auroc", "spearman", "pearson", "enrichment_score"]:
+            for metric in ["average_precision", "pr_auc", "auroc", "spearman", "enrichment_score"]:
                 v = group[metric]
                 lo, hi = group_bootstrap(v, group.dependency_group, n=bootstrap, rng=rng)
                 summaries.append({"subset": subset, "predictor": tool, "universe": universe, "metric": metric,
@@ -304,7 +303,7 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
     export(frame, report_root / "diagnostics" / "metrics.tsv")
     overview_specs = []
     for universe in UNIVERSES:
-        for pair in [("average_precision", "pr_auc"), ("auroc", "spearman"), ("pearson", "enrichment_score")]:
+        for pair in [("average_precision", "pr_auc"), ("auroc", "spearman"), ("spearman", "enrichment_score")]:
             fig, axes = two_panels()
             for ax, metric in zip(axes, pair):
                 draw_box(ax, frame[frame.universe == universe], list(labels), colors, metric)

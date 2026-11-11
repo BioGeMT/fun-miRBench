@@ -188,6 +188,9 @@ class EndToEndTests(unittest.TestCase):
             self.assertFalse(list((out / "reports").rglob("*rank_cdfs*")))
             self.assertFalse(list((out / "reports").rglob("*rank_counts*")))
             detailed = pd.read_csv(out / "reports/universe_metrics.tsv", sep="\t")
+            self.assertNotIn("pearson", detailed.columns)
+            summary = pd.read_csv(out / "reports/universe_summary.tsv", sep="\t")
+            self.assertNotIn("pearson", set(summary.metric))
             fps = detailed[detailed.universe == "fps"].set_index("experiment_id")
             for exp in ("E1", "E2"):
                 self.assertAlmostEqual(fps.loc[exp, "auroc"], tool.loc[exp, "auroc_d05"])
