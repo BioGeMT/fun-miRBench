@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from funmirbench.plots import LARGE, SMALL, save, tool_colors, tool_legend, two_panels
-from funmirbench.subreport_metrics import UNIVERSE_LABELS, weighted_cdf
+from funmirbench.subreport_metrics import weighted_cdf
 
 
 def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, legend=True, palette=None):
@@ -27,7 +27,7 @@ def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, le
     return out / f"{stem}.png"
 
 
-def classification(curves, records, tools, out, stem, universe, palette=None):
+def classification(curves, records, tools, out, stem, palette=None):
     fig, axes = two_panels()
     colors = palette or tool_colors(list(tools))
     for tool in tools:
@@ -116,7 +116,7 @@ def heatmaps(matrices, titles, tools, out, stem):
     return out / f"{stem}.png"
 
 
-def scatter_and_enrichment(table, raw, ranking, curve, tool, label, color, out):
+def scatter_and_enrichment(table, ranking, curve, tool, label, color, out):
     fig, axes = two_panels()
     usable = table.eligible & np.isfinite(table.oriented_logFC_shrunk)
     ranks = ranking.rank(method="average", pct=True)
