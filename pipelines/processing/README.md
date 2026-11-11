@@ -16,11 +16,11 @@ pipelines/processing/run.sh
 
 ## Steps
 
-1. **Reads.** `pipelines/processing/src/download_reads.py` downloads the 722 FASTQ files (1,281.7 GB) listed in `pipelines/processing/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
+1. **Reads.** `pipelines/processing/src/download_reads.py` downloads the 738 FASTQ files (1,291.6 GB) listed in `pipelines/processing/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
 2. **References.** Download the soft-masked genome `Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz` (https://ftp.ensembl.org/pub/release-115/fasta/homo_sapiens/dna/) and `Homo_sapiens.GRCh38.115.gtf.gz` (https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/) into `data/experiments/raw/refs/ensembl_v115/`, decompress both, and save the genome as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the name the configs point to. This is the genome the reruns used, and the one `funmirbench-experiments-download-examples` fetches.
 3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/processing/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks).
 
-   GSE210778 includes the unpaired reads of two samples. DESeq2 writes `complete_analysis.rds` with the fitted object.
+   Some paired-end runs also have an unpaired FASTQ (reads without a mate), which the configs include: two samples of GSE210778, two of GSE158317 and all twelve of the two GSE78078 comparisons. DESeq2 writes `complete_analysis.rds` with the fitted object.
 4. **Gene list.** `src/build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/benchmark_genes.tsv.gz`.
 5. **Benchmark tables.** `src/build_benchmark_data.py --fits fits.tsv --genes metadata/benchmark_genes.tsv.gz --out <dir>` runs `src/label_states.R` on every fit and copies `metadata/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id` and `fit_rds`.
 

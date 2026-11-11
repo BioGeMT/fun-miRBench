@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+import yaml
 
 from funmirbench.experiments_pipeline import (
     combine_count_matrices,
@@ -15,8 +16,23 @@ from funmirbench.experiments_pipeline import (
     run_reads_mode,
 )
 
+CONFIGS = Path(__file__).resolve().parents[1] / "pipelines" / "processing" / "configs"
+
 
 class ExperimentInputTests(unittest.TestCase):
+    def test_every_configured_fastq_is_in_the_download_manifest(self):
+        listed = set(pd.read_csv(CONFIGS / "fastq_manifest.tsv", sep="\t").path)
+        missing = []
+        for config_path in sorted(CONFIGS.glob("*.yaml")):
+            comparison = yaml.safe_load(config_path.read_text())["comparison"]
+            for sample in comparison["control_samples"] + comparison["treated_samples"]:
+                for key in ("reads_1", "reads_2", "unpaired_reads"):
+                    paths = sample.get(key, [])
+                    for path in [paths] if isinstance(paths, str) else paths:
+                        if path not in listed:
+                            missing.append(f"{config_path.name}: {path}")
+        self.assertEqual(missing, [])
+
     def test_single_path_config_remains_supported(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
