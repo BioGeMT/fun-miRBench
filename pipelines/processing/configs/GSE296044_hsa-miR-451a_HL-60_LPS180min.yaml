@@ -1,0 +1,40 @@
+dataset_id: GSE296044_hsa-miR-451a_HL-60_LPS180min
+gse: GSE296044
+mirna_name: hsa-miR-451a
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8964058
+    reads_1: data/experiments/raw/GSE296044/SRR33388359/SRR33388359_1.fastq.gz
+    reads_2: data/experiments/raw/GSE296044/SRR33388359/SRR33388359_2.fastq.gz
+  - sample_id: GSM8964059
+    reads_1: data/experiments/raw/GSE296044/SRR33388358/SRR33388358_1.fastq.gz
+    reads_2: data/experiments/raw/GSE296044/SRR33388358/SRR33388358_2.fastq.gz
+  - sample_id: GSM8964060
+    reads_1: data/experiments/raw/GSE296044/SRR33388357/SRR33388357_1.fastq.gz
+    reads_2: data/experiments/raw/GSE296044/SRR33388357/SRR33388357_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8964066
+    reads_1: data/experiments/raw/GSE296044/SRR33388351/SRR33388351_1.fastq.gz
+    reads_2: data/experiments/raw/GSE296044/SRR33388351/SRR33388351_2.fastq.gz
+  - sample_id: GSM8964067
+    reads_1: data/experiments/raw/GSE296044/SRR33388350/SRR33388350_1.fastq.gz
+    reads_2: data/experiments/raw/GSE296044/SRR33388350/SRR33388350_2.fastq.gz
+  - sample_id: GSM8964068
+    reads_1: data/experiments/raw/GSE296044/SRR33388349/SRR33388349_1.fastq.gz
+    reads_2: data/experiments/raw/GSE296044/SRR33388349/SRR33388349_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HL-60 stable, LPS 180 minutes in both arms
+  treatment_dose: NA (stable)
+  treatment: Overexpression of hsa-miR-451a (Lentiviral miR-451a stable expression (HL-60-miR451a)) against Lentiviral GFP
+    scramble (shRNA against GFP)
+  method: RNA-seq

@@ -1,0 +1,40 @@
+dataset_id: GSE125602_hsa-miR-375-3p_fibrolamellar_carcinoma_cell_line_prFLC_48_h_50_nM
+gse: GSE125602
+mirna_name: hsa-miR-375-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3578043
+    reads_1: data/experiments/raw/GSE125602/SRR8483039/SRR8483039_1.fastq.gz
+    reads_2: data/experiments/raw/GSE125602/SRR8483039/SRR8483039_2.fastq.gz
+  - sample_id: GSM3578044
+    reads_1: data/experiments/raw/GSE125602/SRR8483040/SRR8483040_1.fastq.gz
+    reads_2: data/experiments/raw/GSE125602/SRR8483040/SRR8483040_2.fastq.gz
+  - sample_id: GSM3578045
+    reads_1: data/experiments/raw/GSE125602/SRR8483041/SRR8483041_1.fastq.gz
+    reads_2: data/experiments/raw/GSE125602/SRR8483041/SRR8483041_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM3578046
+    reads_1: data/experiments/raw/GSE125602/SRR8483042/SRR8483042_1.fastq.gz
+    reads_2: data/experiments/raw/GSE125602/SRR8483042/SRR8483042_2.fastq.gz
+  - sample_id: GSM3578047
+    reads_1: data/experiments/raw/GSE125602/SRR8483043/SRR8483043_1.fastq.gz
+    reads_2: data/experiments/raw/GSE125602/SRR8483043/SRR8483043_2.fastq.gz
+  - sample_id: GSM3578048
+    reads_1: data/experiments/raw/GSE125602/SRR8483044/SRR8483044_1.fastq.gz
+    reads_2: data/experiments/raw/GSE125602/SRR8483044/SRR8483044_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: fibrolamellar carcinoma cell line (prFLC)
+  treatment_dose: 50 nM
+  treatment: Overexpression of hsa-miR-375-3p (miR-375 miRCURY LNA mimic (Qiagen), Lipofectamine 3000) against scramble mimic
+    (negative control miRCURY LNA, Qiagen)
+  method: RNA-seq

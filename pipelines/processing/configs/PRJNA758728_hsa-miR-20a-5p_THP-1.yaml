@@ -1,0 +1,39 @@
+dataset_id: PRJNA758728_hsa-miR-20a-5p_THP-1
+gse: PRJNA758728
+mirna_name: hsa-miR-20a-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: THP1_control_r1
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667176/SRR15667176_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667176/SRR15667176_2.fastq.gz
+  - sample_id: THP1_control_r2
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667175/SRR15667175_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667175/SRR15667175_2.fastq.gz
+  - sample_id: THP1_control_r3
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667174/SRR15667174_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667174/SRR15667174_2.fastq.gz
+  treated_samples:
+  - sample_id: THP1_20a_mimic_r1
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667173/SRR15667173_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667173/SRR15667173_2.fastq.gz
+  - sample_id: THP1_20a_mimic_r2
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667172/SRR15667172_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667172/SRR15667172_2.fastq.gz
+  - sample_id: THP1_20a_mimic_r3
+    reads_1: data/experiments/raw/PRJNA758728/SRR15667170/SRR15667170_1.fastq.gz
+    reads_2: data/experiments/raw/PRJNA758728/SRR15667170/SRR15667170_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: THP-1
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-20a-5p (miRNA mimic, Hieff Trans) against control (oligo not named)
+  method: RNA-seq

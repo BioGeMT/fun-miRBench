@@ -7,7 +7,7 @@ For every overexpression (OE) comparison and every tool:
   * AUROC of responsive against no-response genes at d = 0.5 (unresolved left out), plain and within tenths of control
     expression, only where each state has at least min_per_state genes;
   * a decoy check: the same Spearman for the predictor's scores of unrelated
-    benchmark miRNAs (different nt 2-8 seed), giving a z-score of the cognate miRNA against its decoys.
+    benchmark miRNAs (different nt 2-8 seed); the cognate miRNA's Spearman minus the mean of its decoys.
 Comparisons are summarised on all comparisons and on unflagged ones, as the mean over comparisons with 95% intervals
 from a bootstrap over dependency groups.
 
@@ -136,13 +136,13 @@ def precision_at_recall(score: np.ndarray, positive: np.ndarray, target: float =
             "false_positives_per_true_positive": (row["size"] - row["sum"]) / row["sum"]}
 
 
-def decoy_z(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> float:
-    """z of the Spearman of the cognate scores with y against the Spearman of each decoy's scores; NA with fewer than
-    two decoys or when the decoy correlations do not vary."""
+def spearman_above_decoys(cognate: np.ndarray, decoys: list[np.ndarray], y: np.ndarray) -> float:
+    """Spearman of the cognate scores with y minus the mean Spearman of the decoys' scores; NA without a decoy.
+    Not divided by the SD of the decoys: that SD differs between tools, so a z would not compare them."""
     dvals = np.array([v for v in (spearman(d, y) for d in decoys) if not np.isnan(v)])
-    if len(dvals) < 2 or np.ptp(dvals) == 0:  # equal values can have an SD of rounding size, not 0
+    if not len(dvals):
         return np.nan
-    return (spearman(cognate, y) - dvals.mean()) / dvals.std(ddof=1)
+    return spearman(cognate, y) - dvals.mean()
 
 
 # ---------------------------------------------------------------- inputs
@@ -247,8 +247,8 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         est = t.eligible.to_numpy(bool)
         y = t.oriented_logFC_shrunk.to_numpy(float)[est]
         for name, scores in decoy_scores.items():
-            z = decoy_z(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
-            decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "decoy_z_shrunk": z})
+            above = spearman_above_decoys(rankings[name].to_numpy(float)[est], [d.to_numpy(float)[est] for d in scores], y)
+            decoy_rows.append({"experiment_id": c.experiment_id, "predictor": name, "spearman_above_decoys_shrunk": above})
         for name, score in rankings.items():
             rec = {"experiment_id": c.experiment_id, "action": c.action,
                    "dependency_group": c.dependency_group, "predictor": name, "n_genes": len(universe),
@@ -281,7 +281,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     per.to_csv(out / "per_comparison.tsv", sep="\t", index=False)
 
     metrics = ["spearman_shrunk", "spearman_within_tenths_shrunk", "auroc_d05", "auroc_within_tenths_d05",
-               "decoy_z_shrunk", "coverage"]
+               "spearman_above_decoys_shrunk", "coverage"]
     summary = []
     for subset, sub in (("all", per), ("unflagged", per[per.action == "keep"])):
         for name, g in sub.groupby("predictor"):

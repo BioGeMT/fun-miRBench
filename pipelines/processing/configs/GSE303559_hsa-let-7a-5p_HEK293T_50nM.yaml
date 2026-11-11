@@ -1,0 +1,34 @@
+dataset_id: GSE303559_hsa-let-7a-5p_HEK293T_50nM
+gse: GSE303559
+mirna_name: hsa-let-7a-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM9130659
+    reads_1: data/experiments/raw/GSE303559/SRR34720591/SRR34720591.fastq.gz
+  - sample_id: GSM9130668
+    reads_1: data/experiments/raw/GSE303559/SRR34720514/SRR34720514.fastq.gz
+  - sample_id: GSM9130677
+    reads_1: data/experiments/raw/GSE303559/SRR34720561/SRR34720561.fastq.gz
+  treated_samples:
+  - sample_id: GSM9130685
+    reads_1: data/experiments/raw/GSE303559/SRR34720555/SRR34720555.fastq.gz
+  - sample_id: GSM9130692
+    reads_1: data/experiments/raw/GSE303559/SRR34720530/SRR34720530.fastq.gz
+  - sample_id: GSM9130699
+    reads_1: data/experiments/raw/GSE303559/SRR34720507/SRR34720507.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HEK293T
+  treatment_dose: 50 nM
+  treatment: Overexpression of hsa-let-7a-5p (let-7a duplex, Lipofectamine 2000) against miCon randomised negative control
+    duplex
+  method: RNA-seq

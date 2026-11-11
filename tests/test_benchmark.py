@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 import pandas as pd
 import yaml
+from scipy.stats import spearmanr
 from sklearn.metrics import roc_auc_score
 
 from funmirbench import benchmark, plots, report_pdf
@@ -33,10 +34,11 @@ class MetricTests(unittest.TestCase):
         self.assertLess(s["c"], s["a"])
         self.assertTrue((benchmark.rank_last(pd.Series(dtype=float), genes) == 0).all())
 
-    def test_decoy_z_is_na_when_the_decoys_do_not_vary(self):
-        rng = np.random.default_rng(3)  # with this draw the SD of the three equal correlations is not exactly 0
-        y, decoy = rng.normal(size=50), rng.normal(size=50)
-        self.assertTrue(np.isnan(benchmark.decoy_z(y, [decoy, decoy.copy(), decoy.copy()], y)))
+    def test_spearman_above_decoys(self):
+        y = np.random.default_rng(3).normal(size=50)
+        # the cognate ranks like y (1); the decoys rank against and like y (-1 and 1), mean 0
+        self.assertAlmostEqual(benchmark.spearman_above_decoys(y, [-y, y.copy()], y), 1.0)
+        self.assertTrue(np.isnan(benchmark.spearman_above_decoys(y, [], y)))
 
     def test_group_bootstrap(self):
         rng = np.random.default_rng(0)
@@ -99,13 +101,14 @@ class ReportTests(unittest.TestCase):
             {"subset": subset, "predictor": tool, "metric": metric, "mean": value}
             for subset, value in (("all", 0.5), ("unflagged", 0.9))
             for tool in ("targetscan_family_expanded", "miraw", "targetscan")
-            for metric in ("coverage", "auroc_d05", "spearman_shrunk", "decoy_z_shrunk")])
+            for metric in ("coverage", "auroc_d05", "spearman_shrunk", "spearman_above_decoys_shrunk")])
         means = report_pdf.tool_means(summary, tools)
         self.assertEqual(list(means.index), ["TargetScan v8", "miRAW"])
         self.assertTrue((means == 0.5).all(axis=None))
 
     def test_key_results_leave_out_what_no_comparison_has(self):
-        means = pd.DataFrame({"auroc_d05": [np.nan], "spearman_shrunk": [0.1], "decoy_z_shrunk": [1.0]}, index=["Tool"])
+        means = pd.DataFrame({"auroc_d05": [np.nan], "spearman_shrunk": [0.1], "spearman_above_decoys_shrunk": [0.05]},
+                             index=["Tool"])
         lines = report_pdf.key_results(means, pd.Series([np.nan], index=["Tool"]))
         self.assertEqual(lines, ["Highest mean Spearman: Tool (0.100)."])
         lines = report_pdf.key_results(means.assign(spearman_shrunk=np.nan), pd.Series([np.nan], index=["Tool"]))
@@ -161,8 +164,11 @@ class EndToEndTests(unittest.TestCase):
             # Unscored genes rank last, so a tool that covers 75% of the genes scores below full coverage.
             self.assertGreater(tool.loc["E1", "auroc_d05"], 0.6)
             self.assertLess(tool.loc["E1", "auroc_d05"], 0.9)
-            # miR-15b-5p shares the nt 2-8 seed, so it is not a decoy; only miR-1-3p is, and a z needs two decoys.
-            self.assertTrue(per.decoy_z_shrunk.isna().all())
+            # miR-15b-5p shares the nt 2-8 seed, so it is not a decoy; only miR-1-3p is.
+            e1 = pd.read_csv(final / "genes/E1.tsv.gz", sep="\t")
+            decoy = pred[pred.miRNA_Name == "hsa-miR-1-3p"].set_index("Ensembl_ID").Score.loc[e1.gene_id]
+            self.assertAlmostEqual(tool.loc["E1", "spearman_above_decoys_shrunk"],
+                                   tool.loc["E1", "spearman_shrunk"] - spearmanr(decoy, e1.oriented_logFC_shrunk).statistic)
             summary = pd.read_csv(out / "summary.tsv", sep="\t")
             self.assertEqual(set(summary.subset), {"all", "unflagged"})
             spearman = summary[summary.metric == "spearman_shrunk"].set_index(["subset", "predictor"]).n_comparisons

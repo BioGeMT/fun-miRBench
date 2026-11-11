@@ -1,4 +1,4 @@
-"""Download the FASTQ files of the 21 OE test comparisons.
+"""Download the FASTQ files of the 72 OE test comparisons.
 
 Reads pipelines/processing/configs/fastq_manifest.tsv: every file is downloaded from ENA to its repository path
 and checked against the manifest md5 and size. Existing files that already match their md5 are kept.

@@ -1,0 +1,39 @@
+dataset_id: GSE81417_hsa-miR-372-3p_U1810_30h
+gse: GSE81417
+mirna_name: hsa-miR-372-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM2152142
+    reads_1: data/experiments/raw/GSE81417/SRR3502675/SRR3502675_1.fastq.gz
+    reads_2: data/experiments/raw/GSE81417/SRR3502675/SRR3502675_2.fastq.gz
+  - sample_id: GSM2152143
+    reads_1: data/experiments/raw/GSE81417/SRR3502676/SRR3502676_1.fastq.gz
+    reads_2: data/experiments/raw/GSE81417/SRR3502676/SRR3502676_2.fastq.gz
+  - sample_id: GSM2152144
+    reads_1: data/experiments/raw/GSE81417/SRR3502677/SRR3502677_1.fastq.gz
+    reads_2: data/experiments/raw/GSE81417/SRR3502677/SRR3502677_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM2152145
+    reads_1: data/experiments/raw/GSE81417/SRR3502678/SRR3502678_1.fastq.gz
+    reads_2: data/experiments/raw/GSE81417/SRR3502678/SRR3502678_2.fastq.gz
+  - sample_id: GSM2152146
+    reads_1: data/experiments/raw/GSE81417/SRR3502679/SRR3502679_1.fastq.gz
+    reads_2: data/experiments/raw/GSE81417/SRR3502679/SRR3502679_2.fastq.gz
+  - sample_id: GSM2152147
+    reads_1: data/experiments/raw/GSE81417/SRR3502680/SRR3502680_1.fastq.gz
+    reads_2: data/experiments/raw/GSE81417/SRR3502680/SRR3502680_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: U1810
+  treatment_dose: Not stated
+  treatment: Overexpression of hsa-miR-372-3p (miR-372-3p mimic, RNAiMAX) against non-targeting control siRNA
+  method: RNA-seq

@@ -1,0 +1,46 @@
+dataset_id: GSE203172_miR-139-5p_iPSC-MN_day34
+gse: GSE203172
+mirna_name: hsa-miR-139-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM6161056
+    reads_1:
+    - data/experiments/raw/GSE203172/SRR19241820/SRR19241820_1.fastq.gz
+    - data/experiments/raw/GSE203172/SRR19241821/SRR19241821.fastq.gz
+  - sample_id: GSM6161057
+    reads_1:
+    - data/experiments/raw/GSE203172/SRR19241818/SRR19241818_1.fastq.gz
+    - data/experiments/raw/GSE203172/SRR19241819/SRR19241819.fastq.gz
+  - sample_id: GSM6161058
+    reads_1:
+    - data/experiments/raw/GSE203172/SRR19241816/SRR19241816_1.fastq.gz
+    - data/experiments/raw/GSE203172/SRR19241817/SRR19241817.fastq.gz
+  treated_samples:
+  - sample_id: GSM6161053
+    reads_1:
+    - data/experiments/raw/GSE203172/SRR19241826/SRR19241826_1.fastq.gz
+    - data/experiments/raw/GSE203172/SRR19241827/SRR19241827.fastq.gz
+  - sample_id: GSM6161054
+    reads_1:
+    - data/experiments/raw/GSE203172/SRR19241824/SRR19241824_1.fastq.gz
+    - data/experiments/raw/GSE203172/SRR19241825/SRR19241825.fastq.gz
+  - sample_id: GSM6161055
+    reads_1:
+    - data/experiments/raw/GSE203172/SRR19241822/SRR19241822_1.fastq.gz
+    - data/experiments/raw/GSE203172/SRR19241823/SRR19241823.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: iPSC-derived motor neurons
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-139-5p (AAV expressing mature miR-139-5p from a shRNA design) against AAV shRNA against
+    OCT4, used as a non-targeting control
+  method: RNA-seq

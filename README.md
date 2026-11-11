@@ -21,7 +21,7 @@ uv sync
 - `pipelines/processing/`: from reads to the per-gene benchmark tables
 - `pipelines/standardized_predictors/`: one pipeline per predictor
 - `tests/`: the tests
-- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 21 OE test experiments
+- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 72 OE test experiments
 
 Not tracked by git:
 
@@ -40,7 +40,7 @@ uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23839843](https://doi.org/10.5281/zenodo.23839843)) and the predictor scores in `data/predictions/`, and keeps files that are already there; `--force` replaces them with the current Zenodo version. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23988869](https://doi.org/10.5281/zenodo.23988869)) and the predictor scores in `data/predictions/`, and keeps files that are already there; `--force` replaces them with the current Zenodo version. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
 
 `benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config.
 
@@ -49,14 +49,14 @@ uv run funmirbench --config benchmark.yaml
 - **Scores per comparison:**
   - Spearman between the score and the oriented shrunken log2FC, overall and within tenths of control expression;
   - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
-- **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `decoy_z_shrunk` is the cognate miRNA against its decoys; it is NA with fewer than two decoys or when the decoy correlations do not vary.
+- **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `spearman_above_decoys_shrunk` is the cognate miRNA's Spearman minus the mean Spearman of its decoys, in Spearman units, so that tools can be compared on it (a z-score would divide by each tool's own decoy SD); it is NA without decoys.
 - **Summaries:**
   - on all comparisons and on unflagged ones;
   - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
 - **Predictors:** the default config runs the five published tools. TargetScan is `targetscan_family_expanded`, which gives every family member the family score; plain `targetscan` stays in the registry and can be selected instead.
 - **Plots**, in `plots/` as PNG:
   - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
-  - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, decoy z-score and the experiments each tool wins, for every tool on all genes, with y axes that follow the values of the run;
+  - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, Spearman rho above decoys and the number of experiments in which each tool ranks first, for every tool on all genes, with y axes that follow the values of the run;
   - `recovery`: recall by prediction budget, counting every gene in the ranking (genes tied at the budget count by the share taken from their tie), and each experiment's best precision at 50% recall relative to random, among responsive and no-response genes, on the comparisons with at least 30 genes in each state.
 - **Report:** `REPORT.pdf`: run settings, key results, the output tables, the plots, one table per plot with its numbers, and the experiments evaluated and skipped.
 

@@ -1,0 +1,39 @@
+dataset_id: GSE267283_hsa-miR-1229-5p_Ishikawa
+gse: GSE267283
+mirna_name: hsa-miR-1229-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8263483
+    reads_1: data/experiments/raw/GSE267283/SRR29006259/SRR29006259_1.fastq.gz
+    reads_2: data/experiments/raw/GSE267283/SRR29006259/SRR29006259_2.fastq.gz
+  - sample_id: GSM8263484
+    reads_1: data/experiments/raw/GSE267283/SRR29006258/SRR29006258_1.fastq.gz
+    reads_2: data/experiments/raw/GSE267283/SRR29006258/SRR29006258_2.fastq.gz
+  - sample_id: GSM8263485
+    reads_1: data/experiments/raw/GSE267283/SRR29006257/SRR29006257_1.fastq.gz
+    reads_2: data/experiments/raw/GSE267283/SRR29006257/SRR29006257_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8263480
+    reads_1: data/experiments/raw/GSE267283/SRR29006262/SRR29006262_1.fastq.gz
+    reads_2: data/experiments/raw/GSE267283/SRR29006262/SRR29006262_2.fastq.gz
+  - sample_id: GSM8263481
+    reads_1: data/experiments/raw/GSE267283/SRR29006261/SRR29006261_1.fastq.gz
+    reads_2: data/experiments/raw/GSE267283/SRR29006261/SRR29006261_2.fastq.gz
+  - sample_id: GSM8263482
+    reads_1: data/experiments/raw/GSE267283/SRR29006260/SRR29006260_1.fastq.gz
+    reads_2: data/experiments/raw/GSE267283/SRR29006260/SRR29006260_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Ishikawa
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-1229-5p (miR-1229-5p mimic) against control mimics-NC
+  method: RNA-seq

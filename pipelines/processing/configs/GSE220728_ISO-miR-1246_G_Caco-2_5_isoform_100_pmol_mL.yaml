@@ -1,0 +1,63 @@
+dataset_id: GSE220728_ISO-miR-1246_G_Caco-2_5_isoform_100_pmol_mL
+gse: GSE220728
+mirna_name: hsa-miR-1246
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM6813145
+    reads_1: data/experiments/raw/GSE220728/SRR22684883/SRR22684883_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684883/SRR22684883_2.fastq.gz
+  - sample_id: GSM6813146
+    reads_1: data/experiments/raw/GSE220728/SRR22684882/SRR22684882_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684882/SRR22684882_2.fastq.gz
+  - sample_id: GSM6813147
+    reads_1: data/experiments/raw/GSE220728/SRR22684881/SRR22684881_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684881/SRR22684881_2.fastq.gz
+  - sample_id: GSM6813148
+    reads_1: data/experiments/raw/GSE220728/SRR22684880/SRR22684880_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684880/SRR22684880_2.fastq.gz
+  - sample_id: GSM6813149
+    reads_1: data/experiments/raw/GSE220728/SRR22684879/SRR22684879_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684879/SRR22684879_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM6813140
+    reads_1: data/experiments/raw/GSE220728/SRR22684888/SRR22684888_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684888/SRR22684888_2.fastq.gz
+  - sample_id: GSM6813141
+    reads_1: data/experiments/raw/GSE220728/SRR22684887/SRR22684887_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684887/SRR22684887_2.fastq.gz
+  - sample_id: GSM6813142
+    reads_1: data/experiments/raw/GSE220728/SRR22684886/SRR22684886_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684886/SRR22684886_2.fastq.gz
+  - sample_id: GSM6813143
+    reads_1: data/experiments/raw/GSE220728/SRR22684885/SRR22684885_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684885/SRR22684885_2.fastq.gz
+  - sample_id: GSM6813144
+    reads_1: data/experiments/raw/GSE220728/SRR22684884/SRR22684884_1.fastq.gz
+    reads_2: data/experiments/raw/GSE220728/SRR22684884/SRR22684884_2.fastq.gz
+  batch_by_sample:
+    GSM6813140: p1
+    GSM6813141: p2
+    GSM6813142: p3
+    GSM6813143: p4
+    GSM6813144: p5
+    GSM6813145: p1
+    GSM6813146: p2
+    GSM6813147: p3
+    GSM6813148: p4
+    GSM6813149: p5
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Caco-2
+  treatment_dose: 100 pmol/mL
+  treatment: 'Overexpression of hsa-miR-1246 (Custom mirVana mimic of 5'' isoform ISO-miR-1246_G, Lipofectamine 3000 reverse
+    transfection) against Invitrogen negative control #1'
+  method: RNA-seq

@@ -1,0 +1,39 @@
+dataset_id: GSE204669_hsa-miR-3648_AGS
+gse: GSE204669
+mirna_name: hsa-miR-3648
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM6182620
+    reads_1: data/experiments/raw/GSE204669/SRR19372760/SRR19372760_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204669/SRR19372760/SRR19372760_2.fastq.gz
+  - sample_id: GSM6182621
+    reads_1: data/experiments/raw/GSE204669/SRR19372759/SRR19372759_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204669/SRR19372759/SRR19372759_2.fastq.gz
+  - sample_id: GSM6182622
+    reads_1: data/experiments/raw/GSE204669/SRR19372758/SRR19372758_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204669/SRR19372758/SRR19372758_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM6182623
+    reads_1: data/experiments/raw/GSE204669/SRR19372757/SRR19372757_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204669/SRR19372757/SRR19372757_2.fastq.gz
+  - sample_id: GSM6182624
+    reads_1: data/experiments/raw/GSE204669/SRR19372756/SRR19372756_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204669/SRR19372756/SRR19372756_2.fastq.gz
+  - sample_id: GSM6182625
+    reads_1: data/experiments/raw/GSE204669/SRR19372755/SRR19372755_1.fastq.gz
+    reads_2: data/experiments/raw/GSE204669/SRR19372755/SRR19372755_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: AGS
+  treatment_dose: not stated
+  treatment: Overexpression of hsa-miR-3648 (miR-3648 mimic, transient transfection) against NC mimic (m-NC)
+  method: RNA-seq

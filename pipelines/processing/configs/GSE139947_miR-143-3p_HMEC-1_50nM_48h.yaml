@@ -1,0 +1,33 @@
+dataset_id: GSE139947_miR-143-3p_HMEC-1_50nM_48h
+gse: GSE139947
+mirna_name: hsa-miR-143-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM4150401
+    reads_1: data/experiments/raw/GSE139947/SRR10401772/SRR10401772.fastq.gz
+  - sample_id: GSM4150402
+    reads_1: data/experiments/raw/GSE139947/SRR10401773/SRR10401773.fastq.gz
+  - sample_id: GSM4150403
+    reads_1: data/experiments/raw/GSE139947/SRR10401774/SRR10401774.fastq.gz
+  treated_samples:
+  - sample_id: GSM4150395
+    reads_1: data/experiments/raw/GSE139947/SRR10401766/SRR10401766.fastq.gz
+  - sample_id: GSM4150396
+    reads_1: data/experiments/raw/GSE139947/SRR10401767/SRR10401767.fastq.gz
+  - sample_id: GSM4150397
+    reads_1: data/experiments/raw/GSE139947/SRR10401768/SRR10401768.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HMEC-1
+  treatment_dose: 50 nM
+  treatment: Overexpression of hsa-miR-143-3p (synthetic mimic, RNAiMAX) against non-targeting scrambled RNA
+  method: RNA-seq

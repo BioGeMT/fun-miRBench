@@ -1,0 +1,39 @@
+dataset_id: GSE127502_miR-138-5p_293T_40nM_24h
+gse: GSE127502
+mirna_name: hsa-miR-138-5p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM3635612
+    reads_1: data/experiments/raw/GSE127502/SRR8646322/SRR8646322_1.fastq.gz
+    reads_2: data/experiments/raw/GSE127502/SRR8646322/SRR8646322_2.fastq.gz
+  - sample_id: GSM3635613
+    reads_1: data/experiments/raw/GSE127502/SRR8646323/SRR8646323_1.fastq.gz
+    reads_2: data/experiments/raw/GSE127502/SRR8646323/SRR8646323_2.fastq.gz
+  - sample_id: GSM3635614
+    reads_1: data/experiments/raw/GSE127502/SRR8646324/SRR8646324_1.fastq.gz
+    reads_2: data/experiments/raw/GSE127502/SRR8646324/SRR8646324_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM3635615
+    reads_1: data/experiments/raw/GSE127502/SRR8646325/SRR8646325_1.fastq.gz
+    reads_2: data/experiments/raw/GSE127502/SRR8646325/SRR8646325_2.fastq.gz
+  - sample_id: GSM3635616
+    reads_1: data/experiments/raw/GSE127502/SRR8646326/SRR8646326_1.fastq.gz
+    reads_2: data/experiments/raw/GSE127502/SRR8646326/SRR8646326_2.fastq.gz
+  - sample_id: GSM3635617
+    reads_1: data/experiments/raw/GSE127502/SRR8646327/SRR8646327_1.fastq.gz
+    reads_2: data/experiments/raw/GSE127502/SRR8646327/SRR8646327_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: 293T
+  treatment_dose: 40 nM
+  treatment: Overexpression of hsa-miR-138-5p (mimic) against scrambled control mimic
+  method: RNA-seq

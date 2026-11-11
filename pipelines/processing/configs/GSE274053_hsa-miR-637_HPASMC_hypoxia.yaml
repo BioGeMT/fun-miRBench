@@ -1,0 +1,39 @@
+dataset_id: GSE274053_hsa-miR-637_HPASMC_hypoxia
+gse: GSE274053
+mirna_name: hsa-miR-637
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM8442696
+    reads_1: data/experiments/raw/GSE274053/SRR30147195/SRR30147195_1.fastq.gz
+    reads_2: data/experiments/raw/GSE274053/SRR30147195/SRR30147195_2.fastq.gz
+  - sample_id: GSM8442697
+    reads_1: data/experiments/raw/GSE274053/SRR30147193/SRR30147193_1.fastq.gz
+    reads_2: data/experiments/raw/GSE274053/SRR30147193/SRR30147193_2.fastq.gz
+  - sample_id: GSM8442698
+    reads_1: data/experiments/raw/GSE274053/SRR30147194/SRR30147194_1.fastq.gz
+    reads_2: data/experiments/raw/GSE274053/SRR30147194/SRR30147194_2.fastq.gz
+  treated_samples:
+  - sample_id: GSM8442702
+    reads_1: data/experiments/raw/GSE274053/SRR30147192/SRR30147192_1.fastq.gz
+    reads_2: data/experiments/raw/GSE274053/SRR30147192/SRR30147192_2.fastq.gz
+  - sample_id: GSM8442703
+    reads_1: data/experiments/raw/GSE274053/SRR30147187/SRR30147187_1.fastq.gz
+    reads_2: data/experiments/raw/GSE274053/SRR30147187/SRR30147187_2.fastq.gz
+  - sample_id: GSM8442704
+    reads_1: data/experiments/raw/GSE274053/SRR30147188/SRR30147188_1.fastq.gz
+    reads_2: data/experiments/raw/GSE274053/SRR30147188/SRR30147188_2.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: HPASMC in hypoxia (1% O2, 5% CO2)
+  treatment_dose: Not stated
+  treatment: Overexpression of hsa-miR-637 (miR-637 RNA, Lipofectamine 2000) against negative control RNA (not named)
+  method: RNA-seq

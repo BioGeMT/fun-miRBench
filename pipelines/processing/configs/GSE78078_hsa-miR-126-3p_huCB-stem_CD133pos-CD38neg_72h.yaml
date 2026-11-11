@@ -1,0 +1,45 @@
+dataset_id: GSE78078_hsa-miR-126-3p_huCB-stem_CD133pos-CD38neg_72h
+gse: GSE78078
+mirna_name: hsa-miR-126-3p
+experiment_type: Overexpression
+source:
+  mode: reads
+  genome_fasta_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.dna.primary_assembly.fa
+  gtf_path: data/experiments/raw/refs/ensembl_v115/Homo_sapiens.GRCh38.115.gtf
+  fastqc_threads: 4
+  fastp_threads: 4
+  star_threads: 12
+  featurecounts_threads: 6
+comparison:
+  control_samples:
+  - sample_id: GSM2066393
+    reads_1: data/experiments/raw/GSE78078/SRR3178284/SRR3178284_1.fastq.gz
+    reads_2: data/experiments/raw/GSE78078/SRR3178284/SRR3178284_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE78078/SRR3178284/SRR3178284.fastq.gz
+  - sample_id: GSM2066394
+    reads_1: data/experiments/raw/GSE78078/SRR3178285/SRR3178285_1.fastq.gz
+    reads_2: data/experiments/raw/GSE78078/SRR3178285/SRR3178285_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE78078/SRR3178285/SRR3178285.fastq.gz
+  - sample_id: GSM2066395
+    reads_1: data/experiments/raw/GSE78078/SRR3178286/SRR3178286_1.fastq.gz
+    reads_2: data/experiments/raw/GSE78078/SRR3178286/SRR3178286_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE78078/SRR3178286/SRR3178286.fastq.gz
+  treated_samples:
+  - sample_id: GSM2066408
+    reads_1: data/experiments/raw/GSE78078/SRR3178299/SRR3178299_1.fastq.gz
+    reads_2: data/experiments/raw/GSE78078/SRR3178299/SRR3178299_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE78078/SRR3178299/SRR3178299.fastq.gz
+  - sample_id: GSM2066409
+    reads_1: data/experiments/raw/GSE78078/SRR3178300/SRR3178300_1.fastq.gz
+    reads_2: data/experiments/raw/GSE78078/SRR3178300/SRR3178300_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE78078/SRR3178300/SRR3178300.fastq.gz
+  - sample_id: GSM2066410
+    reads_1: data/experiments/raw/GSE78078/SRR3178301/SRR3178301_1.fastq.gz
+    reads_2: data/experiments/raw/GSE78078/SRR3178301/SRR3178301_2.fastq.gz
+    unpaired_reads: data/experiments/raw/GSE78078/SRR3178301/SRR3178301.fastq.gz
+metadata:
+  organism: Homo sapiens
+  tested_cell_line: Human cord blood CD34+ CD133+ CD38- stem cells
+  treatment_dose: Not stated
+  treatment: Overexpression of hsa-miR-126-3p (Lentiviral miR-126 overexpression) against control lentiviral vector
+  method: RNA-seq
