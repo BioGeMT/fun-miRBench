@@ -24,6 +24,21 @@ from funmirbench.subreport_metrics import (
 )
 
 logger = logging.getLogger(__name__)
+RESPONSIVE_HEATMAP_LIMIT = 20
+
+
+def responsive_gene_rank_data(table: pd.DataFrame, percentiles: pd.DataFrame, limit: int = RESPONSIVE_HEATMAP_LIMIT):
+    """Return predictor percentile ranks for the strongest eligible responsive genes."""
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    effects = table["oriented_logFC_shrunk"].to_numpy(float)
+    keep = (table["eligible"].to_numpy(bool) & np.isfinite(effects)
+            & table["state_d05"].eq("responsive").to_numpy())
+    candidates = pd.DataFrame({"gene_id": table.index[keep].astype(str), "effect": effects[keep]})
+    selected = candidates.sort_values(["effect", "gene_id"], ascending=[False, True], kind="mergesort").head(limit)
+    gene_ids = selected["gene_id"].tolist()
+    effect_by_gene = pd.Series(selected["effect"].to_numpy(), index=gene_ids)
+    return percentiles.loc[gene_ids], effect_by_gene
 
 
 def component(name: str) -> str:
@@ -242,20 +257,16 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
                       "CDF view uses the central effect range; TSVs retain the tails. Budgets include unresolved genes."]))
         local = ranked.rank(method="average", pct=True)
         usable = table.eligible.to_numpy(bool) & np.isfinite(table.oriented_logFC_shrunk)
-        gene_heatmaps = []
-        for positive_only in [False, True]:
-            candidate = (local.loc[usable & (table.state_d05 == "responsive")]
-                         if positive_only else local.loc[usable])
-            if positive_only:
-                candidate = candidate.loc[candidate.ge(.9).any(axis=1)]
-            order = pd.DataFrame({"strength": candidate.max(axis=1), "gene": candidate.index.astype(str)}, index=candidate.index)
-            ids = order.sort_values(["strength", "gene"], ascending=[False, True]).head(40).index
-            matrix = local.loc[ids].T
-            gene_heatmaps.append(matrix)
-            export(matrix.rename_axis("predictor").reset_index(), folder / "plots" / f"{'top_positive' if positive_only else 'algorithms_vs_genes'}.tsv")
-        image = plots.heatmaps(gene_heatmaps, ["Algorithms versus genes", "Top-decile responsive genes"], labels, folder / "plots", "gene_heatmaps")
-        specs.append((image, "Gene-level ranks", ["At most 40 genes displayed, selected by the strongest percentile across tools.",
-                      "Gene IDs resolve display-only ties; numerical diagnostics use score blocks or average ranks."]))
+        rank_matrix, selected_effects = responsive_gene_rank_data(table, local, RESPONSIVE_HEATMAP_LIMIT)
+        rank_export = rank_matrix.copy()
+        rank_export.insert(0, "oriented_shrunken_log2FC", selected_effects)
+        rank_export.index.name = "gene_id"
+        export(rank_export.reset_index(), folder / "plots" / "responsive_gene_ranks.tsv")
+        image = plots.responsive_gene_heatmap(rank_matrix, labels, folder / "plots")
+        specs.append((image, "Responsive genes: predictor rank percentiles", [
+            f"Up to {RESPONSIVE_HEATMAP_LIMIT} eligible responsive genes, ordered by oriented shrunken log2FC (largest first).",
+            "Rows are genes; columns are predictor percentiles across the full gene universe. This descriptive view is not a performance metric.",
+        ]))
         correlations = [local.loc[usable].corr(method="spearman"), pd.DataFrame(np.nan, index=list(labels), columns=list(labels))]
         for a, b in itertools.product(labels, repeat=2):
             common = usable & local[a].ge(.9) & local[b].ge(.9)
