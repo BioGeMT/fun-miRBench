@@ -62,6 +62,8 @@ uv run funmirbench --config benchmark.yaml
 
 Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
 
+Plots support up to ten predictors: legends wrap names and use at most five columns, and plots reserve space for each legend row. With six to ten predictors the figures are slightly wider. Predictor tables in the PDF continue on another page when needed. The experiment count is not fixed; experiment inventory pages are added as needed.
+
 ## Predictors
 
 A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `miRNA_ID`, `miRNA_Name` and `Score`, on Ensembl 115 (GRCh38) and miRBase 22.1. To add your own predictor, put its file under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and add it to `predictors` in `benchmark.yaml`.

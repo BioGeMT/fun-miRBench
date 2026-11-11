@@ -8,7 +8,9 @@ recovery: recall by prediction budget and each experiment's best precision at 50
 """
 from __future__ import annotations
 
+import math
 import pathlib
+import textwrap
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,7 +22,7 @@ CURVE_COLORS = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#17BECF"
 
 METRICS = (("auroc_d05", "AUROC"), ("spearman_shrunk", "Spearman rho"))
 DECOY = ("spearman_above_decoys_shrunk", "Spearman rho above decoys")
-SLOT, ROW_GAP = 0.75, 1.0  # inches per box at least, and between the rows of panels
+ROW_GAP = 1.0  # inches between the rows of panels
 RIGHT, TOP, BOTTOM, LEGEND_GAP = 0.2, 1.05, 0.95, 0.3  # inches around the panels
 SMALL, LARGE = 17, 22  # font sizes: ticks and counts; panel titles and legend
 BAR_HEIGHT, BAR_LABEL_SPACE = 0.45, 0.4  # ranked-first bars, in units of the distance between the two bars
@@ -28,6 +30,16 @@ BAR_ALPHA = 0.58
 PAIR_SIZE, PAIR_LEFT, PAIR_GAP, PAIR_TOP, PAIR_BOTTOM = (14.0, 6.4), 1.0, 1.3, 1.05, 1.5  # two-panel figures, inches
 MARKERS = ("o", "s", "^", "D", "P", "X", "v", "<", ">", "*")
 DARK_ALPHA, LIGHT_ALPHA = 0.75, 0.40  # coverage bars
+
+
+def legend_layout(labels):
+    """At most five columns, with wrapped names and room for every legend row."""
+    wrapped = ["\n".join(textwrap.wrap(str(label), width=18)) for label in labels]
+    rows = max(1, math.ceil(len(wrapped) / 5))
+    columns = max(1, math.ceil(len(wrapped) / rows))
+    lines = max((label.count("\n") + 1 for label in wrapped), default=1)
+    height = max(0.65, rows * (lines * SMALL / 72 * 1.25 + 0.18) + 0.25)
+    return wrapped, columns, height
 
 
 def drawn_tools(tools: pd.DataFrame) -> dict[str, str]:
@@ -77,15 +89,31 @@ def draw_won(ax, per: pd.DataFrame, tool_ids: list[str], colors: dict) -> None:
     for y, (metric, label) in enumerate(METRICS):
         counts = experiments_won(per, tool_ids, metric)
         left, total = 0.0, counts.sum()
+        small = []
         for tool, count in counts.items():
             if count:
                 ax.barh(y, count / total, left=left, height=BAR_HEIGHT, color=colors[tool], alpha=BAR_ALPHA,
                         edgecolor="white", linewidth=2.0)
-                ax.text(left + count / total / 2, y, str(count), ha="center", va="center", fontsize=SMALL,
-                        fontweight="bold", color="#111111")
+                centre = left + count / total / 2
+                if count / total < 0.06:
+                    small.append((centre, count))
+                else:
+                    ax.text(centre, y, str(count), ha="center", va="center", fontsize=SMALL,
+                            fontweight="bold", color="#111111")
             left += count / total if total else 0.0
+        # Tiny segments cannot hold a count; use separated labels with leader lines.
+        positions = []
+        for centre, _ in small:
+            positions.append(max(0.03, centre, positions[-1] + 0.06 if positions else 0.0))
+        for i in range(len(positions) - 1, -1, -1):
+            positions[i] = min(positions[i], 0.97 if i == len(positions) - 1 else positions[i + 1] - 0.06)
+        for (centre, count), position in zip(small, positions):
+            ax.annotate(str(count), xy=(centre, y + BAR_HEIGHT / 2),
+                        xytext=(position, y + BAR_HEIGHT / 2 + 0.20),
+                        ha="center", va="center", fontsize=SMALL, fontweight="bold", color="#111111",
+                        arrowprops={"arrowstyle": "-", "color": "#6B7280", "linewidth": 0.7})
         ax.text(0.0, y - BAR_HEIGHT / 2 - 0.06, label, ha="left", va="bottom", fontsize=SMALL)
-    ax.set_ylim(len(METRICS) - 1 + BAR_HEIGHT / 2, -BAR_HEIGHT / 2 - BAR_LABEL_SPACE)
+    ax.set_ylim(len(METRICS) - 1 + BAR_HEIGHT / 2 + 0.4, -BAR_HEIGHT / 2 - BAR_LABEL_SPACE)
     ax.set_xlim(0, 1)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -97,29 +125,30 @@ def plot_all_genes(per: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) ->
     tool_ids = list(labels)
     colors = tool_colors(tool_ids)
     # the panels and fonts of the two-panel plots, so that the text comes out the same size in the report
-    width = max((PAIR_SIZE[0] - PAIR_LEFT - PAIR_GAP - RIGHT) / 2, SLOT * len(tool_ids))
+    figure_width = PAIR_SIZE[0] if len(tool_ids) <= 5 else 16.0
+    width = (figure_width - PAIR_LEFT - PAIR_GAP - RIGHT) / 2
+    _, _, legend_height = legend_layout(labels.values())
+    bottom = max(BOTTOM, legend_height + LEGEND_GAP)
     box_height = PAIR_SIZE[1] - PAIR_TOP - PAIR_BOTTOM
     span = width * 2 + PAIR_GAP
-    fig_w, fig_h = PAIR_LEFT + span + RIGHT, TOP + box_height * 2 + ROW_GAP + BOTTOM
+    fig_w, fig_h = PAIR_LEFT + span + RIGHT, TOP + box_height * 2 + ROW_GAP + bottom
     fig = plt.figure(figsize=(fig_w, fig_h))
-    right_column, top_row = PAIR_LEFT + width + PAIR_GAP, BOTTOM + box_height + ROW_GAP
+    right_column, top_row = PAIR_LEFT + width + PAIR_GAP, bottom + box_height + ROW_GAP
 
     def panel(left: float, bottom: float, title: str):
         ax = fig.add_axes([left / fig_w, bottom / fig_h, width / fig_w, box_height / fig_h])
         ax.set_title(title, pad=14, fontsize=LARGE, fontweight="bold")
         return ax
 
-    corners = ((PAIR_LEFT, top_row), (right_column, top_row), (PAIR_LEFT, BOTTOM))
-    for (left, bottom), (metric, label) in zip(corners, (*METRICS, DECOY)):
-        ax = panel(left, bottom, label)
+    corners = ((PAIR_LEFT, top_row), (right_column, top_row), (PAIR_LEFT, bottom))
+    for (left, panel_bottom), (metric, label) in zip(corners, (*METRICS, DECOY)):
+        ax = panel(left, panel_bottom, label)
         draw_box(ax, per, tool_ids, colors, metric)
         if (metric, label) == DECOY:
             ax.axhline(0.0, color="#9CA3AF", linewidth=1.0, zorder=0)
-    draw_won(panel(right_column, BOTTOM, "Experiments ranked first"), per, tool_ids, colors)
+    draw_won(panel(right_column, bottom, "Experiments ranked first"), per, tool_ids, colors)
     handles = [plt.Rectangle((0, 0), 1, 1, color=colors[t], alpha=BAR_ALPHA) for t in tool_ids]
-    fig.legend(handles, labels.values(), loc="upper center", frameon=False, borderaxespad=0.0, borderpad=0.0,
-               fontsize=SMALL, handlelength=1.6, mode="expand", ncol=len(handles),
-               bbox_to_anchor=(PAIR_LEFT / fig_w, 0.0, span / fig_w, (BOTTOM - LEGEND_GAP) / fig_h))
+    tool_legend(fig, handles, labels.values(), height=bottom - LEGEND_GAP)
     save(fig, out, "oe_all_genes")
 
 
@@ -129,11 +158,14 @@ def save(fig, out: pathlib.Path, stem: str) -> None:
     plt.close(fig)
 
 
-def two_panels():
-    w, h = PAIR_SIZE
+def two_panels(labels=(), *, label_space=0.85):
+    _, _, legend_height = legend_layout(labels)
+    w = PAIR_SIZE[0] if len(labels) <= 5 else 16.0
+    bottom = max(PAIR_BOTTOM, legend_height + label_space)
+    h = PAIR_SIZE[1] + bottom - PAIR_BOTTOM
     panel_w = (w - PAIR_LEFT - PAIR_GAP - RIGHT) / 2
-    fig = plt.figure(figsize=PAIR_SIZE)
-    axes = [fig.add_axes([left / w, PAIR_BOTTOM / h, panel_w / w, (h - PAIR_TOP - PAIR_BOTTOM) / h])
+    fig = plt.figure(figsize=(w, h))
+    axes = [fig.add_axes([left / w, bottom / h, panel_w / w, (PAIR_SIZE[1] - PAIR_TOP - PAIR_BOTTOM) / h])
             for left in (PAIR_LEFT, PAIR_LEFT + panel_w + PAIR_GAP)]
     for ax in axes:
         ax.spines[["top", "right"]].set_visible(False)
@@ -141,11 +173,15 @@ def two_panels():
     return fig, axes
 
 
-def tool_legend(fig, handles, labels) -> None:
-    w, h = PAIR_SIZE
-    fig.legend(handles, labels, loc="upper center", frameon=False, borderaxespad=0.0, fontsize=SMALL, mode="expand",
-               ncol=len(handles), handlelength=1.6, bbox_to_anchor=(PAIR_LEFT / w, 0.0, (w - PAIR_LEFT - RIGHT) / w,
-                                                                    0.65 / h))
+def tool_legend(fig, handles, labels, *, height=None) -> None:
+    w, h = fig.get_size_inches()
+    wrapped, columns, legend_height = legend_layout(labels)
+    # Matplotlib fills columns first; preserve predictor order across each row.
+    order = [i for col in range(columns) for i in range(col, len(wrapped), columns)]
+    fig.legend([handles[i] for i in order], [wrapped[i] for i in order], loc="upper center",
+               frameon=False, borderaxespad=0.0, fontsize=SMALL, mode="expand", ncol=columns,
+               handlelength=1.6, bbox_to_anchor=(PAIR_LEFT / w, 0.0, (w - PAIR_LEFT - RIGHT) / w,
+                                               (height or legend_height) / h))
 
 
 def plot_coverage(coverage: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path) -> None:
@@ -154,12 +190,16 @@ def plot_coverage(coverage: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path
     by_tool = tool_colors(list(labels))
     colors = [by_tool[t] for t in labels]
     x = np.arange(len(labels))
-    fig, (genes, pairs) = two_panels()
+    counts = [f"{r}/{n}" for r, n in zip(table.experiments_retained, table.experiments_total)]
+    rotate = len(labels) > 5 and max(map(len, counts), default=0) > 7
+    fig, (genes, pairs) = two_panels(list(labels.values()), label_space=1.4 if rotate else 0.85)
+    number_size = SMALL if len(labels) <= 5 else 10.5
     share = 100.0 * table.genes_covered / table.genes_measured
     genes.bar(x, share, color=colors, edgecolor=colors, alpha=DARK_ALPHA)
     for xi, value in zip(x, share):
-        genes.text(xi, value, f"{value:.1f}%", ha="center", va="bottom", fontsize=SMALL, fontweight="bold")
-    genes.set_xticks(x, [f"{r}/{n}" for r, n in zip(table.experiments_retained, table.experiments_total)])
+        genes.text(xi, value, f"{value:.1f}%", ha="center", va="bottom", fontsize=number_size, fontweight="bold")
+    genes.set_xticks(x, counts)
+    genes.tick_params(axis="x", labelsize=number_size, labelrotation=45 if rotate else 0)
     genes.set_xlabel("Experiments retained", fontsize=SMALL, fontweight="bold")
     genes.set_ylabel("Genes covered (%)", fontsize=SMALL, fontweight="bold")
     genes.set_title("Gene coverage", pad=46, fontsize=LARGE, fontweight="bold")
@@ -168,8 +208,8 @@ def plot_coverage(coverage: pd.DataFrame, tools: pd.DataFrame, out: pathlib.Path
     pairs.bar(x, low, color=colors, edgecolor=colors, alpha=DARK_ALPHA)
     pairs.bar(x, (high - low).clip(lower=0), bottom=low, color=colors, edgecolor=colors, alpha=LIGHT_ALPHA)
     for xi, lo, hi in zip(x, low, high):
-        pairs.text(xi, max(lo, hi), f"{hi:.1f}%", ha="center", va="bottom", fontsize=SMALL, fontweight="bold")
-        pairs.text(xi, lo / 2, f"{lo:.1f}%", ha="center", va="center", fontsize=SMALL, fontweight="bold")
+        pairs.text(xi, max(lo, hi), f"{hi:.1f}%", ha="center", va="bottom", fontsize=number_size, fontweight="bold")
+        pairs.text(xi, lo / 2, f"{lo:.1f}%", ha="center", va="center", fontsize=number_size, fontweight="bold")
     pairs.set_xticks([])
     pairs.set_ylabel("Pairs covered (%)", fontsize=SMALL, fontweight="bold")
     pairs.set_title("miRNA-gene pair coverage", pad=46, fontsize=LARGE, fontweight="bold")
@@ -188,7 +228,7 @@ def plot_recovery(recovery: pd.DataFrame, precision: pd.DataFrame, tools: pd.Dat
     labels = drawn_tools(tools)
     colors = tool_colors(list(labels))
     markers = {t: MARKERS[i % len(MARKERS)] for i, t in enumerate(labels)}
-    fig, (budget, best) = two_panels()
+    fig, (budget, best) = two_panels(list(labels.values()))
     means = recovery[recovery.predictor.isin(labels)].groupby(["predictor", "budget"]).recall.mean()
     handles = []
     for tool in labels:
@@ -210,8 +250,12 @@ def plot_recovery(recovery: pd.DataFrame, precision: pd.DataFrame, tools: pd.Dat
         best.scatter(group.index, group.precision_over_random, s=120, marker=markers[tool], color=colors[tool],
                      edgecolor="#1F2937", linewidth=0.75, zorder=3)
     best.set_yscale("log")
-    best.set_ylim(min(0.8, top.precision_over_random.min() * 0.9), max(30, top.precision_over_random.max() * 1.1))
-    best.set_yticks([1, 2, 5, 10, 20])
+    lower = min(0.8, top.precision_over_random.min() * 0.9)
+    upper = max(30, top.precision_over_random.max() * 1.1)
+    best.set_ylim(lower, upper)
+    best.set_yticks([base * 10.0 ** power
+                    for power in range(math.floor(math.log10(lower)), math.ceil(math.log10(upper)) + 1)
+                    for base in (1, 2, 5) if lower <= base * 10.0 ** power <= upper])
     best.yaxis.set_major_formatter(FuncFormatter(lambda value, _pos: f"{value:g}"))
     best.yaxis.set_minor_locator(NullLocator())
     best.set_xticks([])

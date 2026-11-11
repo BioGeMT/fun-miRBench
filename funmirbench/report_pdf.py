@@ -163,7 +163,7 @@ def _draw_basic_table(ax, rows, *, columns, col_widths, bbox, font_size=REPORT_T
     table.auto_set_font_size(False)
     table.set_fontsize(font_size)
     table.scale(1.0, 1.35)
-    row_weights = [1.0]
+    row_weights = [max(1.0, max(value.count("\n") + 1 for value in wrapped_columns) * 0.82)]
     for row in wrapped_rows:
         row_weights.append(max(1.0, max(str(value).count("\n") + 1 for value in row) * 0.82))
     weight_total = sum(row_weights)
@@ -268,15 +268,23 @@ def draw_tables(pdf, tables: list[tuple]) -> None:
     fig, ax = _new_page()
     y = TOP
     for title, columns, widths, rows in tables:
-        height = ROW_HEIGHT * (len(rows) + 1)
-        if y < TOP and y - 2 * BLOCK_GAP - height < BOTTOM:  # many tools: the title and table go to the next page
-            _save_page(pdf, fig)
-            fig, ax = _new_page()
-            y = TOP
-        y = _bullet_block(ax, title, [], y=y)
-        _draw_basic_table(ax, rows, columns=columns, col_widths=widths, bbox=[LEFT, y - height, WIDTH, height],
-                          font_size=REPORT_TABLE_SIZE, wrap_scale=70)
-        y -= height + BLOCK_GAP
+        header_weight = _table_row_weight(columns, col_widths=widths, wrap_scale=70)
+        title_space = TITLE_DROP + BLOCK_GAP
+        max_weight = (TOP - BOTTOM - title_space) / ROW_HEIGHT - header_weight
+        pages = _paginate_table_rows(rows, col_widths=widths, wrap_scale=70, max_weight=max_weight)
+        for page_index, page_rows in enumerate(pages):
+            weight = header_weight + sum(_table_row_weight(row, col_widths=widths, wrap_scale=70)
+                                         for row in page_rows)
+            height = ROW_HEIGHT * weight
+            if y < TOP and y - title_space - height < BOTTOM:
+                _save_page(pdf, fig)
+                fig, ax = _new_page()
+                y = TOP
+            page_title = title if page_index == 0 else f"{title} (continued)"
+            y = _bullet_block(ax, page_title, [], y=y)
+            _draw_basic_table(ax, page_rows, columns=columns, col_widths=widths, bbox=[LEFT, y - height, WIDTH, height],
+                              font_size=REPORT_TABLE_SIZE, wrap_scale=70)
+            y -= height + BLOCK_GAP
     _save_page(pdf, fig)
 
 
