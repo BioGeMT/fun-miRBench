@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import pathlib
+import textwrap
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from funmirbench.plots import LARGE, PAIR_SIZE, SMALL, save, tool_colors, tool_legend, two_panels
+from funmirbench.plots import LARGE, PAIR_LEFT, PAIR_SIZE, RIGHT, SMALL, save, tool_colors, tool_legend, two_panels
 from funmirbench.subreport_metrics import weighted_cdf
 
 
@@ -21,7 +22,16 @@ def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, le
     if legend:
         colors = palette or tool_colors(list(tools))
         handles = [plt.Line2D([], [], color=colors[t], linewidth=2.5) for t in tools]
-        tool_legend(fig, handles, list(tools.values()))
+        if len(tools) > 5:
+            w, h = PAIR_SIZE
+            for ax in axes:
+                position = ax.get_position()
+                ax.set_position([position.x0, position.y0 + .4 / h, position.width, position.height - .4 / h])
+            fig.legend(handles, list(tools.values()), loc="upper center", frameon=False, borderaxespad=0.0,
+                       fontsize=SMALL, mode="expand", ncol=4, handlelength=1.6,
+                       bbox_to_anchor=(PAIR_LEFT / w, 0.0, (w - PAIR_LEFT - RIGHT) / w, 1.15 / h))
+        else:
+            tool_legend(fig, handles, list(tools.values()))
     with plt.rc_context({"font.family": "DejaVu Sans"}):
         save(fig, out, stem)
     return out / f"{stem}.png"
@@ -119,7 +129,8 @@ def heatmaps(matrices, titles, tools, out, stem):
 def responsive_gene_heatmap(matrix: pd.DataFrame, tools: dict[str, str], out: pathlib.Path):
     """Plot selected responsive genes against predictor percentile ranks."""
     fig = plt.figure(figsize=PAIR_SIZE)
-    ax = fig.add_axes([0.25, 0.19, 0.64, 0.70])
+    dense = len(matrix.columns) > 5
+    ax = fig.add_axes([0.25, 0.32 if dense else 0.19, 0.64, 0.57 if dense else 0.70])
     ax.grid(False)
     ax.set_title("Predictor ranks for responsive genes", fontsize=LARGE)
     if matrix.empty:
@@ -129,8 +140,11 @@ def responsive_gene_heatmap(matrix: pd.DataFrame, tools: dict[str, str], out: pa
         image = ax.imshow(matrix.to_numpy(float), aspect="auto", interpolation="nearest",
                           cmap="viridis", vmin=0, vmax=1)
         ax.set_yticks(range(len(matrix.index)), [str(gene) for gene in matrix.index], fontsize=SMALL * 0.7)
-        ax.set_xticks(range(len(matrix.columns)), [tools.get(tool, tool) for tool in matrix.columns],
-                      fontsize=SMALL * 0.75)
+        labels = [tools.get(tool, tool) for tool in matrix.columns]
+        if dense:
+            labels = ["\n".join(textwrap.wrap(label, width=16, break_on_hyphens=False)) for label in labels]
+        ax.set_xticks(range(len(matrix.columns)), labels,
+                      fontsize=SMALL * 0.75, rotation=90 if dense else 0)
         ax.set_xlabel("Predictor", fontsize=SMALL)
         colorbar = fig.colorbar(image, ax=ax, fraction=0.025, pad=0.025)
         colorbar.set_label("Predictor percentile across all genes", fontsize=SMALL)
@@ -155,3 +169,4 @@ def scatter_and_enrichment(table, ranking, curve, tool, label, color, out):
     axes[1].axhline(0, color="#1F2937", linewidth=1, linestyle="--")
     axes[1].set(xlabel="Fraction of labelled ranking", ylabel="Running enrichment", title="GSEA-style enrichment", xlim=(0, 1))
     return finish(fig, axes, {tool: label}, out, "score_and_enrichment", palette={tool: color})
+

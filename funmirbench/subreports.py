@@ -58,6 +58,24 @@ def number(value) -> str:
     return "NA" if pd.isna(value) else f"{value:.3f}"
 
 
+def summarize_universes(frame: pd.DataFrame, *, bootstrap: int, seed: int) -> pd.DataFrame:
+    """Use the main benchmark's bootstrap draws independently for each summary."""
+    from funmirbench.benchmark import group_bootstrap
+
+    summaries = []
+    for subset, sub in [("all", frame), ("unflagged", frame[frame.action == "keep"])]:
+        for (tool, universe), group in sub.groupby(["predictor", "universe"]):
+            for metric in ["average_precision", "pr_auc", "auroc", "spearman", "enrichment_score"]:
+                v = group[metric]
+                lo, hi = group_bootstrap(v, group.dependency_group, n=bootstrap,
+                                        rng=np.random.default_rng(seed + 1))
+                summaries.append({"subset": subset, "predictor": tool, "universe": universe, "metric": metric,
+                                  "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
+                                  "n_comparisons": int(v.notna().sum()),
+                                  "n_groups": group.loc[v.notna(), "dependency_group"].nunique()})
+    return pd.DataFrame(summaries)
+
+
 def key_results(frame: pd.DataFrame, predictor_labels: dict[str, str] | None = None) -> list[str]:
     """Summarize primary FPS results using the main report's comparison style."""
     predictor_labels = predictor_labels or {}
@@ -124,13 +142,30 @@ def pdf_report(path, title, settings, specs, frame, *, links=(), predictor_label
         _bullet_block(ax, "Output tables", ["metrics.tsv and plot-data TSVs contain the plotted values and unavailable-metric reasons.",
                      "Average precision (AP) and trapezoidal PR-AUC are distinct; AP is the primary PR summary."], y=y)
         _save_page(pdf, fig)
-        for start in range(0, len(specs), 2):
-            fig, ax = _new_page()
-            y = TOP
-            for image, label, lines in specs[start:start + 2]:
-                y = draw_plot(fig, ax, image.parent, image.stem, label, lines, y)
-                if y < BOTTOM:
-                    raise ValueError(f"Report page overflow: {path}: {label}")
+        fig = None
+        for image, label, lines in specs:
+            if fig is None:
+                fig, ax = _new_page()
+                y, count = TOP, 0
+            axes_before, texts_before = len(fig.axes), len(ax.texts)
+            next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, y)
+            if next_y < BOTTOM and count:
+                # Undo this block before saving the preceding plots on their page.
+                for added in list(fig.axes)[axes_before:]:
+                    added.remove()
+                for added in list(ax.texts)[texts_before:]:
+                    added.remove()
+                _save_page(pdf, fig)
+                fig, ax = _new_page()
+                next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, TOP)
+                count = 0
+            if next_y < BOTTOM:
+                raise ValueError(f"Report page overflow: {path}: {label}")
+            y, count = next_y, count + 1
+            if count == 2:
+                _save_page(pdf, fig)
+                fig = None
+        if fig is not None:
             _save_page(pdf, fig)
         columns = ["Experiment", "Predictor", "Pair set", "n (+ / -)", "AP", "AUROC", "Spearman"]
         pair_set = {"fps": "FPS", "ips": "IPS", "own_scored": "Own"}
@@ -171,7 +206,7 @@ def report_index_pages(pdf, entries, *, base):
 
 def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_n=100, bootstrap=2000, seed=0):
     # Imported at call time, after the benchmark module has loaded.
-    from funmirbench.benchmark import group_bootstrap, rank_last, recall_at_budgets
+    from funmirbench.benchmark import rank_last, recall_at_budgets
     labels, colors = drawn_tools(tools), tool_colors(list(preds))
     report_root = out / "reports"
     index, records, cdf_records = [], [], []
@@ -289,17 +324,7 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
     frame = pd.DataFrame(records)
     export(frame, report_root / "universe_metrics.tsv")
     export(pd.DataFrame(cdf_records), report_root / "top_effect_summary.tsv")
-    summaries = []
-    rng = np.random.default_rng(seed)
-    for subset, sub in [("all", frame), ("unflagged", frame[frame.action == "keep"])]:
-        for (tool, universe), group in sub.groupby(["predictor", "universe"]):
-            for metric in ["average_precision", "pr_auc", "auroc", "spearman", "enrichment_score"]:
-                v = group[metric]
-                lo, hi = group_bootstrap(v, group.dependency_group, n=bootstrap, rng=rng)
-                summaries.append({"subset": subset, "predictor": tool, "universe": universe, "metric": metric,
-                                  "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
-                                  "n_comparisons": int(v.notna().sum()), "n_groups": group.loc[v.notna(), "dependency_group"].nunique()})
-    export(pd.DataFrame(summaries), report_root / "universe_summary.tsv")
+    export(summarize_universes(frame, bootstrap=bootstrap, seed=seed), report_root / "universe_summary.tsv")
     export(frame, report_root / "diagnostics" / "metrics.tsv")
     overview_specs = []
     for universe in UNIVERSES:
@@ -358,3 +383,4 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
     (report_root / "README.md").write_text("# Detailed reports\n\n" + "\n".join(
         f"- [{e['name']}]({e['path'].relative_to(report_root).as_posix()})" for e in index) + "\n", encoding="utf-8")
     return index
+

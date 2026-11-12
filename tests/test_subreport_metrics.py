@@ -1,7 +1,9 @@
 import unittest
 import pathlib
 import tempfile
+from unittest.mock import patch
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.integrate import trapezoid
@@ -10,11 +12,101 @@ from sklearn.metrics import average_precision_score, precision_recall_curve, roc
 from funmirbench.subreport_metrics import (
     coverage_frontier, masks, metrics, percentile_ensemble, threshold_curves, top_weights, weighted_cdf,
 )
-from funmirbench.subreports import component, key_results, responsive_gene_rank_data
-from funmirbench.benchmark import rank_last, run_benchmark, score_metrics
+from funmirbench.subreports import component, key_results, pdf_report, responsive_gene_rank_data, summarize_universes
+from funmirbench.subreport_plots import classification, responsive_gene_heatmap
+from funmirbench.benchmark import group_bootstrap, rank_last, run_benchmark, score_metrics
 
 
 class DetailedMetricTests(unittest.TestCase):
+    def test_report_moves_tall_plots_to_separate_pages_without_duplicate_captions(self):
+        from funmirbench.report_pdf import _save_page
+
+        frame = pd.DataFrame([{"experiment_id": "E1", "predictor": "tool", "universe": "fps",
+                               "n_responsive": 40, "n_no_response": 100, "average_precision": .4,
+                               "auroc": .7, "spearman": .2}])
+        pages = []
+        def capture(pdf, fig):
+            pages.append([text.get_text() for ax in fig.axes for text in ax.texts])
+            _save_page(pdf, fig)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            image = root / "tall.png"
+            plt.imsave(image, np.ones((1000, 1000, 3)))
+            with patch("funmirbench.subreports._save_page", side_effect=capture):
+                pdf_report(root / "REPORT.pdf", "Test report", ["Experiment: E1"],
+                           [(image, "First plot", ["First caption"]), (image, "Second plot", ["Second caption"])], frame)
+        self.assertEqual(len(pages), 4)
+        self.assertIn("First plot", pages[1])
+        self.assertNotIn("Second plot", pages[1])
+        self.assertIn("Second plot", pages[2])
+        self.assertNotIn("First plot", pages[2])
+
+    def test_ten_predictor_curve_legend_has_no_overlapping_labels(self):
+        tools = {f"tool_{i}": f"Synthetic predictor {i}" for i in range(10)}
+        curves = {tool: threshold_curves(np.array([3., 2., 1., 0.]), np.array([True, False, True, False]))
+                  for tool in tools}
+        with patch("funmirbench.subreport_plots.save") as save:
+            classification(curves, {tool: {"prevalence": .5} for tool in tools}, tools,
+                           pathlib.Path("unused"), "classification")
+        fig = save.call_args.args[0]
+        try:
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            boxes = [text.get_window_extent(renderer) for text in fig.legends[0].get_texts()]
+            self.assertEqual(len(boxes), 10)
+            for i, box in enumerate(boxes):
+                self.assertFalse(any(box.overlaps(other) for other in boxes[i + 1:]))
+                self.assertGreaterEqual(box.y0, fig.bbox.y0)
+            for ax in fig.axes:
+                xlabel = ax.xaxis.label.get_window_extent(renderer)
+                self.assertFalse(any(xlabel.overlaps(box) for box in boxes))
+        finally:
+            plt.close(fig)
+
+    def test_summary_intervals_match_main_and_ignore_unrelated_predictors_and_row_order(self):
+        values = [.01, .03, .04, .15, .3, .5, .7, .9]
+        frame = pd.DataFrame({"predictor": "b", "universe": "fps",
+                              "action": ["keep"] * 6 + ["flag"] * 2,
+                              "dependency_group": list("aabbcdef"),
+                              **{metric: values for metric in
+                                 ["average_precision", "pr_auc", "auroc", "spearman", "enrichment_score"]}})
+        frame.loc[2, "spearman"] = np.nan
+        baseline = summarize_universes(frame, bootstrap=200, seed=7)
+        extra = frame.assign(predictor="a", universe="ips")
+        expanded = summarize_universes(pd.concat([extra, frame]).sample(frac=1, random_state=1),
+                                       bootstrap=200, seed=7)
+        pd.testing.assert_frame_equal(baseline.reset_index(drop=True),
+                                      expanded[expanded.predictor == "b"].reset_index(drop=True))
+        for row in baseline.itertuples(index=False):
+            selected = frame if row.subset == "all" else frame[frame.action == "keep"]
+            expected = group_bootstrap(selected[row.metric], selected.dependency_group, n=200,
+                                       rng=np.random.default_rng(8))
+            np.testing.assert_allclose([row.ci95_low, row.ci95_high], expected)
+
+    def test_responsive_heatmap_labels_fit_for_one_five_and_ten_predictors(self):
+        names = ["TargetScan v8", "miRDB", "microT-CNN", "miRBind2-3UTR", "miRAW",
+                 "Synthetic excellent", "Synthetic medium", "Synthetic poor", "Synthetic random", "Synthetic sparse"]
+        for count in [1, 5, 10]:
+            with self.subTest(count=count):
+                tools = {f"tool_{i}": name for i, name in enumerate(names[:count])}
+                matrix = pd.DataFrame(.5, index=[f"ENSG{i:011d}" for i in range(20)], columns=tools)
+                with patch("funmirbench.subreport_plots.save") as save:
+                    responsive_gene_heatmap(matrix, tools, pathlib.Path("unused"))
+                fig = save.call_args.args[0]
+                try:
+                    fig.canvas.draw()
+                    renderer = fig.canvas.get_renderer()
+                    boxes = [label.get_window_extent(renderer) for label in fig.axes[0].get_xticklabels()]
+                    self.assertFalse(any(a.overlaps(b) for a, b in zip(boxes, boxes[1:])))
+                    for box in boxes:
+                        self.assertGreaterEqual(box.y0, fig.bbox.y0)
+                        self.assertLessEqual(box.x1, fig.bbox.x1)
+                    xlabel = fig.axes[0].xaxis.label.get_window_extent(renderer)
+                    self.assertGreaterEqual(xlabel.y0, fig.bbox.y0)
+                finally:
+                    plt.close(fig)
+
     def test_responsive_gene_heatmap_selects_effect_ordered_truth_positives(self):
         table = pd.DataFrame({
             "state_d05": ["responsive", "responsive", "responsive", "no_response_above_margin", "responsive"],
@@ -185,3 +277,4 @@ class DetailedMetricTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "reports"):
                         run_benchmark(path)
             self.assertEqual(list(path.parent.iterdir()), [path])
+
