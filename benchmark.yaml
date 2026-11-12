@@ -29,3 +29,4 @@ out_dir: results/
 reports:
   detailed: true
   top_n: 100
+  workers: 2

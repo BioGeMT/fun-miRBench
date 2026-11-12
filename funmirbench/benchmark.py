@@ -182,6 +182,13 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         raise ValueError("reports.top_n must be a positive integer") from exc
     if isinstance(report_config.get("top_n"), bool) or top_n < 1 or top_n != float(report_config.get("top_n", 100)):
         raise ValueError("reports.top_n must be a positive integer")
+    try:
+        report_workers = int(report_config.get("workers", 2))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("reports.workers must be a positive integer") from exc
+    if (isinstance(report_config.get("workers"), bool) or report_workers < 1
+            or report_workers != float(report_config.get("workers", 2))):
+        raise ValueError("reports.workers must be a positive integer")
     input_dir = resolve_predictor_output_path(config["input_dir"], root)
     if not (input_dir / "comparisons.tsv").is_file():
         raise FileNotFoundError(f"no benchmark tables in {input_dir}; run `uv run funmirbench-download-data`")
@@ -315,15 +322,14 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     plot_all_genes(per, tools, plots)
     if len(recovery):  # otherwise no selected comparison has enough genes in each state
         plot_recovery(recovery, precision, tools, plots)
-    detailed_reports = []
     if report_config.get("detailed", True):
         from funmirbench.subreports import write_subreports
         logger.info("Writing detailed experiment and predictor reports...")
-        detailed_reports = write_subreports(tables, comps, preds, tools, out, min_per_state=min_per_state,
-                                            top_n=top_n, bootstrap=bootstrap, seed=seed)
+        write_subreports(tables, comps, preds, tools, out, min_per_state=min_per_state,
+                         top_n=top_n, workers=report_workers)
     write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
                  recovery=recovery, precision=precision, tools=tools,
-                 n_genes=len(universe), min_per_state=min_per_state, plots=plots, detailed_reports=detailed_reports)
+                 n_genes=len(universe), min_per_state=min_per_state, plots=plots)
     logger.info("wrote %s", out)
     return out
 

@@ -182,18 +182,26 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual(coverage.loc["tool", "genes_measured"], 400)
             self.assertEqual(coverage.loc["tool", "experiments_retained"], 2)
             self.assertEqual((out / "REPORT.pdf").read_bytes()[:4], b"%PDF")
-            reports = pd.read_csv(out / "reports/index.tsv", sep="\t")
-            self.assertEqual(set(reports.kind), {"experiment", "predictor", "diagnostics", "predictor_experiment"})
-            self.assertTrue(all((out / p).is_file() for p in reports.report))
+            reports = out / "reports"
+            for exp in ("E1", "E2"):
+                self.assertTrue((reports / f"experiments/{exp}/REPORT.pdf").is_file())
+                self.assertTrue((reports / f"experiments/{exp}/predictors/tool/REPORT.pdf").is_file())
+            self.assertFalse((reports / "index.tsv").exists())
+            self.assertFalse((reports / "diagnostics").exists())
+            self.assertFalse((reports / "predictors").exists())
             self.assertFalse(list((out / "reports").rglob("*rank_cdfs*")))
             self.assertFalse(list((out / "reports").rglob("*rank_counts*")))
-            detailed = pd.read_csv(out / "reports/universe_metrics.tsv", sep="\t")
+            detailed = pd.read_csv(reports / "experiments/E1/metrics.tsv", sep="\t")
             self.assertNotIn("pearson", detailed.columns)
-            summary = pd.read_csv(out / "reports/universe_summary.tsv", sep="\t")
-            self.assertNotIn("pearson", set(summary.metric))
             fps = detailed[detailed.universe == "fps"].set_index("experiment_id")
+            self.assertTrue((reports / "experiments/E1/plots/overview/fps_classification.png").is_file())
+            self.assertTrue((reports / "experiments/E1/plots/predictors/tool/classification.png").is_file())
+            self.assertTrue((reports / "experiments/E1/plots/data/fps_tool_curves.tsv").is_file())
             for exp in ("E1", "E2"):
-                self.assertAlmostEqual(fps.loc[exp, "auroc"], tool.loc[exp, "auroc_d05"])
+                exp_metrics = detailed if exp == "E1" else pd.read_csv(
+                    reports / f"experiments/{exp}/metrics.tsv", sep="\t")
+                fps_metrics = exp_metrics[exp_metrics.universe == "fps"].set_index("experiment_id")
+                self.assertAlmostEqual(fps_metrics.loc[exp, "auroc"], tool.loc[exp, "auroc_d05"])
 
     def test_unresolved_genes_use_up_the_budget_and_too_few_genes_leave_out_recovery(self):
         genes = [f"ENSG{i:011d}" for i in range(200)]

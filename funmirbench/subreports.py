@@ -1,4 +1,4 @@
-"""Experiment, predictor and supplementary reports on the v2 benchmark inputs."""
+"""Per-experiment and per-experiment/predictor reports on v2 benchmark inputs."""
 from __future__ import annotations
 
 import hashlib
@@ -12,15 +12,14 @@ import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
 from funmirbench import subreport_plots as plots
-from funmirbench.plots import draw_box, drawn_tools, tool_colors, two_panels
+from funmirbench.plots import drawn_tools, tool_colors
 from funmirbench.report_pdf import (
     BLOCK_GAP, BOTTOM, INVENTORY_WRAP_SCALE, LEFT, REPORT_TABLE_SIZE, ROW_HEIGHT, TOP, WIDTH,
     _bullet_block, _draw_basic_table, _header, _new_page, _paginate_table_rows,
     _save_page, _table_row_weight, draw_plot,
 )
 from funmirbench.subreport_metrics import (
-    UNIVERSES, UNIVERSE_LABELS, coverage_frontier, metrics, percentile_ensemble, threshold_curves, top_weights,
-    weighted_cdf,
+    UNIVERSES, UNIVERSE_LABELS, metrics, threshold_curves, top_weights, weighted_cdf,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,24 +55,6 @@ def export(frame: pd.DataFrame, path: pathlib.Path) -> None:
 
 def number(value) -> str:
     return "NA" if pd.isna(value) else f"{value:.3f}"
-
-
-def summarize_universes(frame: pd.DataFrame, *, bootstrap: int, seed: int) -> pd.DataFrame:
-    """Use the main benchmark's bootstrap draws independently for each summary."""
-    from funmirbench.benchmark import group_bootstrap
-
-    summaries = []
-    for subset, sub in [("all", frame), ("unflagged", frame[frame.action == "keep"])]:
-        for (tool, universe), group in sub.groupby(["predictor", "universe"]):
-            for metric in ["average_precision", "pr_auc", "auroc", "spearman", "enrichment_score"]:
-                v = group[metric]
-                lo, hi = group_bootstrap(v, group.dependency_group, n=bootstrap,
-                                        rng=np.random.default_rng(seed + 1))
-                summaries.append({"subset": subset, "predictor": tool, "universe": universe, "metric": metric,
-                                  "mean": v.mean(), "ci95_low": lo, "ci95_high": hi,
-                                  "n_comparisons": int(v.notna().sum()),
-                                  "n_groups": group.loc[v.notna(), "dependency_group"].nunique()})
-    return pd.DataFrame(summaries)
 
 
 def key_results(frame: pd.DataFrame, predictor_labels: dict[str, str] | None = None) -> list[str]:
@@ -121,7 +102,7 @@ def key_results(frame: pd.DataFrame, predictor_labels: dict[str, str] | None = N
     return lines
 
 
-def pdf_report(path, title, settings, specs, frame, *, links=(), predictor_labels=None):
+def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
     """Use the main PDF's pages, bullets, tables, margins and image placement."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with PdfPages(path) as pdf:
@@ -182,205 +163,122 @@ def pdf_report(path, title, settings, specs, frame, *, links=(), predictor_label
             _draw_basic_table(ax, page, columns=columns, col_widths=widths, bbox=[LEFT, y - h, WIDTH, h],
                               wrap_scale=74)
             _save_page(pdf, fig)
-        if links:
-            report_index_pages(pdf, links, base=path.parent)
-
-
-def report_index_pages(pdf, entries, *, base):
-    """Clickable PDF index, also used in the main report."""
-    import os
-    rows = [[e["name"], os.path.relpath(e["path"], base)] for e in entries]
-    targets = dict((row[1], row[1]) for row in rows)
-    widths = [.55, .45]
-    for page in _paginate_table_rows(rows, col_widths=widths, wrap_scale=INVENTORY_WRAP_SCALE, max_weight=18):
-        fig, ax = _new_page()
-        y = _header(ax, "Detailed report index")
-        weight = 1 + sum(_table_row_weight(row, col_widths=widths, wrap_scale=INVENTORY_WRAP_SCALE) for row in page)
-        h = min(y - BOTTOM, ROW_HEIGHT * weight)
-        table = _draw_basic_table(ax, page, columns=["Report", "Relative path"], col_widths=widths,
-                                 bbox=[LEFT, y - h, WIDTH, h], wrap_scale=INVENTORY_WRAP_SCALE)
-        for i, row in enumerate(page, 1):
-            table[i, 1].get_text().set_url(targets[row[1]])
-        _save_page(pdf, fig)
-
-
-def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_n=100, bootstrap=2000, seed=0):
-    # Imported at call time, after the benchmark module has loaded.
+def _write_experiment_subreports(task):
+    """Write one experiment's complete report tree; workers never share output paths."""
+    comparison, table, raw, labels, colors, report_root, min_per_state, top_n = task
     from funmirbench.benchmark import rank_last, recall_at_budgets
+
+    exp = comparison["experiment_id"]
+    logger.info("Detailed reports: %s", exp)
+    folder = report_root / "experiments" / component(exp)
+    overview_plots = folder / "plots" / "overview"
+    predictor_plots = folder / "plots" / "predictors"
+    plot_data = folder / "plots" / "data"
+    ranked = pd.DataFrame({tool: rank_last(raw[tool], table.index) for tool in labels})
+    specs, exp_records = [], []
+    for universe in UNIVERSES:
+        curves, recs = {}, {}
+        for tool in labels:
+            rec, curve = metrics(table, raw, ranked[tool], tool, universe, min_per_state)
+            rec.update(experiment_id=exp, action=comparison["action"],
+                       dependency_group=comparison["dependency_group"])
+            recs[tool], curves[tool] = rec, curve
+            exp_records.append(rec)
+            export(curve, plot_data / f"{universe}_{component(tool)}_curves.tsv")
+        image = plots.classification(curves, recs, labels, overview_plots, f"{universe}_classification")
+        specs.append((image, UNIVERSE_LABELS[universe], ["PR baselines are dashed; tied genes enter at one threshold.",
+                      "Missing curves have too few labelled genes; counts and reasons are in metrics.tsv."]))
+        image = plots.enrichment(curves, labels, overview_plots, f"{universe}_enrichment_burden")
+        specs.append((image, "Enrichment and false-positive burden", [f"Pair set: {UNIVERSE_LABELS[universe]}.",
+                      "Running ES uses score blocks, so gene order inside ties cannot create enrichment."]))
+        if universe == "fps":
+            for tool in labels:
+                pair = folder / "predictors" / component(tool)
+                tool_plots = predictor_plots / component(tool)
+                pair_frame = pd.DataFrame([recs[tool]])
+                single = {tool: labels[tool]}
+                first = plots.classification({tool: curves[tool]}, {tool: recs[tool]}, single, tool_plots,
+                                             "classification", palette=colors)
+                second = plots.scatter_and_enrichment(table, ranked[tool], curves[tool], tool,
+                                                       labels[tool], colors[tool], tool_plots)
+                export(pd.DataFrame({"gene_id": table.index, "score": raw[tool], "ranked_score": ranked[tool],
+                                     "effect": table.oriented_logFC_shrunk, "eligible": table.eligible,
+                                     "state": table.state_d05}), plot_data / f"{component(tool)}_score_and_enrichment.tsv")
+                pdf_report(pair / "REPORT.pdf", f"{labels[tool]} predictor-experiment report",
+                           [f"Experiment: {exp}", f"miRNA: {comparison['mirna_name']}; predictor: {labels[tool]}",
+                            f"QC action: {comparison['action']}; pair set: FPS",
+                            f"Minimum genes per classification state: {max(1, min_per_state)}"],
+                           [(first, "Classification", ["Unresolved genes are excluded from PR and ROC."]),
+                            (second, "Score and enrichment", ["Coloured points: responsive; grey: no-response or unresolved."])],
+                           pair_frame, predictor_labels=labels)
+    cdfs = {"background": weighted_cdf(table.loc[table.eligible, "oriented_logFC_shrunk"].to_numpy(float))}
+    recovery = []
+    for tool in labels:
+        weights = top_weights(ranked[tool], top_n)
+        valid_weights = weights.where(table.eligible, 0).to_numpy(float)
+        cdfs[tool] = weighted_cdf(table.oriented_logFC_shrunk.to_numpy(float), valid_weights)
+        export(cdfs[tool], plot_data / f"top_effect_cdf_{component(tool)}.tsv")
+        if min((table.state_d05 == "responsive").sum(), (table.state_d05 == "no_response_above_margin").sum()) >= max(1, min_per_state):
+            recovery += [{"predictor": tool, "budget": budget, "recall": value}
+                         for budget, value in recall_at_budgets(
+                             ranked[tool].to_numpy(), (table.state_d05 == "responsive").to_numpy()).items()]
+    recovery = pd.DataFrame(recovery, columns=["predictor", "budget", "recall"])
+    export(recovery, plot_data / "recovery.tsv")
+    export(cdfs["background"], plot_data / "effect_cdf_background.tsv")
+    image = plots.effect_and_recovery(cdfs, recovery, labels, overview_plots)
+    specs.append((image, "Effect distributions and practical recovery", [f"Top {top_n}: fractional inclusion at tied cutoffs; dashed CDF: all eligible genes.",
+                  "CDF view uses the central effect range; TSVs retain the tails. Budgets include unresolved genes."]))
+    local = ranked.rank(method="average", pct=True)
+    usable = table.eligible.to_numpy(bool) & np.isfinite(table.oriented_logFC_shrunk)
+    rank_matrix, selected_effects = responsive_gene_rank_data(table, local, RESPONSIVE_HEATMAP_LIMIT)
+    rank_export = rank_matrix.copy()
+    rank_export.insert(0, "oriented_shrunken_log2FC", selected_effects)
+    rank_export.index.name = "gene_id"
+    export(rank_export.reset_index(), plot_data / "responsive_gene_ranks.tsv")
+    image = plots.responsive_gene_heatmap(rank_matrix, labels, overview_plots)
+    specs.append((image, "Responsive genes: predictor rank percentiles", [
+        f"Up to {RESPONSIVE_HEATMAP_LIMIT} eligible responsive genes, ordered by oriented shrunken log2FC (largest first).",
+        "Rows are genes; columns are predictor percentiles across the full gene universe. This descriptive view is not a performance metric.",
+    ]))
+    correlations = [local.loc[usable].corr(method="spearman"), pd.DataFrame(np.nan, index=list(labels), columns=list(labels))]
+    for a, b in itertools.product(labels, repeat=2):
+        common = usable & local[a].ge(.9) & local[b].ge(.9)
+        if common.sum() >= 3 and local.loc[common, a].nunique() > 1 and local.loc[common, b].nunique() > 1:
+            correlations[1].loc[a, b] = local.loc[common, a].corr(local.loc[common, b], method="spearman")
+    for name, matrix in zip(["all", "shared_top_decile"], correlations):
+        export(matrix.rename_axis("predictor").reset_index(), plot_data / f"predictor_correlations_{name}.tsv")
+    image = plots.heatmaps(correlations, ["All eligible genes", "Shared top-decile genes"], labels,
+                           overview_plots, "predictor_correlations")
+    specs.append((image, "Predictor rank agreement", ["Spearman correlations describe agreement, not target validity.",
+                  "Shared-top cells are NA with fewer than three genes or constant ranks."]))
+    exp_frame = pd.DataFrame(exp_records)
+    export(exp_frame, folder / "metrics.tsv")
+    pdf_report(folder / "REPORT.pdf", "Experiment report", [f"Experiment: {exp}",
+               f"miRNA: {comparison['mirna_name']}; cell line: {comparison['cell_line']}",
+               f"QC action: {comparison['action']}; dependency group: {comparison['dependency_group']}",
+               f"Genes: {len(table):,}; top-effect budget: {top_n}",
+               f"Minimum genes per classification state: {max(1, min_per_state)}"],
+               specs, exp_frame, predictor_labels=labels)
+
+
+def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_n=100, workers=2):
+    # Imported at call time, after the benchmark module has loaded.
+    from concurrent.futures import ProcessPoolExecutor
+
     labels, colors = drawn_tools(tools), tool_colors(list(preds))
     report_root = out / "reports"
-    index, records, cdf_records = [], [], []
-    pair_records, combination_records = [], []
+    tasks = []
     for comparison in comps.itertuples(index=False):
-        exp = comparison.experiment_id
-        logger.info("Detailed reports: %s", exp)
-        table = tables[exp]
-        folder = report_root / "experiments" / component(exp)
-        raw = pd.DataFrame({tool: by_mirna.get(comparison.mirna_name, pd.Series(dtype=float)).reindex(table.index)
+        comp = comparison._asdict()
+        table = tables[comp["experiment_id"]]
+        raw = pd.DataFrame({tool: by_mirna.get(comp["mirna_name"], pd.Series(dtype=float)).reindex(table.index)
                             for tool, by_mirna in preds.items()})
-        ranked = pd.DataFrame({tool: rank_last(raw[tool], table.index) for tool in labels})
-        labelled = table.state_d05.isin(["responsive", "no_response_above_margin"])
-        pos = table.loc[labelled, "state_d05"].eq("responsive").to_numpy()
-        if min(pos.sum(), (~pos).sum()) >= max(1, min_per_state) and len(labels) <= 8:
-            # An exploratory max-percentile ensemble, not a trained/validated model.
-            # Rank observed scores within each tool, combine the available ranks,
-            # then apply the FPS floor to genes unscored by every member.
-            percentiles = raw.rank(method="average", pct=True)
-            for count in range(1, len(labels) + 1):
-                for members in itertools.combinations(labels, count):
-                    combo = rank_last(percentile_ensemble(percentiles, list(members)), table.index)
-                    curve = threshold_curves(combo.loc[labelled].to_numpy(), pos)
-                    combination_records.append({"experiment_id": exp, "members": "+".join(members), "n_members": count,
-                                                "action": comparison.action, "coverage": raw[list(members)].notna().any(axis=1).mean(),
-                                                "average_precision": float(np.sum(np.diff(np.r_[0, curve.recall]) * curve.precision))})
-        specs, exp_records, pair_links = [], [], []
-        for universe in UNIVERSES:
-            curves, recs = {}, {}
-            for tool in labels:
-                rec, curve = metrics(table, raw, ranked[tool], tool, universe, min_per_state)
-                rec.update(experiment_id=exp, action=comparison.action, dependency_group=comparison.dependency_group)
-                recs[tool], curves[tool] = rec, curve
-                records.append(rec); exp_records.append(rec)
-                export(curve, folder / "plots" / f"{universe}_{component(tool)}_curves.tsv")
-            image = plots.classification(curves, recs, labels, folder / "plots", f"{universe}_classification")
-            specs.append((image, UNIVERSE_LABELS[universe], ["PR baselines are dashed; tied genes enter at one threshold.",
-                          "Missing curves have too few labelled genes; counts and reasons are in metrics.tsv."]))
-            image = plots.enrichment(curves, labels, folder / "plots", f"{universe}_enrichment_burden")
-            specs.append((image, "Enrichment and false-positive burden", [f"Pair set: {UNIVERSE_LABELS[universe]}.",
-                          "Running ES uses score blocks, so gene order inside ties cannot create enrichment."]))
-            if universe == "fps":
-                for tool in labels:
-                    pair = folder / "predictors" / component(tool)
-                    pair_frame = pd.DataFrame([recs[tool]])
-                    single = {tool: labels[tool]}
-                    first = plots.classification({tool: curves[tool]}, {tool: recs[tool]}, single, pair / "plots",
-                                                 "classification", palette=colors)
-                    second = plots.scatter_and_enrichment(table, ranked[tool], curves[tool], tool,
-                                                           labels[tool], colors[tool], pair / "plots")
-                    export(pair_frame, pair / "metrics.tsv")
-                    export(curves[tool], pair / "plots" / "classification.tsv")
-                    export(pd.DataFrame({"gene_id": table.index, "score": raw[tool], "ranked_score": ranked[tool],
-                                         "effect": table.oriented_logFC_shrunk, "eligible": table.eligible,
-                                         "state": table.state_d05}), pair / "plots" / "score_and_enrichment.tsv")
-                    pdf_report(pair / "REPORT.pdf", "Predictor-experiment report",
-                               [f"Experiment: {exp}", f"miRNA: {comparison.mirna_name}; predictor: {labels[tool]}",
-                                f"QC action: {comparison.action}; pair set: FPS",
-                                f"Minimum genes per classification state: {max(1, min_per_state)}"],
-                               [(first, "Classification", ["Unresolved genes are excluded from PR and ROC."]),
-                                (second, "Score and enrichment", ["Coloured points: responsive; grey: no-response or unresolved."])],
-                               pair_frame, predictor_labels=labels)
-                    pair_links.append({"kind": "predictor_experiment", "name": labels[tool], "path": pair / "REPORT.pdf"})
-        cdfs = {"background": weighted_cdf(table.loc[table.eligible, "oriented_logFC_shrunk"].to_numpy(float))}
-        recovery = []
-        for tool in labels:
-            weights = top_weights(ranked[tool], top_n)
-            valid_weights = weights.where(table.eligible, 0).to_numpy(float)
-            cdfs[tool] = weighted_cdf(table.oriented_logFC_shrunk.to_numpy(float), valid_weights)
-            cdf_records.append({"experiment_id": exp, "predictor": tool, "budget": top_n,
-                                "selected_weight": weights.sum(), "usable_weight": cdfs[tool].weight.sum(),
-                                "median_effect": float(cdfs[tool].loc[cdfs[tool].cdf >= .5, "effect"].iloc[0]) if len(cdfs[tool]) else np.nan})
-            export(cdfs[tool], folder / "plots" / f"top_effect_cdf_{component(tool)}.tsv")
-            if min((table.state_d05 == "responsive").sum(), (table.state_d05 == "no_response_above_margin").sum()) >= max(1, min_per_state):
-                recovery += [{"predictor": tool, "budget": b, "recall": r}
-                             for b, r in recall_at_budgets(ranked[tool].to_numpy(), (table.state_d05 == "responsive").to_numpy()).items()]
-        recovery = pd.DataFrame(recovery, columns=["predictor", "budget", "recall"])
-        export(recovery, folder / "plots" / "recovery.tsv")
-        export(cdfs["background"], folder / "plots" / "effect_cdf_background.tsv")
-        image = plots.effect_and_recovery(cdfs, recovery, labels, folder / "plots")
-        specs.append((image, "Effect distributions and practical recovery", [f"Top {top_n}: fractional inclusion at tied cutoffs; dashed CDF: all eligible genes.",
-                      "CDF view uses the central effect range; TSVs retain the tails. Budgets include unresolved genes."]))
-        local = ranked.rank(method="average", pct=True)
-        usable = table.eligible.to_numpy(bool) & np.isfinite(table.oriented_logFC_shrunk)
-        rank_matrix, selected_effects = responsive_gene_rank_data(table, local, RESPONSIVE_HEATMAP_LIMIT)
-        rank_export = rank_matrix.copy()
-        rank_export.insert(0, "oriented_shrunken_log2FC", selected_effects)
-        rank_export.index.name = "gene_id"
-        export(rank_export.reset_index(), folder / "plots" / "responsive_gene_ranks.tsv")
-        image = plots.responsive_gene_heatmap(rank_matrix, labels, folder / "plots")
-        specs.append((image, "Responsive genes: predictor rank percentiles", [
-            f"Up to {RESPONSIVE_HEATMAP_LIMIT} eligible responsive genes, ordered by oriented shrunken log2FC (largest first).",
-            "Rows are genes; columns are predictor percentiles across the full gene universe. This descriptive view is not a performance metric.",
-        ]))
-        correlations = [local.loc[usable].corr(method="spearman"), pd.DataFrame(np.nan, index=list(labels), columns=list(labels))]
-        for a, b in itertools.product(labels, repeat=2):
-            common = usable & local[a].ge(.9) & local[b].ge(.9)
-            if common.sum() >= 3 and local.loc[common, a].nunique() > 1 and local.loc[common, b].nunique() > 1:
-                correlations[1].loc[a, b] = local.loc[common, a].corr(local.loc[common, b], method="spearman")
-        for name, matrix in zip(["all", "shared_top_decile"], correlations):
-            export(matrix.rename_axis("predictor").reset_index(), folder / "plots" / f"predictor_correlations_{name}.tsv")
-        image = plots.heatmaps(correlations, ["All eligible genes", "Shared top-decile genes"], labels, folder / "plots", "predictor_correlations")
-        specs.append((image, "Predictor rank agreement", ["Spearman correlations describe agreement, not target validity.",
-                      "Shared-top cells are NA with fewer than three genes or constant ranks."]))
-        exp_frame = pd.DataFrame(exp_records)
-        export(exp_frame, folder / "metrics.tsv")
-        pdf_report(folder / "REPORT.pdf", "Experiment report", [f"Experiment: {exp}",
-                   f"miRNA: {comparison.mirna_name}; cell line: {comparison.cell_line}",
-                   f"QC action: {comparison.action}; dependency group: {comparison.dependency_group}",
-                   f"Genes: {len(table):,}; top-effect budget: {top_n}",
-                   f"Minimum genes per classification state: {max(1, min_per_state)}"],
-                   specs, exp_frame, links=pair_links, predictor_labels=labels)
-        index.append({"kind": "experiment", "name": exp, "path": folder / "REPORT.pdf"})
-        pair_records.extend(pair_links)
-    frame = pd.DataFrame(records)
-    export(frame, report_root / "universe_metrics.tsv")
-    export(pd.DataFrame(cdf_records), report_root / "top_effect_summary.tsv")
-    export(summarize_universes(frame, bootstrap=bootstrap, seed=seed), report_root / "universe_summary.tsv")
-    export(frame, report_root / "diagnostics" / "metrics.tsv")
-    overview_specs = []
-    for universe in UNIVERSES:
-        for pair in [("average_precision", "pr_auc"), ("auroc", "spearman"), ("spearman", "enrichment_score")]:
-            fig, axes = two_panels()
-            for ax, metric in zip(axes, pair):
-                draw_box(ax, frame[frame.universe == universe], list(labels), colors, metric)
-                ax.set_title(metric.replace("_", " ").title())
-            image = plots.finish(fig, axes, labels, report_root / "diagnostics" / "plots", f"{universe}_{pair[0]}_{pair[1]}")
-            overview_specs.append((image, UNIVERSE_LABELS[universe], ["Each dot is an experiment; use universe_summary.tsv for group-bootstrap intervals."]))
-    precision = pd.read_csv(out / "precision_at_recall.tsv", sep="\t")
-    fig, axes = two_panels()
-    for ax, metric in zip(axes, ["precision", "false_positives_per_true_positive"]):
-        draw_box(ax, precision, list(labels), colors, metric)
-        ax.set_title("Precision at 50% recall" if metric == "precision" else "False positives / true positive")
-    image = plots.finish(fig, axes, labels, report_root / "diagnostics" / "plots", "all_predictor_precision_burden")
-    overview_specs.append((image, "All-predictor precision and burden", ["Every predictor is shown, rather than only the best predictor in each experiment.",
-                          "Tied score blocks enter together; precision excludes unresolved genes."]))
-    export(precision, report_root / "diagnostics" / "plots" / "all_predictor_precision_burden.tsv")
-    combinations = pd.DataFrame(combination_records)
-    if len(combinations):
-        export(combinations, report_root / "combination_metrics.tsv")
-        fig, axes = two_panels()
-        for ax, subset in zip(axes, ["all", "unflagged"]):
-            rows = combinations if subset == "all" else combinations[combinations.action == "keep"]
-            mean = rows.groupby(["members", "n_members"])[["coverage", "average_precision"]].mean().reset_index()
-            for r in mean.itertuples(index=False):
-                ax.scatter(r.coverage, r.average_precision, s=75, marker="o" if r.n_members == 1 else "D",
-                           color=colors[r.members] if r.n_members == 1 else "#6B7280", alpha=.7)
-            if len(mean):
-                frontier = coverage_frontier(mean)
-                ax.plot(frontier.coverage, frontier.average_precision, "--", color="#1F2937", linewidth=1)
-            ax.set(xlabel="Mean scored-pair coverage", ylabel="Mean average precision", title=subset.title())
-        image = plots.finish(fig, axes, labels, report_root / "diagnostics" / "plots", "combination_frontier")
-        overview_specs.append((image, "Exploratory predictor combinations", ["Diamonds: maximum available within-tool percentile; circles: single tools.",
-                              "Genes with no member score share the FPS floor. Labels stay fixed; at most eight tools; no fitted ensemble."]))
-    pdf_report(report_root / "diagnostics" / "REPORT.pdf", "Supplementary diagnostics", [
-               f"Comparisons: {len(comps)}; predictors: {len(labels)}",
-               f"Minimum genes per classification state: {max(1, min_per_state)}",
-               "FPS is primary; IPS and own-scored sets are sensitivity analyses."], overview_specs, frame,
-               predictor_labels=labels)
-    index.append({"kind": "diagnostics", "name": "Supplementary diagnostics", "path": report_root / "diagnostics" / "REPORT.pdf"})
-    for tool, label in labels.items():
-        folder = report_root / "predictors" / component(tool)
-        tool_frame = frame[frame.predictor == tool]
-        export(tool_frame, folder / "metrics.tsv")
-        links = [{"name": c.experiment_id, "path": report_root / "experiments" / component(c.experiment_id) / "predictors" / component(tool) / "REPORT.pdf"}
-                 for c in comps.itertuples(index=False)]
-        pdf_report(folder / "REPORT.pdf", "Predictor report", [f"Predictor: {label}", f"Comparisons: {len(comps)}",
-                   f"Minimum genes per classification state: {max(1, min_per_state)}",
-                   "Each experiment has its own detailed classification, score and enrichment report."], [], tool_frame,
-                   links=links, predictor_labels=labels)
-        index.append({"kind": "predictor", "name": label, "path": folder / "REPORT.pdf"})
-    manifest = [{"kind": e["kind"], "name": e["name"], "report": str(e["path"].relative_to(out))} for e in index + pair_records]
-    export(pd.DataFrame(manifest), report_root / "index.tsv")
-    (report_root / "README.md").write_text("# Detailed reports\n\n" + "\n".join(
-        f"- [{e['name']}]({e['path'].relative_to(report_root).as_posix()})" for e in index) + "\n", encoding="utf-8")
-    return index
+        tasks.append((comp, table, raw, labels, colors, report_root, min_per_state, top_n))
+
+    if workers == 1 or len(tasks) < 2:
+        for task in tasks:
+            _write_experiment_subreports(task)
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            list(executor.map(_write_experiment_subreports, tasks, chunksize=1))
 

@@ -10,11 +10,11 @@ from scipy.integrate import trapezoid
 from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score
 
 from funmirbench.subreport_metrics import (
-    coverage_frontier, masks, metrics, percentile_ensemble, threshold_curves, top_weights, weighted_cdf,
+    masks, metrics, threshold_curves, top_weights, weighted_cdf,
 )
-from funmirbench.subreports import component, key_results, pdf_report, responsive_gene_rank_data, summarize_universes
+from funmirbench.subreports import component, key_results, pdf_report, responsive_gene_rank_data
 from funmirbench.subreport_plots import classification, responsive_gene_heatmap
-from funmirbench.benchmark import group_bootstrap, rank_last, run_benchmark, score_metrics
+from funmirbench.benchmark import rank_last, run_benchmark, score_metrics
 
 
 class DetailedMetricTests(unittest.TestCase):
@@ -63,26 +63,6 @@ class DetailedMetricTests(unittest.TestCase):
                 self.assertFalse(any(xlabel.overlaps(box) for box in boxes))
         finally:
             plt.close(fig)
-
-    def test_summary_intervals_match_main_and_ignore_unrelated_predictors_and_row_order(self):
-        values = [.01, .03, .04, .15, .3, .5, .7, .9]
-        frame = pd.DataFrame({"predictor": "b", "universe": "fps",
-                              "action": ["keep"] * 6 + ["flag"] * 2,
-                              "dependency_group": list("aabbcdef"),
-                              **{metric: values for metric in
-                                 ["average_precision", "pr_auc", "auroc", "spearman", "enrichment_score"]}})
-        frame.loc[2, "spearman"] = np.nan
-        baseline = summarize_universes(frame, bootstrap=200, seed=7)
-        extra = frame.assign(predictor="a", universe="ips")
-        expanded = summarize_universes(pd.concat([extra, frame]).sample(frac=1, random_state=1),
-                                       bootstrap=200, seed=7)
-        pd.testing.assert_frame_equal(baseline.reset_index(drop=True),
-                                      expanded[expanded.predictor == "b"].reset_index(drop=True))
-        for row in baseline.itertuples(index=False):
-            selected = frame if row.subset == "all" else frame[frame.action == "keep"]
-            expected = group_bootstrap(selected[row.metric], selected.dependency_group, n=200,
-                                       rng=np.random.default_rng(8))
-            np.testing.assert_allclose([row.ci95_low, row.ci95_high], expected)
 
     def test_responsive_heatmap_labels_fit_for_one_five_and_ten_predictors(self):
         names = ["TargetScan v8", "miRDB", "microT-CNN", "miRBind2-3UTR", "miRAW",
@@ -242,30 +222,12 @@ class DetailedMetricTests(unittest.TestCase):
         self.assertAlmostEqual(auroc(scores, positive), auroc(scores[order], positive[order]))
         self.assertAlmostEqual(spearman(scores, effects), spearman(scores[order], effects[order]))
 
-    def test_combination_percentiles_leave_missing_pairs_for_the_fps_floor(self):
-        raw = pd.DataFrame({"a": [3., 1., np.nan, np.nan], "b": [np.nan, 2., 1., np.nan]})
-        percentiles = raw.rank(method="average", pct=True)
-        combined = percentile_ensemble(percentiles, ["a", "b"])
-        self.assertTrue(np.isnan(combined.iloc[3]))
-        ranked = rank_last(combined, raw.index)
-        self.assertLess(ranked.iloc[3], ranked.iloc[:3].min())
-        all_missing = percentile_ensemble(percentiles[["a"]].iloc[[3]], ["a"])
-        self.assertTrue(all_missing.isna().all())
-        self.assertTrue((rank_last(all_missing, all_missing.index) == 0).all())
-
     def test_safe_paths(self):
         for name in ["../outside", "/absolute", "..", "", "a" * 200]:
             safe = component(name)
             self.assertNotIn("/", safe)
             self.assertNotIn(safe, ["", ".", ".."])
         self.assertNotEqual(component("a/b"), component("a_b"))
-
-    def test_frontier_discards_dominated_points_at_the_same_coverage(self):
-        points = pd.DataFrame({"coverage": [1., 1., .8, .7], "average_precision": [.2, .6, .5, .8]})
-        expected = {(1., .6), (.7, .8)}
-        for data in [points, points.iloc[::-1]]:
-            frontier = coverage_frontier(data)
-            self.assertEqual(set(zip(frontier.coverage, frontier.average_precision)), expected)
 
     def test_invalid_report_settings_fail_before_writing_outputs(self):
         import yaml

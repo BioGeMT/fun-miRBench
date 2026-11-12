@@ -1,4 +1,4 @@
-"""Diagnostics on the v2 labels; score ties always enter as whole blocks.
+"""Per-experiment metrics on the v2 labels; score ties enter as whole blocks.
 
 FPS is the full fixed gene list, IPS the per-comparison intersection of scored
 pairs, and own_scored each tool's scored pairs. Unresolved genes are never negatives.
@@ -23,11 +23,6 @@ def masks(scores: pd.DataFrame, tool: str, universe: str) -> np.ndarray:
     if universe == "own_scored":
         return scores[tool].notna().to_numpy()
     raise ValueError(f"Unknown pair universe: {universe}")
-
-
-def percentile_ensemble(percentiles: pd.DataFrame, members: list[str]) -> pd.Series:
-    """Maximum within-tool percentile among available scores; missing pairs remain missing."""
-    return percentiles[members].max(axis=1)
 
 
 def threshold_curves(score: np.ndarray, positive: np.ndarray) -> pd.DataFrame:
@@ -107,9 +102,3 @@ def weighted_cdf(values: np.ndarray, weights: np.ndarray | None = None) -> pd.Da
     grouped = pd.DataFrame({"effect": values[keep], "weight": weights[keep]}).groupby("effect").weight.sum()
     return pd.DataFrame({"effect": grouped.index, "cdf": (grouped.cumsum() / grouped.sum()).to_numpy(),
                          "weight": grouped.to_numpy()})
-
-
-def coverage_frontier(frame: pd.DataFrame) -> pd.DataFrame:
-    """Nondominated coverage/AP points; equal coverage retains the highest AP."""
-    ordered = frame.sort_values(["coverage", "average_precision"], ascending=[False, False])
-    return ordered[ordered.average_precision > ordered.average_precision.cummax().shift(fill_value=-np.inf)]
