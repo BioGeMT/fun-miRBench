@@ -24,3 +24,9 @@ evaluation:
   seed: 0
 
 out_dir: results/
+
+# Detailed experiment, predictor and supplementary reports, linked from REPORT.pdf.
+reports:
+  detailed: true
+  top_n: 100
+  workers: 2
