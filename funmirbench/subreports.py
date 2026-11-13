@@ -116,7 +116,7 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
         y -= setting_height + BLOCK_GAP
         y = _bullet_block(ax, "Evaluation design", [
             "Positives: responsive. Negatives: no_response_above_margin. Unresolved genes are excluded from PR and ROC.",
-            "FPS uses the fixed gene universe and ranks missing predictions last; IPS and own-scored are supplementary.",
+            "Classification on all benchmark pairs ranks missing predictions last; each plot names the pairs it includes.",
             "Continuous metrics use eligible, finite oriented shrunken log2FC. Enrichment is descriptive, without an NES or p-value.",
         ], y=y)
         y = _bullet_block(ax, "Key results", key_results(frame, predictor_labels), y=y)
@@ -149,7 +149,7 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
         if fig is not None:
             _save_page(pdf, fig)
         columns = ["Experiment", "Predictor", "Pair set", "n (+ / -)", "AP", "AUROC", "Spearman"]
-        pair_set = {"fps": "FPS", "ips": "IPS", "own_scored": "Own"}
+        pair_set = {"fps": "All pairs", "ips": "Common scores", "own_scored": "Predictor scores"}
         rows = [[str(r.experiment_id).replace("_", "_ ") if len(str(r.experiment_id)) > 22 else r.experiment_id,
                  (predictor_labels or {}).get(r.predictor, r.predictor), pair_set[r.universe],
                  f"{r.n_responsive} / {r.n_no_response}", number(r.average_precision),
@@ -186,10 +186,11 @@ def _write_experiment_subreports(task):
             exp_records.append(rec)
             export(curve, plot_data / f"{universe}_{component(tool)}_curves.tsv")
         image = plots.classification(curves, recs, labels, overview_plots, f"{universe}_classification")
-        specs.append((image, UNIVERSE_LABELS[universe], ["PR baselines are dashed; tied genes enter at one threshold.",
+        specs.append((image, f"Classification — {UNIVERSE_LABELS[universe]}", ["PR baselines are dashed; tied genes enter at one threshold.",
                       "Missing curves have too few labelled genes; counts and reasons are in metrics.tsv."]))
         image = plots.enrichment(curves, labels, overview_plots, f"{universe}_enrichment_burden")
-        specs.append((image, "Enrichment and false-positive burden", [f"Pair set: {UNIVERSE_LABELS[universe]}.",
+        specs.append((image, f"Enrichment and false-positive burden — {UNIVERSE_LABELS[universe]}", [
+                      f"This view uses {UNIVERSE_LABELS[universe].lower()}.",
                       "Running ES uses score blocks, so gene order inside ties cannot create enrichment."]))
         if universe == "fps":
             for tool in labels:

@@ -12,7 +12,11 @@ from scipy.integrate import trapezoid
 from funmirbench.metric_helpers import auroc, spearman
 
 UNIVERSES = ("fps", "ips", "own_scored")
-UNIVERSE_LABELS = {"fps": "Full pair set", "ips": "Intersection pair set", "own_scored": "Own scored pairs"}
+UNIVERSE_LABELS = {
+    "fps": "All benchmark pairs",
+    "ips": "Pairs scored by every predictor",
+    "own_scored": "Each predictor's scored pairs",
+}
 
 
 def masks(scores: pd.DataFrame, tool: str, universe: str) -> np.ndarray:
