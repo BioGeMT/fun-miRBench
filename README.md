@@ -1,10 +1,10 @@
 # fun-miRBench
 
-Benchmark functional miRNA target predictors on miRNA overexpression (OE) experiments.
+fun-miRBench evaluates functional miRNA target predictors against gene-expression changes in miRNA overexpression (OE) experiments. It provides a reproducible benchmark run, per-experiment reports, and the pipelines used to build the benchmark tables.
 
 ## Install
 
-You need Python 3.10+ and `uv`.
+You need Python 3.10 or later and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 python -m pip install uv
@@ -13,82 +13,97 @@ cd fun-miRBench
 uv sync
 ```
 
-## Repo Layout
+## Repository contents
 
-- `benchmark.yaml`: the benchmark config
-- `funmirbench/`: the code
-- `metadata/`: the comparisons, gene list, predictor list and miRNA sequences
-- `pipelines/processing/`: from reads to the per-gene benchmark tables
-- `pipelines/standardized_predictors/`: one pipeline per predictor
-- `tests/`: the tests
-- `benchmark_results/`: `REPORT.pdf`, plots and tables of our benchmark run on the 72 OE test experiments
+- `benchmark.yaml` and `benchmark_publication.yaml`: example and publication run configurations.
+- `funmirbench/`: benchmark, report, and data-preparation code.
+- `metadata/`: benchmark genes, experiment metadata, predictor registry, and miRNA sequences.
+- `pipelines/processing/`: RNA-seq processing and benchmark table construction.
+- `pipelines/standardized_predictors/`: pipelines for rebuilding predictor files.
+- `benchmark_results/`: committed reference report, plots, and result tables.
 
-Not tracked by git:
+Downloaded inputs and intermediate files are kept outside version control: `data/benchmark_data/`, `data/predictions/`, `data/common_resources/`, `data/experiments/`, and `pipelines/processing/work/`. New benchmark runs are written under `results/` by default.
 
-- `data/benchmark_data/`: the per-gene benchmark tables, the benchmark's input
-- `data/predictions/`: predictor scores, the benchmark's input
-- `data/common_resources/`: downloaded miRBase and Ensembl annotation
-- `data/experiments/`: reads, references and DE tables of `pipelines/processing/`
-- `results/<date_time>/`: one folder per benchmark run
+## Quick start
 
-## Run The Benchmark
-
-`funmirbench` scores predictors on the overexpression (OE) comparisons of the per-gene benchmark tables, on all genes.
+Download the published benchmark tables and predictor scores, then run the example configuration:
 
 ```bash
 uv run funmirbench-download-data
 uv run funmirbench --config benchmark.yaml
 ```
 
-`funmirbench-download-data` puts the benchmark tables in `data/benchmark_data/` (Zenodo [10.5281/zenodo.23988869](https://doi.org/10.5281/zenodo.23988869)) and the predictor scores in `data/predictions/`, and keeps files that are already there; `--force` replaces them with the current Zenodo version. To build them yourself, use `pipelines/processing/` for the tables and `pipelines/standardized_predictors/targetscan/pipeline.py --expand-family-members` for the TargetScan scores.
+The command creates a timestamped directory under `results/`. It contains `REPORT.pdf`, the result tables, plots, and a copy of the configuration used. The example config evaluates the five published predictors and creates detailed experiment reports. Edit `benchmark.yaml` to select experiments, predictors, or another output directory.
 
-`benchmark.yaml` sets the benchmark tables (`input_dir`), which experiments and predictors to run, and `out_dir`. Each run creates its own folder under `out_dir`, with a copy of the config.
+`funmirbench-download-data` downloads the current 72-experiment benchmark tables and family-expanded TargetScan file from Zenodo [record 23988869](https://zenodo.org/records/23988869). It gets the standardized predictor archive from [record 21671476](https://zenodo.org/records/21671476), which also contains an older collection of differential-expression tables. Existing local files are kept; pass `--force` to replace the files managed by the downloader. To rebuild the benchmark tables or predictor files, see [Build the benchmark tables](#build-the-benchmark-tables) and [Predictors](#predictors).
 
-- **Labels:** `state_d05`: responsive, no response above margin, or unresolved at d = 0.5, from the shrunken log2FC (FSOS s-value < 0.05 against d, in the direction of repression; whole shrunken 95% interval below d). Unresolved genes are never negatives.
-- **Genes:** every ranking is scored on the same 19,226-gene list. A gene a tool does not score ranks last; `coverage` is the share of genes it scores.
-- **Scores per comparison:**
-  - Spearman between the score and the oriented shrunken log2FC, overall and within tenths of control expression;
-  - AUROC of responsive against no-response genes, plain and within tenths of control expression (Mann-Whitney over pairs in the same tenth), only where each state has at least 30 genes.
-- **Decoy check:** for each tool, the same Spearman for its scores of the other benchmark miRNAs with a different nt 2–8 seed (`metadata/benchmark_mirnas.tsv`). `spearman_above_decoys_shrunk` is the cognate miRNA's Spearman minus the mean Spearman of its decoys, in Spearman units, so that tools can be compared on it (a z-score would divide by each tool's own decoy SD); it is NA without decoys.
-- **Summaries:**
-  - on all comparisons and on unflagged ones;
-  - mean over comparisons with a 95% interval from 2,000 bootstraps over dependency groups;
-- **Predictors:** the default config runs the five published tools. TargetScan is `targetscan_family_expanded`, which gives every family member the family score; plain `targetscan` stays in the registry and can be selected instead.
-- **Plots**, in `plots/` as PNG:
-  - `coverage`: genes each tool scores, the experiments it is retained in, and the responsive and no-response pairs it covers;
-  - `oe_all_genes`: AUROC at d = 0.5, Spearman with the shrunken log2FC, Spearman rho above decoys and the number of experiments in which each tool ranks first, for every tool on all genes, with y axes that follow the values of the run;
-  - `recovery`: recall by prediction budget, counting every gene in the ranking (genes tied at the budget count by the share taken from their tie), and each experiment's best precision at 50% recall relative to random, among responsive and no-response genes, on the comparisons with at least 30 genes in each state.
-- **Report:** `REPORT.pdf`: run settings, key results, the output tables, the plots, one table per plot with its numbers, and the experiments evaluated and skipped.
+## Reproduce the publication analysis
 
-Outputs: `REPORT.pdf`, `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, `precision_at_recall.tsv`, `benchmark_config.yaml`, `plots/`.
+`benchmark.yaml` is the general example configuration. Its optional 3′UTR feature comparison is off. `benchmark_publication.yaml` selects the five published predictors, enables that comparison, and disables per-experiment detailed reports. It writes the main report, plots, and tables to `results/publication/<timestamp>/`.
 
-Detailed reports are generated by default in a separate `reports/` tree:
+After installing the base environment, install the optional feature dependency and run the publication config:
 
-- `reports/experiments/<experiment>/REPORT.pdf`: FPS, IPS and own-scored PR/ROC curves, enrichment, false-positive burden, top-target effect CDFs, recovery, gene heatmaps and predictor agreement.
-- `reports/experiments/<experiment>/metrics.tsv`: all pair-set metrics for that experiment. `plots/overview/` contains cross-predictor figures, `plots/predictors/<tool>/` contains predictor-specific figures, and `plots/data/` contains compressed TSV coordinates, with gene scores and shared annotations stored once per experiment.
-- `reports/experiments/<experiment>/predictors/<tool>/REPORT.pdf`: the tool's FPS classification curves, score-versus-response scatter and enrichment plot, using the experiment's shared plot assets.
+```bash
+uv sync --extra gene-features
+uv run funmirbench-download-data
+uv run funmirbench --config benchmark_publication.yaml
+```
 
-The detailed reports reuse the main report's fonts, colours, page margins and table styles; the main `REPORT.pdf` stays unchanged. Generating all detailed PDFs and 300-dpi plots takes longer than the main summary; set `reports.detailed: false` for a summary-only run. Experiment report trees are generated in parallel; `reports.workers` controls the process count (default 2). `reports.top_n` sets the top-effect CDF budget (default 100).
+On the first run with gene features enabled, fun-miRBench downloads the Ensembl 115 GTF and hg38 phastCons100way BigWig to the paths in the config. The BigWig is about 5.5 GB; both files are cached there for subsequent runs.
+
+The Intersection Gene Set (IGS) contains benchmark genes with at least one score from every selected predictor across the evaluated miRNAs. The non-IGS group contains the remaining genes in the same benchmark universe. For each gene, the feature table uses the longest 3′UTR among its Ensembl 115 protein-coding transcripts. Conservation is the mean hg38 phastCons100way score over bases with available scores in that UTR. Lengths above 10,000 nt are capped at 10,000 in the plot; tables and statistical tests use full lengths. Genes without an annotated UTR or conservation values are retained, with missing feature values. The report includes group sizes, matched feature counts, medians, median differences, and two-sided asymptotic Mann–Whitney U tests. The summary TSV includes a formatted p-value and log10 p-value so very small results remain readable when the ordinary floating-point p-value is below representable precision. These summaries describe differences between coverage groups.
+
+## Benchmark design
+
+- **Gene universe:** every predictor is evaluated on the same 19,226 genes. A missing predictor score ranks below all scored genes; coverage is reported separately.
+- **Labels:** `state_d05` classifies genes as responsive, no response above margin, or unresolved using the shrunken log2 fold change and a margin of 0.5. Unresolved genes are excluded from AUROC and recovery analyses.
+- **Per-comparison metrics:** Spearman correlation with the oriented shrunken log2 fold change, overall and within control-expression tenths; and AUROC of responsive versus no-response genes, overall and within expression tenths. AUROC is calculated only when both classes contain at least 30 genes.
+- **Decoy comparison:** each predictor is also evaluated using scores for other benchmark miRNAs with a different nt 2–8 seed. `spearman_above_decoys_shrunk` is the cognate miRNA's Spearman correlation minus the mean correlation of its decoys. It is reported in correlation units and is unavailable when no decoys can be scored.
+- **Summaries:** metrics are reported over all comparisons and unflagged comparisons. Means and 95% intervals are calculated by bootstrapping dependency groups 2,000 times.
+- **Default predictors:** TargetScan family-expanded, miRDB/MirTarget, microT-CNN, miRBind2, and miRAW. The family-expanded TargetScan score is assigned to each miRNA in that family; the unexpanded TargetScan entry remains available in the registry.
+
+## Outputs
+
+Each run writes the following files under its timestamped output directory:
+
+- `REPORT.pdf`: run settings, key results, plots, result tables, and the evaluated and skipped experiments.
+- `per_comparison.tsv`, `summary.tsv`, `coverage.tsv`, `recovery.tsv`, and `precision_at_recall.tsv`.
+- `benchmark_config.yaml`: the configuration used for the run.
+- `plots/`: PNG figures for coverage, performance, and recovery. The recovery plot is omitted when no selected comparison has enough responsive and no-response genes.
+- `gene_set_features.tsv` and `gene_set_feature_summary.tsv` when `reports.gene_set_features.enabled` is true.
+
+The run-level plots show:
+
+- **Coverage:** genes scored by each predictor, experiments retained, and responsive and no-response miRNA–gene pairs covered.
+- **Performance:** AUROC, Spearman correlation, Spearman correlation above decoys, and the number of experiments each predictor ranks first.
+- **Recovery:** recall at prediction budgets and each experiment's best precision at 50% recall relative to random. Genes tied at a budget contribute in proportion to the share of the tie included.
+- **Gene features (optional):** 3′UTR length and conservation distributions for IGS and non-IGS genes.
+
+### Detailed reports
+
+Detailed reports are enabled by default and saved in a separate `reports/` directory:
+
+- `reports/experiments/<experiment>/REPORT.pdf`: metrics for the full fixed gene-list pair set (FPS), pairs scored by every predictor (IPS), and each predictor's own scored pairs; precision–recall and ROC curves; enrichment; false-positive burden; top-target effect distributions; recovery; gene heatmaps; and predictor agreement.
+- `reports/experiments/<experiment>/metrics.tsv`: metrics for that experiment. `plots/overview/` contains cross-predictor figures; `plots/predictors/<tool>/` contains predictor-specific figures; `plots/data/` contains the plotted values as compressed TSV files. Shared gene scores, ranks, and response annotations are written once per experiment.
+- `reports/experiments/<experiment>/predictors/<tool>/REPORT.pdf`: predictor-specific classification, score-versus-response, and enrichment results.
+
+The main `REPORT.pdf` summarizes run-level results. Detailed reports live under `reports/` and are not linked from the main PDF. No cross-experiment predictor reports or supplementary report index are generated. Set `reports.detailed: false` to skip detailed reports; this does not affect the optional gene-feature page in the main report. Detailed reports are generated in parallel; `reports.workers` sets the worker count (default 2), and `reports.top_n` sets the top-effect distribution budget (default 100).
 
 ## Predictors
 
-A standardized score file is a TSV with the columns `Ensembl_ID`, `Gene_Name`, `miRNA_ID`, `miRNA_Name` and `Score`, on Ensembl 115 (GRCh38) and miRBase 22.1. To add your own predictor, put its file under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and add it to `predictors` in `benchmark.yaml`.
+Predictor files are tab-separated tables with `Ensembl_ID`, `Gene_Name`, `miRNA_ID`, `miRNA_Name`, and `Score` columns. They use Ensembl 115 (GRCh38) gene IDs and miRBase 22.1 miRNA names. To add a predictor, place its file under `data/predictions/`, register it in `metadata/predictions_info.tsv`, and select it in `benchmark.yaml`.
 
-`funmirbench-download-data` fetches the scores of the five published tools. To rebuild one, run `uv run python pipelines/standardized_predictors/<tool>/pipeline.py`; downloads are cached under `data/common_resources/` and the tool's folder.
+The published predictor files can be downloaded with `funmirbench-download-data`. To rebuild one, run `uv run python pipelines/standardized_predictors/<tool>/pipeline.py`. Downloads and shared resources are cached under `data/common_resources/` and the predictor's directory.
 
-- **`targetscan`:** TargetScan v8 `Summary_Counts.all_predictions.txt`, human rows on representative transcripts that agree with Ensembl 115. `Score` is the cumulative weighted context++ score; lower is stronger. `--expand-family-members` gives each family score to every member miRNA without recomputing it, which writes the `targetscan_family_expanded` file used in the benchmark.
-- **`mirdb_mirtarget`:** miRDB v6.0 (MirTarget v4.0) all-score file, mapped to genes through the NCBI gene ID, then the RefSeq ID, with BioMart. Higher is stronger.
-- **`microt_cnn`:** microT-CNN all-score file from Zenodo, with transcripts mapped to genes through Ensembl 115. Higher is stronger.
-- **`mirbind2`:** miRBind2-3UTR predictions from Zenodo record 20609975. The score is a signed repression prediction; lower is stronger.
-- **`miraw`:** miRAW site-level predictions from Figshare (10.6084/m9.figshare.32982218), keeping the highest score per miRNA and gene. Higher is stronger.
+- **TargetScan:** TargetScan v8 cumulative weighted context++ score; lower scores indicate stronger predictions. `--expand-family-members` assigns each family score to every family member and produces the `targetscan_family_expanded` input used by the default configs.
+- **miRDB/MirTarget:** miRDB 6.0 / MirTarget 4.0 scores mapped to genes using NCBI gene IDs, RefSeq IDs, and BioMart. Higher scores are stronger.
+- **microT-CNN:** scores distributed through Zenodo and mapped from transcripts to genes using Ensembl 115. Higher scores are stronger.
+- **miRBind2:** miRBind2-3UTR predictions from [Zenodo record 20609975](https://zenodo.org/records/20609975). Lower signed scores are stronger.
+- **miRAW:** site-level predictions from [Figshare article 32982218](https://doi.org/10.6084/m9.figshare.32982218). The highest site score is kept for each miRNA–gene pair. Higher scores are stronger.
 
-## Build The Benchmark Tables
+## Build the benchmark tables
 
-`pipelines/processing/` goes from reads to the tables, for anyone who wants to rebuild them. It needs `conda` for the aligners and R; see its [README](pipelines/processing/README.md).
-
-## Add Your Own Experiment
-
-`funmirbench-add` adds one OE experiment, from raw reads or a count matrix, to the benchmark tables. It needs `conda` for the aligners and R; see [ADD_EXPERIMENT.md](pipelines/processing/ADD_EXPERIMENT.md).
+The RNA-seq processing pipeline rebuilds the per-gene tables from reads. It requires conda for the aligners and R; see the [processing README](pipelines/processing/README.md). To add one experiment without rebuilding the full dataset, see [Add your own experiment](pipelines/processing/ADD_EXPERIMENT.md).
 
 ## Tests
 
@@ -98,4 +113,4 @@ uv run python -m unittest discover -s tests
 
 ## License
 
-The code is under the [MIT License](LICENSE). The benchmark tables on Zenodo are under CC BY 4.0.
+The code is licensed under the [MIT License](LICENSE). The published benchmark tables on Zenodo are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

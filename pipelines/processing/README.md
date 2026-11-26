@@ -1,6 +1,6 @@
-# Processing
+# Build the benchmark tables
 
-From reads to the per-gene benchmark tables for the 72 fun-miRBench OE test comparisons.
+This pipeline processes the 72 published miRNA overexpression (OE) comparisons from FASTQ files through DESeq2 to the per-gene benchmark tables. The full read set contains 738 FASTQ files (about 1.3 TB before intermediate files are written).
 
 ## Run
 
@@ -10,41 +10,44 @@ pipelines/processing/download.sh
 pipelines/processing/run.sh
 ```
 
-- `setup.sh` creates the conda environment of `environment.yml` in the ignored `pipelines/processing/work/env` (or `ENV_PREFIX`), syncs the Python environment and checks the tools. It also gets the miRBase names the pipeline checks configs against. `environment.yml` pins the tool versions of the reruns (FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2) and apeglm 1.32.0.
-- `download.sh` runs steps 1 and 2. With `--references-only` it stops after the genome and GTF. It keeps complete files, so it can be rerun after an interruption; its arguments go to `src/download_reads.py` (for example `--study GSE124411`).
-- `run.sh` runs step 3 for every comparison, `RUN_WORKERS` at a time (default 2), and skips comparisons with a finished run. It then writes the fit list to `pipelines/processing/work/fits.tsv` and runs step 5 into `data/benchmark_data` (or `BENCHMARK_DATA_DIR`). Its arguments limit the runs to those comparisons; the benchmark tables need all 72.
+- `setup.sh` creates the conda environment from `environment.yml` in the ignored `pipelines/processing/work/env` directory (or `ENV_PREFIX`), syncs the root Python environment, and checks the required tools. It also downloads the miRBase names used to validate configs. The environment pins the rerun versions: FastQC 0.12.1, fastp 1.3.6, STAR 2.7.11b, featureCounts 2.1.1, R 4.5.3, DESeq2 1.50.2, and apeglm 1.32.0.
+- `download.sh` downloads the genome, GTF, and reads. `--references-only` downloads just the genome and GTF. Completed downloads are kept, so the script can resume after an interruption; other arguments are passed to `src/download_reads.py` (for example, `--study GSE124411`).
+- `run.sh` runs the configured comparisons, up to `RUN_WORKERS` at a time (default 2), and skips comparisons with a completed fit. It writes the fit list to `pipelines/processing/work/fits.tsv` and builds tables in `data/benchmark_data` (or `BENCHMARK_DATA_DIR`) once all 72 comparisons have completed. Arguments can select a subset of runs, but table generation requires all 72.
 
-## Steps
+## Workflow
 
 1. **Reads.** `pipelines/processing/src/download_reads.py` downloads the 738 FASTQ files (1,291.6 GB) listed in `pipelines/processing/configs/fastq_manifest.tsv` from ENA, and checks each file's md5 and size.
-2. **References.** Download the soft-masked genome `Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz` (https://ftp.ensembl.org/pub/release-115/fasta/homo_sapiens/dna/) and `Homo_sapiens.GRCh38.115.gtf.gz` (https://ftp.ensembl.org/pub/release-115/gtf/homo_sapiens/) into `data/experiments/raw/refs/ensembl_v115/`, decompress both, and save the genome as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the name the configs point to. This is the genome the reruns used, and the one `funmirbench-experiments-download-examples` fetches.
-3. **One DESeq2 fit per comparison.** Run `uv run funmirbench-experiments --config pipelines/processing/configs/<id>.yaml` for each comparison: FastQC, fastp, STAR, featureCounts, DESeq2. Configs record the control and treated samples, the read files, and a batch per sample where the design needs one (GSE115646: TR blocks).
+2. **References.** `download.sh` retrieves the soft-masked genome (`Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa.gz`) and `Homo_sapiens.GRCh38.115.gtf.gz` from Ensembl release 115, verifies their checksums, and stores the decompressed files in `data/experiments/raw/refs/ensembl_v115/`. The genome is saved as `Homo_sapiens.GRCh38.dna.primary_assembly.fa`, the path used in the configs and by `funmirbench-experiments-download-examples`.
+3. **DESeq2 fits.** Each comparison runs FastQC, fastp, STAR, featureCounts, and DESeq2. Use `run.sh` to process the full set, or run an individual comparison with `uv run funmirbench-experiments --config pipelines/processing/configs/<id>.yaml`. Configs list control and treated samples, read paths, and any sample-level batch terms (GSE115646 uses TR blocks).
 
    Some paired-end runs also have an unpaired FASTQ (reads without a mate), which the configs include: two samples of GSE210778, two of GSE158317 and all twelve of the two GSE78078 comparisons. DESeq2 writes `complete_analysis.rds` with the fitted object.
 4. **Gene list.** `src/build_gene_list.py` lists the Ensembl 115 protein-coding genes with a MANE Select transcript: 19,226 genes, in `metadata/benchmark_genes.tsv.gz`.
 5. **Benchmark tables.** `src/build_benchmark_data.py --fits fits.tsv --genes metadata/benchmark_genes.tsv.gz --out <dir>` runs `src/label_states.R` on every fit and copies `metadata/comparisons.tsv` into the output. Here, `fits.tsv` lists `experiment_id` and `fit_rds`.
 
-Step 3 writes each run to `pipelines/processing/work/runs/<timestamp>_<id>/`, with `complete_analysis.rds` and `run_manifest.json`, and the DE table to `data/experiments/processed/<id>.tsv`.
+Each DESeq2 run is saved under `pipelines/processing/work/runs/<timestamp>_<id>/` with `complete_analysis.rds` and `run_manifest.json`. Its DE table is written to `data/experiments/processed/<id>.tsv`.
 
 To add one experiment without rebuilding the 72, see [ADD_EXPERIMENT.md](ADD_EXPERIMENT.md).
 
-## Config of one comparison
+## Comparison configs
 
 `pipelines/processing/configs/<id>.yaml` has:
 
-- `dataset_id`, `gse`, `mirna_name`, `experiment_type`;
-- `source`: the mode, `reads` here, the genome and GTF paths and the thread counts;
-- `source` with `mode: count_matrix` instead: `count_matrix_path` and `gene_id_column`, and `comparison` with `control_columns` and `treated_columns`, which skips alignment;
-- `comparison`: the control and treated samples, with `sample_id`, `reads_1`, optional `reads_2` and a batch where the design needs one;
-- `metadata`: organism, cell line, treatment and method.
+- `dataset_id`, `gse`, `mirna_name`, and `experiment_type` identify the experiment;
+- `source` records the input mode, reference paths, and thread counts. For read-based inputs, use `mode: reads`;
+- `comparison` lists control and treated samples, with `sample_id`, `reads_1`, optional `reads_2`, and batch assignments when needed;
+- `metadata` records the organism, cell line, treatment, and method.
 
-## Benchmark table (one per comparison, 19,226 rows)
+For a count matrix, set `source.mode: count_matrix`, `count_matrix_path`, and `gene_id_column`; list sample columns under `comparison.control_columns` and `comparison.treated_columns`. This mode skips read alignment.
+
+## Benchmark table format
+
+Each comparison produces one table with 19,226 Ensembl 115 genes. The main columns are:
 
 | Columns | Meaning |
 |---|---|
 | `logFC`, `lfcSE`, `stat`, `PValue`, `FDR` | DESeq2 Wald test against 0; FDR over the listed genes |
 | `control_mean_normalized_count`, `treated_mean_normalized_count`, `*_nonzero_samples` | expression |
-| `control_normalized_count_<sample>`, `treated_normalized_count_<sample>` | normalised count of each sample, one column per sample (so the number of columns differs between comparisons); the means above average them |
+| `control_normalized_count_<sample>`, `treated_normalized_count_<sample>` | normalized count of each sample, one column per sample (so the number of columns differs between comparisons); the means above average them |
 | `logFC_shrunk`, `lfcSE_shrunk`, `svalue`, `apeglm_conv` | apeglm shrinkage (prior from the full fit); `lfcSE_shrunk` is the posterior SD |
 | `oriented_logFC`, `oriented_ci95_low/high`, `oriented_logFC_shrunk`, `oriented_ci95_low/high_shrunk` | sign flipped, so positive means "moved like a target" |
 | `svalue_<d>` | FSOS ("false sign or small") s-value against d in the direction of repression, over the listed genes, for d in `d00`, `d01`, `d025`, `d05`, `d075`, `d10`, `d15`, `d20`, `d30` (0 to 3) |
@@ -62,9 +65,9 @@ To add one experiment without rebuilding the 72, see [ADD_EXPERIMENT.md](ADD_EXP
 
 Genes with zero counts in every sample keep a row, with no statistics.
 
-## Normalisation
+## Normalization
 
-Each comparison is normalised against its own control samples. DESeq2's size factors are computed against the geometric mean of the controls instead of all samples, and rescaled to a geometric mean of 1 over the controls. A control's normalised counts therefore do not depend on the treated samples, and a control shared by comparisons with the same controls has the same normalised counts in each.
+Each comparison is normalized against its own control samples. DESeq2's size factors are computed against the geometric mean of the controls instead of all samples, and rescaled to a geometric mean of 1 over the controls. A control's normalized counts therefore do not depend on the treated samples, and a control shared by comparisons with the same controls has the same normalized counts in each.
 
 ## Metadata
 
@@ -96,6 +99,10 @@ Result: 49 comparisons are kept and 23 flagged.
 - GC shift: 16 comparisons.
 - Most genes changed: GSE168484.
 
+## Publication report feature comparison
+
+The publication config can add 3′UTR length and conservation plots for predictor coverage groups to the main benchmark report. This step uses the Ensembl 115 annotation and hg38 phastCons100way track; see [Reproduce the publication analysis](../../README.md#reproduce-the-publication-analysis) for setup and run instructions. It is separate from rebuilding the RNA-seq benchmark tables.
+
 ## Provenance
 
-The tables were built on 2026-11-05, with size factors from the control samples, from the counts of reruns that used the reads, references and tools of this pipeline.
+The tables were built on 2026-11-05, using control-only size factors and counts from reruns with this pipeline's reads, references, and tool versions.

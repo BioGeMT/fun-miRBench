@@ -30,3 +30,5 @@ reports:
   detailed: true
   top_n: 100
   workers: 2
+  gene_set_features:
+    enabled: false

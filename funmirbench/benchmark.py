@@ -32,9 +32,17 @@ from funmirbench.benchmark_config import (
     validate_predictor_output_files,
 )
 from funmirbench.gene_ids import strip_ensembl_version
+from funmirbench.gene_set_features import (
+    assign_coverage_groups,
+    build_utr3_feature_table,
+    ensure_feature_resources,
+    intersection_gene_set,
+    parse_settings as parse_gene_set_feature_settings,
+    summarize_features,
+)
 from funmirbench.logger import parse_log_level, setup_logging
 from funmirbench.metric_helpers import auroc, spearman
-from funmirbench.plots import plot_all_genes, plot_coverage, plot_recovery
+from funmirbench.plots import plot_all_genes, plot_coverage, plot_gene_set_features, plot_recovery
 from funmirbench.report_pdf import write_report
 
 logger = logging.getLogger(__name__)
@@ -176,6 +184,7 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
         report_config = {}
     if not isinstance(report_config, dict) or not isinstance(report_config.get("detailed", True), bool):
         raise ValueError("reports must be a mapping with a boolean detailed setting")
+    feature_settings = parse_gene_set_feature_settings(report_config.get("gene_set_features"), root)
     try:
         top_n = int(report_config.get("top_n", 100))
     except (TypeError, ValueError, OverflowError) as exc:
@@ -210,6 +219,10 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     if config.get("predictors"):
         tools = filter_df(tools, config["predictors"])
     validate_predictor_output_files({r["tool_id"]: r for r in tools.to_dict("records")}, root)
+    if feature_settings.enabled:
+        if len(tools) < 2:
+            raise ValueError("Gene-set feature comparisons need at least two selected predictors.")
+        ensure_feature_resources(feature_settings)
     out = resolve_predictor_output_path(config.get("out_dir", "results"), root) / build_run_dir_name(
         experiments=None, tool_ids=None, eval_cfg=None)
     out.mkdir(parents=True, exist_ok=True)
@@ -318,13 +331,24 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     recovery.to_csv(out / "recovery.tsv", sep="\t", index=False)
     precision.to_csv(out / "precision_at_recall.tsv", sep="\t", index=False)
     plots = out / "plots"
+    gene_set_feature_summary = None
+    if feature_settings.enabled:
+        logger.info("Annotating gene features for predictor coverage groups...")
+        features = build_utr3_feature_table(feature_settings.gtf_path, feature_settings.phastcons_path, universe)
+        igs = intersection_gene_set(preds, set(comps.mirna_name), universe)
+        feature_rows = assign_coverage_groups(features, universe, igs)
+        gene_set_feature_summary = summarize_features(feature_rows)
+        feature_rows.to_csv(out / "gene_set_features.tsv", sep="\t", index=False)
+        gene_set_feature_summary.to_csv(out / "gene_set_feature_summary.tsv", sep="\t", index=False)
+        plot_gene_set_features(feature_rows, gene_set_feature_summary, plots)
     plot_coverage(coverage, tools, plots)
     plot_all_genes(per, tools, plots)
     if len(recovery):  # otherwise no selected comparison has enough genes in each state
         plot_recovery(recovery, precision, tools, plots)
     write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
                  recovery=recovery, precision=precision, tools=tools,
-                 n_genes=len(universe), min_per_state=min_per_state, plots=plots)
+                 n_genes=len(universe), min_per_state=min_per_state, plots=plots,
+                 gene_set_feature_summary=gene_set_feature_summary)
     if report_config.get("detailed", True):
         from funmirbench.subreports import write_subreports
         logger.info("Writing detailed experiment and predictor reports...")

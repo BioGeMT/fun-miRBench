@@ -1,0 +1,22 @@
+# Benchmark settings for reproducing the publication run and its run-level plots.
+# All file paths are relative to this YAML file's directory.
+input_dir: data/benchmark_data
+mirnas_tsv: metadata/benchmark_mirnas.tsv
+predictions_tsv: metadata/predictions_info.tsv
+
+predictors:
+  tool_id: [targetscan_family_expanded, mirdb_mirtarget, microt_cnn, mirbind2, miraw]
+
+evaluation:
+  min_per_state: 30
+  bootstrap: 2000
+  seed: 0
+
+out_dir: results/publication
+
+reports:
+  detailed: false
+  gene_set_features:
+    enabled: true
+    gtf_path: data/common_resources/Homo_sapiens.GRCh38.115.gtf.gz
+    phastcons_path: data/common_resources/hg38.phastCons100way.bw

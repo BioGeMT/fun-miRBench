@@ -15,6 +15,9 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter, NullLocator
+from scipy.ndimage import gaussian_filter1d
+
+from funmirbench.gene_set_features import format_pvalue
 
 CURVE_COLORS = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#17BECF", "#E377C2", "#BCBD22", "#8C564B"]
 
@@ -221,3 +224,52 @@ def plot_recovery(recovery: pd.DataFrame, precision: pd.DataFrame, tools: pd.Dat
     best.grid(axis="y", alpha=0.22, linewidth=0.8)
     tool_legend(fig, handles, list(labels.values()))
     save(fig, out, "recovery")
+
+
+def plot_gene_set_features(frame: pd.DataFrame, summary: pd.DataFrame, out: pathlib.Path) -> None:
+    fig, axes = two_panels()
+    colors = {"IGS": "#D8766A", "non-IGS": "#8FB5D6"}
+    panels = [("utr3_length_nt", "3′UTR length (nt)", "3′UTR length", 10_000.0),
+              ("utr3_mean_phastcons", "Mean 3′UTR phastCons100way", "3′UTR conservation", 1.0)]
+    for ax, (column, label, title, upper) in zip(axes, panels):
+        curves = {}
+        medians = {}
+        for group in ("IGS", "non-IGS"):
+            values = pd.to_numeric(frame.loc[frame.coverage_group == group, column], errors="coerce")
+            values = values[np.isfinite(values)].to_numpy(float)
+            medians[group] = float(np.median(values)) if len(values) else np.nan
+            if len(values):
+                counts, edges = np.histogram(np.clip(values, 0, upper), bins=100, range=(0, upper), density=True)
+                curves[group] = (gaussian_filter1d(counts, sigma=1.25), (edges[:-1] + edges[1:]) / 2, len(values))
+        max_density = max((float(density.max()) for density, _, _ in curves.values()), default=1.0)
+        for group, (density, centers, n_values) in curves.items():
+            height = density / max(max_density, 1e-12) * 0.48
+            signed_height = height if group == "IGS" else -height
+            ax.fill_between(centers, 0, signed_height, color=colors[group], alpha=0.72, linewidth=0)
+            ax.plot(centers, signed_height, color=colors[group], linewidth=1.5,
+                    label=f"{group} (n={n_values:,})")
+            median_x = min(medians[group], upper)
+            ax.axvline(median_x, ymin=0.51 if group == "IGS" else 0.08,
+                       ymax=0.94 if group == "IGS" else 0.49, color=colors[group],
+                       linestyle="--", linewidth=1.4)
+        ax.axhline(0, color="#6B7280", linewidth=0.8)
+        ax.set_xlim(0, upper)
+        ax.set_ylim(-0.55, 0.55)
+        n_igs = curves.get("IGS", (None, None, 0))[2]
+        n_non_igs = curves.get("non-IGS", (None, None, 0))[2]
+        ax.set_yticks([0.25, -0.25], [f"IGS (n={n_igs:,})", f"non-IGS (n={n_non_igs:,})"])
+        ax.set_xlabel(label, fontsize=SMALL, fontweight="bold")
+        ax.set_ylabel("")
+        ax.set_title(title, fontsize=LARGE, fontweight="bold")
+        row = summary.loc[summary.feature_column == column]
+        pvalue = row.pvalue_two_sided.iloc[0] if len(row) else np.nan
+        log10_pvalue = row.log10_pvalue_two_sided.iloc[0] if len(row) else np.nan
+        p_label = format_pvalue(pvalue, log10_pvalue)
+        ax.text(0.02, 0.84, f"Two-sided Mann–Whitney p = {p_label}", transform=ax.transAxes,
+                va="top", fontsize=SMALL * 0.8)
+        ax.grid(axis="x", alpha=0.22, linewidth=0.8)
+        ax.set_axisbelow(True)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+    save(fig, out, "gene_set_features")

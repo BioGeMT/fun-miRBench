@@ -13,6 +13,9 @@ dependencies = [
     "requests>=2.32",
 ]
 
+[project.optional-dependencies]
+gene-features = ["pyBigWig>=0.3.22"]
+
 [dependency-groups]
 dev = ["scikit-learn>=1.5"]
 

@@ -6,6 +6,8 @@ import textwrap
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from funmirbench.gene_set_features import format_pvalue
 from matplotlib.backends.backend_pdf import PdfPages
 
 from funmirbench.plots import best_per_experiment, drawn_tools, experiments_won
@@ -236,7 +238,8 @@ def draw_plot(fig, page_ax, plots: pathlib.Path, stem: str, title: str, lines: l
 
 
 def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFrame, precision: pd.DataFrame,
-                means: pd.DataFrame, tools: pd.DataFrame) -> list[tuple]:
+                means: pd.DataFrame, tools: pd.DataFrame,
+                gene_set_feature_summary: pd.DataFrame | None = None) -> list[tuple]:
     """One (title, columns, column widths, rows) per plot, with the numbers that plot draws."""
     labels = drawn_tools(tools)
     tool_ids = list(labels)
@@ -261,6 +264,17 @@ def plot_tables(per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFram
         tables.append(("Recovery", ["Predictor", f"Mean recall at {budget:,} genes", "Ranked first at 50% recall"],
                        [0.24, 0.38, 0.38],
                        [[labels[t], _format_summary_value(recall[t]), str(best.get(t, 0))] for t in tool_ids]))
+    if gene_set_feature_summary is not None:
+        feature_rows = []
+        for row in gene_set_feature_summary.itertuples(index=False):
+            feature_rows.append([row.feature, f"{row.n_igs_with_value:,} / {row.n_non_igs_with_value:,}",
+                                 _format_summary_value(row.median_igs),
+                                 _format_summary_value(row.median_non_igs),
+                                 _format_summary_value(row.median_difference_igs_minus_non_igs),
+                                 format_pvalue(row.pvalue_two_sided, row.log10_pvalue_two_sided)])
+        tables.append(("Gene features by predictor coverage group",
+                       ["Feature", "n (IGS / non-IGS)", "Median IGS", "Median non-IGS", "Median difference", "P value"],
+                       [0.27, 0.16, 0.13, 0.15, 0.16, 0.13], feature_rows))
     return tables
 
 
@@ -282,7 +296,8 @@ def draw_tables(pdf, tables: list[tuple]) -> None:
 
 def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataFrame, summary: pd.DataFrame,
                  per: pd.DataFrame, coverage: pd.DataFrame, recovery: pd.DataFrame, precision: pd.DataFrame,
-                 tools: pd.DataFrame, n_genes: int, min_per_state: int, plots: pathlib.Path) -> None:
+                 tools: pd.DataFrame, n_genes: int, min_per_state: int, plots: pathlib.Path,
+                 gene_set_feature_summary: pd.DataFrame | None = None) -> None:
     means = tool_means(summary, tools)
     pairs = coverage.set_index("predictor").loc[list(drawn_tools(tools))].rename(index=drawn_tools(tools))
     responsive_pairs = pairs.responsive_scored / pairs.responsive_total
@@ -313,7 +328,13 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
              f"Spearman on all {len(comps)} experiments."],
             y=y - settings_height - BLOCK_GAP)
         y = _bullet_block(ax, "Key results", key_results(means, responsive_pairs), y=y)
-        _bullet_block(ax, "Output tables", OUTPUT_TABLES, y=y)
+        output_tables = list(OUTPUT_TABLES)
+        if gene_set_feature_summary is not None:
+            output_tables.extend([
+                "gene_set_features.tsv contains one row per benchmark gene, its coverage group and Ensembl/phastCons annotations.",
+                "gene_set_feature_summary.tsv reports matched counts, medians, and two-sided tests; its display and log10 p-value columns preserve very small results.",
+            ])
+        _bullet_block(ax, "Output tables", output_tables, y=y)
         _save_page(pdf, fig)
 
         with plt.rc_context({"savefig.dpi": 300}):  # the plots are PNGs; the default would blur them in the PDF
@@ -327,6 +348,17 @@ def write_report(path: pathlib.Path, *, comps: pd.DataFrame, set_aside: pd.DataF
             draw_plot(fig, ax, plots, *PERFORMANCE, TOP)
             _save_page(pdf, fig)
 
-        draw_tables(pdf, plot_tables(per, coverage, recovery, precision, means, tools))
+            if gene_set_feature_summary is not None:
+                fig, ax = _new_page()
+                draw_plot(fig, ax, plots, "gene_set_features", "Gene features by predictor coverage group", [
+                    "IGS genes have at least one score from every selected predictor across the evaluated miRNAs; non-IGS genes are the remaining benchmark genes.",
+                    "Group labels show genes with a measured feature; the summary table gives matched counts and medians.",
+                    "Lengths above 10,000 nt are capped at 10,000 in the plot; medians and two-sided asymptotic Mann–Whitney U tests use full values.",
+                    "Conservation is the mean hg38 phastCons100way score over bases with available scores in the longest protein-coding transcript 3′UTR.",
+                ], TOP)
+                _save_page(pdf, fig)
+
+        draw_tables(pdf, plot_tables(per, coverage, recovery, precision, means, tools,
+                                     gene_set_feature_summary=gene_set_feature_summary))
 
         draw_inventory(pdf, rows)
