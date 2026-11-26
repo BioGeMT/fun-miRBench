@@ -128,7 +128,7 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
         ], y=y)
         y = _bullet_block(ax, "Key results", key_results(frame, predictor_labels), y=y)
         _bullet_block(ax, "Output tables", ["metrics.tsv and plot-data TSVs contain the plotted values and unavailable-metric reasons.",
-                     "Average precision (AP) and trapezoidal PR-AUC are distinct; AP is the primary PR summary."], y=y)
+                     "Average precision (AP) is the precision–recall summary; AUROC summarizes the ROC curve."], y=y)
         _save_page(pdf, fig)
         fig = None
         for image, label, lines in specs:

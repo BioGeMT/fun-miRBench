@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from scipy.integrate import trapezoid
 
 from funmirbench.metric_helpers import auroc, spearman
 
@@ -71,7 +70,7 @@ def metrics(table: pd.DataFrame, raw: pd.DataFrame, ranking: pd.Series, tool: st
            "prevalence": n_pos / (n_pos + n_neg) if n_pos + n_neg else np.nan,
            "spearman": rho,
            "spearman_na_reason": continuous_note,
-           "average_precision": np.nan, "pr_auc": np.nan, "auroc": np.nan, "enrichment_score": np.nan,
+           "average_precision": np.nan, "auroc": np.nan, "enrichment_score": np.nan,
            "classification_note": ""}
     if min(n_pos, n_neg) < max(1, min_per_state):
         rec["classification_note"] = f"Needs at least {max(1, min_per_state)} genes in each labelled state"
@@ -79,7 +78,6 @@ def metrics(table: pd.DataFrame, raw: pd.DataFrame, ranking: pd.Series, tool: st
     curve = threshold_curves(ranking.to_numpy(float)[labelled], positive)
     recall, precision = curve.recall.to_numpy(), curve.precision.to_numpy()
     rec["average_precision"] = float(np.sum(np.diff(np.r_[0, recall]) * precision))
-    rec["pr_auc"] = float(trapezoid(np.r_[1, precision], np.r_[0, recall]))
     rec["auroc"] = auroc(ranking.to_numpy(float)[labelled], positive)
     rec["enrichment_score"] = float(curve.running_es.iloc[np.abs(curve.running_es.to_numpy()).argmax()])
     return rec, curve

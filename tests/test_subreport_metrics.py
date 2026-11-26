@@ -164,14 +164,41 @@ class DetailedMetricTests(unittest.TestCase):
         self.assertEqual(constant.running_es.iloc[0], 0)
         self.assertEqual(constant.precision.iloc[0], .1)
 
-    def test_ap_and_trapezoidal_pr_auc_are_reported_as_distinct_summaries(self):
+    def test_no_score_tie_has_ap_at_prevalence_and_no_artificial_pr_diagonal(self):
+        n_genes = 250
+        table = pd.DataFrame({"state_d05": ["responsive"] + ["no_response_above_margin"] * (n_genes - 1),
+                              "eligible": [True] * n_genes,
+                              "oriented_logFC_shrunk": np.zeros(n_genes)})
+        raw = pd.DataFrame({"tool": [np.nan] * n_genes})
+        ranking = pd.Series(0.0, index=table.index)
+        rec, curve = metrics(table, raw, ranking, "tool", "fps", 1)
+        self.assertEqual(rec["n_scored"], 0)
+        self.assertAlmostEqual(rec["average_precision"], 1 / n_genes)
+        self.assertEqual(len(curve), 1)
+        self.assertAlmostEqual(curve.precision.iloc[0], 1 / n_genes)
+
+        saved = []
+        with patch("funmirbench.subreport_plots.save", side_effect=lambda fig, *_: saved.append(fig)):
+            classification({"tool": curve}, {"tool": rec}, {"tool": "No scores"},
+                           pathlib.Path("unused"), "fps_classification")
+        fig = saved[0]
+        try:
+            x, y = fig.axes[0].lines[0].get_data()
+            np.testing.assert_array_equal(x, [1.0])
+            np.testing.assert_allclose(y, [1 / n_genes])
+            legend = [text.get_text() for text in fig.legends[0].get_texts()]
+            self.assertIn("No scores (0% scored)", legend)
+        finally:
+            plt.close(fig)
+
+    def test_average_precision_is_the_pr_summary(self):
         table = pd.DataFrame({"state_d05": ["responsive", "no_response_above_margin",
                                              "responsive", "no_response_above_margin"],
                               "eligible": [True] * 4, "oriented_logFC_shrunk": [2., 0., 1., -1.]})
         raw = pd.DataFrame({"tool": [3., 2., 2., 1.]})
         rec, _ = metrics(table, raw, raw.tool, "tool", "fps", 1)
         self.assertAlmostEqual(rec["average_precision"], 5 / 6)
-        self.assertAlmostEqual(rec["pr_auc"], 11 / 12)
+        self.assertNotIn("pr_auc", rec)
         self.assertAlmostEqual(rec["prevalence"], .5)
 
     def test_fractional_top_selection_preserves_budget_and_weighted_distribution(self):

@@ -40,12 +40,22 @@ def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, le
 def classification(curves, records, tools, out, stem, palette=None):
     fig, axes = two_panels()
     colors = palette or tool_colors(list(tools))
+    legend_tools = {}
     for tool in tools:
         c = curves[tool]
+        record = records[tool]
+        n_genes, n_scored = record.get("n_genes"), record.get("n_scored")
+        if n_genes and n_scored is not None:
+            legend_tools[tool] = f"{tools[tool]} ({100 * n_scored / n_genes:.0f}% scored)"
+        else:
+            legend_tools[tool] = tools[tool]
         if c.empty:
             continue
-        axes[0].plot(np.r_[0, c.recall], np.r_[1, c.precision], color=colors[tool], linewidth=2.5)
-        axes[0].axhline(records[tool]["prevalence"], color=colors[tool], linestyle="--", alpha=0.5)
+        # Plot only observed thresholds. The conventional (0, 1) display point is
+        # not a scored threshold and its straight-line segment inflates PR area.
+        axes[0].step(c.recall, c.precision, where="pre", color=colors[tool], linewidth=2.5,
+                     marker=".", markevery=max(1, len(c) // 12))
+        axes[0].axhline(record["prevalence"], color=colors[tool], linestyle="--", alpha=0.5)
         axes[1].plot(np.r_[0, c.fpr], np.r_[0, c.recall], color=colors[tool], linewidth=2.5)
     axes[1].plot([0, 1], [0, 1], "--", color="#1F2937", linewidth=1)
     for ax in axes:
@@ -55,7 +65,7 @@ def classification(curves, records, tools, out, stem, palette=None):
     if all(c.empty for c in curves.values()):
         for ax in axes:
             ax.text(.5, .5, "Insufficient labelled genes", transform=ax.transAxes, ha="center", fontsize=SMALL)
-    return finish(fig, axes, tools, out, stem, palette=palette)
+    return finish(fig, axes, legend_tools, out, stem, palette=palette)
 
 
 def enrichment(curves, tools, out, stem):
