@@ -322,14 +322,14 @@ def run_benchmark(config_path: pathlib.Path) -> pathlib.Path:
     plot_all_genes(per, tools, plots)
     if len(recovery):  # otherwise no selected comparison has enough genes in each state
         plot_recovery(recovery, precision, tools, plots)
+    write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
+                 recovery=recovery, precision=precision, tools=tools,
+                 n_genes=len(universe), min_per_state=min_per_state, plots=plots)
     if report_config.get("detailed", True):
         from funmirbench.subreports import write_subreports
         logger.info("Writing detailed experiment and predictor reports...")
         write_subreports(tables, comps, preds, tools, out, min_per_state=min_per_state,
                          top_n=top_n, workers=report_workers)
-    write_report(out / "REPORT.pdf", comps=comps, set_aside=set_aside, summary=summary, per=per, coverage=coverage,
-                 recovery=recovery, precision=precision, tools=tools,
-                 n_genes=len(universe), min_per_state=min_per_state, plots=plots)
     logger.info("wrote %s", out)
     return out
 

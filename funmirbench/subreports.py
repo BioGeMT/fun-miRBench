@@ -187,7 +187,7 @@ def _write_experiment_subreports(task):
                        dependency_group=comparison["dependency_group"])
             recs[tool], curves[tool] = rec, curve
             exp_records.append(rec)
-            export(curve, plot_data / f"{universe}_{component(tool)}_curves.tsv")
+            export(curve, plot_data / f"{universe}_{component(tool)}_curves.tsv.gz")
         image = plots.classification(curves, recs, labels, overview_plots, f"{universe}_classification")
         specs.append((image, f"Classification — {UNIVERSE_LABELS[universe]}", ["PR baselines are dashed; tied genes enter at one threshold.",
                       "Missing curves have too few labelled genes; counts and reasons are in metrics.tsv."]))
@@ -205,9 +205,6 @@ def _write_experiment_subreports(task):
                                              "classification", palette=colors)
                 second = plots.scatter_and_enrichment(table, ranked[tool], curves[tool], tool,
                                                        labels[tool], colors[tool], tool_plots)
-                export(pd.DataFrame({"gene_id": table.index, "score": raw[tool], "ranked_score": ranked[tool],
-                                     "effect": table.oriented_logFC_shrunk, "eligible": table.eligible,
-                                     "state": table.state_d05}), plot_data / f"{component(tool)}_score_and_enrichment.tsv")
                 pdf_report(pair / "REPORT.pdf", f"{labels[tool]} predictor-experiment report",
                            [f"Experiment: {exp}", f"miRNA: {comparison['mirna_name']}; predictor: {labels[tool]}",
                             f"QC action: {comparison['action']}; pair set: FPS",
@@ -216,19 +213,25 @@ def _write_experiment_subreports(task):
                             (second, "Score and enrichment", ["Coloured points: responsive; grey: no-response or unresolved."])],
                            pair_frame, predictor_labels=labels)
     cdfs = {"background": weighted_cdf(table.loc[table.eligible, "oriented_logFC_shrunk"].to_numpy(float))}
+    gene_data = pd.DataFrame({"gene_id": table.index, "effect": table.oriented_logFC_shrunk,
+                              "eligible": table.eligible, "state": table.state_d05})
+    for tool in labels:
+        gene_data[f"score:{tool}"] = raw[tool]
+        gene_data[f"ranked_score:{tool}"] = ranked[tool]
+    export(gene_data, plot_data / "gene_scores_and_enrichment.tsv.gz")
     recovery = []
     for tool in labels:
         weights = top_weights(ranked[tool], top_n)
         valid_weights = weights.where(table.eligible, 0).to_numpy(float)
         cdfs[tool] = weighted_cdf(table.oriented_logFC_shrunk.to_numpy(float), valid_weights)
-        export(cdfs[tool], plot_data / f"top_effect_cdf_{component(tool)}.tsv")
+        export(cdfs[tool], plot_data / f"top_effect_cdf_{component(tool)}.tsv.gz")
         if min((table.state_d05 == "responsive").sum(), (table.state_d05 == "no_response_above_margin").sum()) >= max(1, min_per_state):
             recovery += [{"predictor": tool, "budget": budget, "recall": value}
                          for budget, value in recall_at_budgets(
                              ranked[tool].to_numpy(), (table.state_d05 == "responsive").to_numpy()).items()]
     recovery = pd.DataFrame(recovery, columns=["predictor", "budget", "recall"])
-    export(recovery, plot_data / "recovery.tsv")
-    export(cdfs["background"], plot_data / "effect_cdf_background.tsv")
+    export(recovery, plot_data / "recovery.tsv.gz")
+    export(cdfs["background"], plot_data / "effect_cdf_background.tsv.gz")
     image = plots.effect_and_recovery(cdfs, recovery, labels, overview_plots)
     specs.append((image, "Effect distributions and practical recovery", [f"Top {top_n}: fractional inclusion at tied cutoffs; dashed CDF: all eligible genes.",
                   "CDF view uses the central effect range; TSVs retain the tails. Budgets include unresolved genes."]))
@@ -238,7 +241,7 @@ def _write_experiment_subreports(task):
     rank_export = rank_matrix.copy()
     rank_export.insert(0, "oriented_shrunken_log2FC", selected_effects)
     rank_export.index.name = "gene_id"
-    export(rank_export.reset_index(), plot_data / "responsive_gene_ranks.tsv")
+    export(rank_export.reset_index(), plot_data / "responsive_gene_ranks.tsv.gz")
     image = plots.responsive_gene_heatmap(rank_matrix, labels, overview_plots)
     specs.append((image, "Responsive genes: predictor rank percentiles", [
         f"Up to {RESPONSIVE_HEATMAP_LIMIT} eligible responsive genes, ordered by oriented shrunken log2FC (largest first).",
@@ -250,7 +253,7 @@ def _write_experiment_subreports(task):
         if common.sum() >= 3 and local.loc[common, a].nunique() > 1 and local.loc[common, b].nunique() > 1:
             correlations[1].loc[a, b] = local.loc[common, a].corr(local.loc[common, b], method="spearman")
     for name, matrix in zip(["all", "shared_top_decile"], correlations):
-        export(matrix.rename_axis("predictor").reset_index(), plot_data / f"predictor_correlations_{name}.tsv")
+        export(matrix.rename_axis("predictor").reset_index(), plot_data / f"predictor_correlations_{name}.tsv.gz")
     image = plots.heatmaps(correlations, ["All eligible genes", "Shared top-decile genes"], labels,
                            overview_plots, "predictor_correlations")
     specs.append((image, "Predictor rank agreement", ["Spearman correlations describe agreement, not target validity.",

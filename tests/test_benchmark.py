@@ -196,7 +196,9 @@ class EndToEndTests(unittest.TestCase):
             fps = detailed[detailed.universe == "fps"].set_index("experiment_id")
             self.assertTrue((reports / "experiments/E1/plots/overview/fps_classification.png").is_file())
             self.assertTrue((reports / "experiments/E1/plots/predictors/tool/classification.png").is_file())
-            self.assertTrue((reports / "experiments/E1/plots/data/fps_tool_curves.tsv").is_file())
+            self.assertTrue((reports / "experiments/E1/plots/data/fps_tool_curves.tsv.gz").is_file())
+            self.assertTrue((reports / "experiments/E1/plots/data/gene_scores_and_enrichment.tsv.gz").is_file())
+            self.assertFalse((reports / "experiments/E1/plots/data/tool_score_and_enrichment.tsv").exists())
             for exp in ("E1", "E2"):
                 exp_metrics = detailed if exp == "E1" else pd.read_csv(
                     reports / f"experiments/{exp}/metrics.tsv", sep="\t")
