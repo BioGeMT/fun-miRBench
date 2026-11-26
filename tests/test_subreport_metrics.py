@@ -239,4 +239,3 @@ class DetailedMetricTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "reports"):
                         run_benchmark(path)
             self.assertEqual(list(path.parent.iterdir()), [path])
-

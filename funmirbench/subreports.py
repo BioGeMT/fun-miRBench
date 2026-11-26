@@ -282,4 +282,3 @@ def write_subreports(tables, comps, preds, tools, out, *, min_per_state=30, top_
     else:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             list(executor.map(_write_experiment_subreports, tasks, chunksize=1))
-

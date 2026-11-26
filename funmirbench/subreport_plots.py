@@ -169,4 +169,3 @@ def scatter_and_enrichment(table, ranking, curve, tool, label, color, out):
     axes[1].axhline(0, color="#1F2937", linewidth=1, linestyle="--")
     axes[1].set(xlabel="Fraction of labelled ranking", ylabel="Running enrichment", title="GSEA-style enrichment", xlim=(0, 1))
     return finish(fig, axes, {tool: label}, out, "score_and_enrichment", palette={tool: color})
-
