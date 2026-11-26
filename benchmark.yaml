@@ -25,7 +25,7 @@ evaluation:
 
 out_dir: results/
 
-# Detailed experiment, predictor and supplementary reports, linked from REPORT.pdf.
+# Detailed per-experiment and per-predictor reports under reports/.
 reports:
   detailed: true
   top_n: 100
