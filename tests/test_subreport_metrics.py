@@ -12,12 +12,30 @@ from sklearn.metrics import average_precision_score, precision_recall_curve, roc
 from funmirbench.subreport_metrics import (
     masks, metrics, threshold_curves, top_weights, weighted_cdf,
 )
-from funmirbench.subreports import component, key_results, pdf_report, responsive_gene_rank_data
+from funmirbench.subreports import (
+    component, key_results, pdf_report, report_experiment_id, responsive_gene_rank_data,
+)
+from funmirbench.report_pdf import _paginate_table_rows, _wrap_table_cell
 from funmirbench.subreport_plots import classification, responsive_gene_heatmap
 from funmirbench.benchmark import rank_last, run_benchmark, score_metrics
 
 
 class DetailedMetricTests(unittest.TestCase):
+    def test_metric_details_keep_pair_labels_and_experiment_ids_compact(self):
+        widths = [.27, .14, .22, .13, .08, .08, .08]
+        wrap_scale = 74
+        self.assertEqual(_wrap_table_cell("Common scores", widths[2], wrap_scale=wrap_scale), "Common scores")
+        self.assertEqual(_wrap_table_cell("Predictor scores", widths[2], wrap_scale=wrap_scale), "Predictor scores")
+        long_id = "GSE123456_hsa-miR-123-5p_cell_line_24h"
+        compact_id = report_experiment_id(long_id)
+        self.assertLessEqual(len(compact_id), int(widths[0] * wrap_scale))
+        self.assertNotIn("\n", _wrap_table_cell(compact_id, widths[0], wrap_scale=wrap_scale))
+
+        rows = [[report_experiment_id(f"{long_id}_{i}"), "TargetScan v8", "Predictor scores",
+                 "200 / 120", "0.123", "0.876", "0.456"] for i in range(15)]
+        self.assertLessEqual(len(_paginate_table_rows(rows, col_widths=widths, wrap_scale=wrap_scale,
+                                                      max_weight=18)), 2)
+
     def test_report_moves_tall_plots_to_separate_pages_without_duplicate_captions(self):
         from funmirbench.report_pdf import _save_page
 
