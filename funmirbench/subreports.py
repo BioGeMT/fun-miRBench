@@ -9,6 +9,7 @@ import re
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from funmirbench import subreport_plots as plots
@@ -129,7 +130,8 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
                 fig, ax = _new_page()
                 y, count = TOP, 0
             axes_before, texts_before = len(fig.axes), len(ax.texts)
-            next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, y)
+            with plt.rc_context({"savefig.dpi": 300}):
+                next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, y)
             if next_y < BOTTOM and count:
                 # Undo this block before saving the preceding plots on their page.
                 for added in list(fig.axes)[axes_before:]:
@@ -138,7 +140,8 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
                     added.remove()
                 _save_page(pdf, fig)
                 fig, ax = _new_page()
-                next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, TOP)
+                with plt.rc_context({"savefig.dpi": 300}):
+                    next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, TOP)
                 count = 0
             if next_y < BOTTOM:
                 raise ValueError(f"Report page overflow: {path}: {label}")
