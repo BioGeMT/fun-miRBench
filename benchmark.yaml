@@ -24,3 +24,9 @@ evaluation:
   seed: 0
 
 out_dir: results/
+
+# Detailed per-experiment and per-predictor reports under reports/.
+reports:
+  detailed: true
+  top_n: 100
+  workers: 2
