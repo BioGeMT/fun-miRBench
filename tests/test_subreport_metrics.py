@@ -82,6 +82,39 @@ class DetailedMetricTests(unittest.TestCase):
         finally:
             plt.close(fig)
 
+    def test_five_predictor_coverage_legend_labels_do_not_overlap(self):
+        tools = {
+            "targetscan": "TargetScan v8",
+            "mirdb": "miRDB",
+            "microt": "microT-CNN",
+            "mirbind": "miRBind2-3UTR",
+            "miraw": "miRAW",
+        }
+        curve = threshold_curves(np.array([3., 2., 1., 0.]), np.array([True, False, True, False]))
+        curves = {tool: curve for tool in tools}
+        records = {tool: {"prevalence": .5, "n_genes": 100, "n_scored": scored}
+                   for tool, scored in zip(tools, [30, 5, 85, 60, 100])}
+        with patch("funmirbench.subreport_plots.save") as save:
+            classification(curves, records, tools, pathlib.Path("unused"), "fps_classification")
+        fig = save.call_args.args[0]
+        try:
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            labels = fig.legends[0].get_texts()
+            self.assertEqual(len(labels), len(tools))
+            self.assertIn("TargetScan v8 (30% scored)", [label.get_text() for label in labels])
+            self.assertIn("miRDB (5% scored)", [label.get_text() for label in labels])
+            boxes = [label.get_window_extent(renderer) for label in labels]
+            for i, box in enumerate(boxes):
+                self.assertFalse(any(box.overlaps(other) for other in boxes[i + 1:]))
+                self.assertGreaterEqual(box.y0, fig.bbox.y0)
+                self.assertLessEqual(box.x1, fig.bbox.x1)
+            for ax in fig.axes:
+                xlabel = ax.xaxis.label.get_window_extent(renderer)
+                self.assertFalse(any(xlabel.overlaps(box) for box in boxes))
+        finally:
+            plt.close(fig)
+
     def test_responsive_heatmap_labels_fit_for_one_five_and_ten_predictors(self):
         names = ["TargetScan v8", "miRDB", "microT-CNN", "miRBind2-3UTR", "miRAW",
                  "Synthetic excellent", "Synthetic medium", "Synthetic poor", "Synthetic random", "Synthetic sparse"]

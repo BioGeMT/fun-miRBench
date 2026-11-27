@@ -12,7 +12,8 @@ from funmirbench.plots import LARGE, PAIR_LEFT, PAIR_SIZE, RIGHT, SMALL, save, t
 from funmirbench.subreport_metrics import weighted_cdf
 
 
-def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, legend=True, palette=None):
+def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, legend=True, palette=None,
+           legend_ncol=None):
     for ax in axes:
         ax.title.set_fontsize(LARGE)
         ax.xaxis.label.set_fontsize(SMALL)
@@ -22,14 +23,19 @@ def finish(fig, axes, tools: dict[str, str], out: pathlib.Path, stem: str, *, le
     if legend:
         colors = palette or tool_colors(list(tools))
         handles = [plt.Line2D([], [], color=colors[t], linewidth=2.5) for t in tools]
-        if len(tools) > 5:
+        ncol = legend_ncol or (4 if len(tools) > 5 else len(tools))
+        if len(tools) > 5 or (legend_ncol is not None and len(tools) > ncol):
             w, h = PAIR_SIZE
+            legend_rows = (len(handles) + ncol - 1) // ncol
+            legend_height = max(1.15, 0.55 * legend_rows)
+            axes_shift = 0.4 * legend_rows
             for ax in axes:
                 position = ax.get_position()
-                ax.set_position([position.x0, position.y0 + .4 / h, position.width, position.height - .4 / h])
+                ax.set_position([position.x0, position.y0 + axes_shift / h, position.width,
+                                 position.height - axes_shift / h])
             fig.legend(handles, list(tools.values()), loc="upper center", frameon=False, borderaxespad=0.0,
-                       fontsize=SMALL, mode="expand", ncol=4, handlelength=1.6,
-                       bbox_to_anchor=(PAIR_LEFT / w, 0.0, (w - PAIR_LEFT - RIGHT) / w, 1.15 / h))
+                       fontsize=SMALL, mode="expand", ncol=ncol, handlelength=1.6,
+                       bbox_to_anchor=(PAIR_LEFT / w, 0.0, (w - PAIR_LEFT - RIGHT) / w, legend_height / h))
         else:
             tool_legend(fig, handles, list(tools.values()))
     with plt.rc_context({"font.family": "DejaVu Sans"}):
@@ -65,7 +71,7 @@ def classification(curves, records, tools, out, stem, palette=None):
     if all(c.empty for c in curves.values()):
         for ax in axes:
             ax.text(.5, .5, "Insufficient labelled genes", transform=ax.transAxes, ha="center", fontsize=SMALL)
-    return finish(fig, axes, legend_tools, out, stem, palette=palette)
+    return finish(fig, axes, legend_tools, out, stem, palette=palette, legend_ncol=3)
 
 
 def enrichment(curves, tools, out, stem):
