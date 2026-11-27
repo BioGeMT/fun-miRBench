@@ -43,7 +43,9 @@ class DetailedMetricTests(unittest.TestCase):
                                "n_responsive": 40, "n_no_response": 100, "average_precision": .4,
                                "auroc": .7, "spearman": .2}])
         pages = []
+        save_dpi = []
         def capture(pdf, fig):
+            save_dpi.append(plt.rcParams["savefig.dpi"])
             pages.append([text.get_text() for ax in fig.axes for text in ax.texts])
             _save_page(pdf, fig)
 
@@ -55,6 +57,7 @@ class DetailedMetricTests(unittest.TestCase):
                 pdf_report(root / "REPORT.pdf", "Test report", ["Experiment: E1"],
                            [(image, "First plot", ["First caption"]), (image, "Second plot", ["Second caption"])], frame)
         self.assertEqual(len(pages), 4)
+        self.assertEqual(save_dpi[1:3], [300, 300])
         self.assertIn("First plot", pages[1])
         self.assertNotIn("Second plot", pages[1])
         self.assertIn("Second plot", pages[2])

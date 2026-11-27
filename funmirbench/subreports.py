@@ -109,6 +109,12 @@ def key_results(frame: pd.DataFrame, predictor_labels: dict[str, str] | None = N
     return lines
 
 
+def _save_plot_page(pdf, fig):
+    """Embed detailed-report plots at the same resolution as the main report."""
+    with plt.rc_context({"savefig.dpi": 300}):
+        _save_page(pdf, fig)
+
+
 def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
     """Use the main PDF's pages, bullets, tables, margins and image placement."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -144,7 +150,7 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
                     added.remove()
                 for added in list(ax.texts)[texts_before:]:
                     added.remove()
-                _save_page(pdf, fig)
+                _save_plot_page(pdf, fig)
                 fig, ax = _new_page()
                 with plt.rc_context({"savefig.dpi": 300}):
                     next_y = draw_plot(fig, ax, image.parent, image.stem, label, lines, TOP)
@@ -153,10 +159,10 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
                 raise ValueError(f"Report page overflow: {path}: {label}")
             y, count = next_y, count + 1
             if count == 2:
-                _save_page(pdf, fig)
+                _save_plot_page(pdf, fig)
                 fig = None
         if fig is not None:
-            _save_page(pdf, fig)
+            _save_plot_page(pdf, fig)
         columns = ["Experiment", "Predictor", "Pair set", "n (+ / -)", "AP", "AUROC", "Spearman"]
         pair_set = {"fps": "All pairs", "ips": "Common scores", "own_scored": "Predictor scores"}
         rows = [[report_experiment_id(r.experiment_id),
