@@ -58,12 +58,6 @@ def number(value) -> str:
     return "NA" if pd.isna(value) else f"{value:.3f}"
 
 
-def report_experiment_id(value) -> str:
-    """Keep PDF table IDs to one line; metrics.tsv retains the full ID."""
-    value = str(value)
-    return value if len(value) <= 19 else f"{value[:13]}…{value[-5:]}"
-
-
 def key_results(frame: pd.DataFrame, predictor_labels: dict[str, str] | None = None) -> list[str]:
     """Summarize primary FPS results using the main report's comparison style."""
     predictor_labels = predictor_labels or {}
@@ -163,13 +157,12 @@ def pdf_report(path, title, settings, specs, frame, *, predictor_labels=None):
                 fig = None
         if fig is not None:
             _save_plot_page(pdf, fig)
-        columns = ["Experiment", "Predictor", "Pair set", "n (+ / -)", "AP", "AUROC", "Spearman"]
+        columns = ["Predictor", "Pair set", "n (+ / -)", "AP", "AUROC", "Spearman"]
         pair_set = {"fps": "All pairs", "ips": "Common scores", "own_scored": "Predictor scores"}
-        rows = [[report_experiment_id(r.experiment_id),
-                 (predictor_labels or {}).get(r.predictor, r.predictor), pair_set[r.universe],
+        rows = [[(predictor_labels or {}).get(r.predictor, r.predictor), pair_set[r.universe],
                  f"{r.n_responsive} / {r.n_no_response}", number(r.average_precision),
                  number(r.auroc), number(r.spearman)] for r in frame.itertuples(index=False)]
-        widths = [.27, .14, .22, .13, .08, .08, .08]
+        widths = [.18, .23, .20, .09, .12, .18]
         for page in _paginate_table_rows(rows, col_widths=widths, wrap_scale=74, max_weight=18):
             fig, ax = _new_page()
             y = _header(ax, "Metric details")
